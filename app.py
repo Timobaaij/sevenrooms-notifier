@@ -11,6 +11,7 @@ from bs4 import BeautifulSoup
 # --- CONFIGURATION ---
 REPO_NAME = "timobaaij/sevenrooms-notifier"
 CONFIG_FILE_PATH = "config.json"
+STATE_FILE_PATH = "state.json"
 
 st.set_page_config(page_title="Reservation Manager", page_icon="🍽️", layout="wide")
 
@@ -19,21 +20,28 @@ try:
     token = st.secrets["GITHUB_TOKEN"]
     g = Github(token)
     repo = g.get_repo(REPO_NAME)
-    contents = repo.get_contents(CONFIG_FILE_PATH)
-    config_data = json.loads(contents.decoded_content.decode("utf-8"))
+
+    cfg_contents = repo.get_contents(CONFIG_FILE_PATH)
+    config_data = json.loads(cfg_contents.decoded_content.decode("utf-8"))
 except Exception as e:
     st.error(f"❌ Connection Error: {e}")
     st.stop()
 
+
 # --- HELPERS ---
-def refresh_config():
-    c = repo.get_contents(CONFIG_FILE_PATH)
-    return c, json.loads(c.decoded_content.decode("utf-8"))
+
+def _read_json_from_repo(path: str, default: dict):
+    try:
+        c = repo.get_contents(path)
+        return c, json.loads(c.decoded_content.decode("utf-8"))
+    except Exception:
+        return None, default
+
 
 def save_config(new_data: dict):
     """Refetch latest SHA before updating to prevent SHA mismatch."""
     try:
-        c, _ = refresh_config()
+        c = repo.get_contents(CONFIG_FILE_PATH)
         repo.update_file(
             c.path,
             "Update via Web App",
@@ -47,18 +55,36 @@ def save_config(new_data: dict):
     except Exception as e:
         st.error(f"Save Failed: {e}")
 
+
+def reset_state():
+    """Clear state.json so notifications can fire again."""
+    try:
+        c = repo.get_contents(STATE_FILE_PATH)
+        new_state = {"notified": []}
+        repo.update_file(
+            c.path,
+            "Reset notifier state (clear notified cache)",
+            json.dumps(new_state, indent=2),
+            c.sha,
+        )
+        st.toast("🔄 State reset — notifications will fire again", icon="🔔")
+        time.sleep(0.3)
+        st.rerun()
+    except Exception as e:
+        st.error(f"Reset failed: {e}")
+
+
 # ---------- OpenTable ID Finder (ALL IDs + filtering) ----------
+
 def parse_opentable_ids_from_url(text: str):
-    """
-    If rid= is present in URL, return all 2+ digit rids.
-    """
+    """If rid= is present in URL, return all 2+ digit rids."""
     if not text:
         return []
     return re.findall(r"[?&]rid=(\d{2,})", text)
 
+
 def get_ot_ids(url: str):
-    """
-    Extract ALL restaurantId values from page source (scripts + html),
+    """Extract ALL restaurantId values from page source (scripts + html),
     filter out: 0, null, <2 digits. Return de-duped list preserving order.
     """
     if not url:
@@ -74,47 +100,39 @@ def get_ot_ids(url: str):
     except Exception:
         html = ""
 
-    if not html:
-        # still return URL ids if present
-        seen = set()
-        uniq = []
-        for x in ids:
-            if x not in seen:
-                uniq.append(x)
-                seen.add(x)
-        return uniq
+    if html:
+        soup = BeautifulSoup(html, "html.parser")
+        script_blob = "\n".join(s.get_text(" ", strip=True) for s in soup.find_all("script"))
+        combined = script_blob + "\n" + html
 
-    # 2) Soup the HTML and gather scripts for cleaner extraction
-    soup = BeautifulSoup(html, "html.parser")
-    script_blob = "\n".join(s.get_text(" ", strip=True) for s in soup.find_all("script"))
+        # capture null or digits (quoted or not)
+        raw = re.findall(r'"restaurantId"\s*:\s*(null|"?\d+"?)', combined, flags=re.IGNORECASE)
 
-    combined = script_blob + "\n" + html
+        cleaned = []
+        for val in raw:
+            v = str(val).strip().strip('"').lower()
+            if v in ("null", "0", ""):
+                continue
+            if not v.isdigit():
+                continue
+            if len(v) < 2:
+                continue
+            cleaned.append(v)
 
-    # 3) Find all restaurantId tokens (captures null or digits, quoted or not)
-    raw = re.findall(r'"restaurantId"\s*:\s*(null|"?\d+"?)', combined, flags=re.IGNORECASE)
+        ids = ids + cleaned
 
-    cleaned = []
-    for val in raw:
-        v = str(val).strip().strip('"').lower()
-        if v in ("null", "0", ""):
-            continue
-        if not v.isdigit():
-            continue
-        if len(v) < 2:
-            continue
-        cleaned.append(v)
-
-    # 4) Merge URL ids + cleaned, dedupe preserving order
-    all_ids = ids + cleaned
+    # 4) De-dupe preserving order
     seen = set()
     uniq = []
-    for x in all_ids:
+    for x in ids:
         if x not in seen:
             uniq.append(x)
             seen.add(x)
     return uniq
 
+
 # ---------- SevenRooms slug finder ----------
+
 def get_sevenrooms_slug(text: str):
     if not text:
         return None
@@ -128,7 +146,9 @@ def get_sevenrooms_slug(text: str):
         return text.strip()
     return None
 
+
 # ---------- Availability fetchers for time selection ----------
+
 def fetch_sevenrooms_times(venue: str, date_yyyy_mm_dd: str, party: int, channel: str, num_days: int = 1, lang: str = "en"):
     try:
         d_sr = dt.datetime.strptime(date_yyyy_mm_dd, "%Y-%m-%d").strftime("%m-%d-%Y")
@@ -162,11 +182,14 @@ def fetch_sevenrooms_times(venue: str, date_yyyy_mm_dd: str, party: int, channel
                 iso = t.get("time_iso") or t.get("date_time") or t.get("time")
                 if not iso:
                     continue
+
+                # label as HH:MM and mark requestable-only
                 try:
                     hhmm = dt.datetime.fromisoformat(str(iso).replace("Z", "+00:00")).strftime("%H:%M")
                 except Exception:
                     m = re.search(r"\b([01]\d|2[0-3]):([0-5]\d)\b", str(iso))
                     hhmm = f"{m.group(1)}:{m.group(2)}" if m else str(iso)
+
                 label = hhmm + (" (REQUEST)" if (is_req and not is_avail) else "")
                 out.append(label)
 
@@ -176,6 +199,7 @@ def fetch_sevenrooms_times(venue: str, date_yyyy_mm_dd: str, party: int, channel
             uniq.append(x)
             seen.add(x)
     return uniq
+
 
 def fetch_opentable_times(rid: str, date_yyyy_mm_dd: str, party: int):
     url = (
@@ -218,6 +242,7 @@ def fetch_opentable_times(rid: str, date_yyyy_mm_dd: str, party: int):
             seen.add(x)
     return uniq
 
+
 def post_test_push(server: str, topic: str, title: str, msg: str, priority: str = "", tags: str = ""):
     if not (server and topic):
         return False, "Missing server/topic"
@@ -229,6 +254,7 @@ def post_test_push(server: str, topic: str, title: str, msg: str, priority: str 
     url = f"{server.rstrip('/')}/{topic}"
     r = requests.post(url, data=msg.encode("utf-8"), headers=headers, timeout=12)
     return r.ok, f"HTTP {r.status_code}"
+
 
 # --- Defaults (non-destructive) ---
 config_data.setdefault("global", {"channel": "SEVENROOMS_WIDGET", "delay_between_venues_sec": 0.5, "lang": "en"})
@@ -332,18 +358,30 @@ with col_main:
                                 "email_to": e_email.strip(),
                                 "image_url": e_img.strip(),
                                 "notes": e_notes.strip(),
+                                # updating salt forces fresh alerts for this search going forward
                                 "salt": str(time.time()),
                             }
                         )
                         config_data["searches"] = searches
                         save_config(config_data)
 
+
 # =======================
-# RIGHT: Tools + Add new (simple, not fancy)
+# RIGHT: Tools + Add new
 # =======================
 with col_tools:
     st.header("➕ Add / Tools")
 
+    # Maintenance / reset
+    with st.expander("🧹 Maintenance", expanded=False):
+        _, state_data = _read_json_from_repo(STATE_FILE_PATH, {"notified": []})
+        notified_count = len(state_data.get("notified", []) or [])
+        st.caption(f"Current dedupe cache entries: {notified_count}")
+        st.warning("Resetting state clears the dedupe cache so alerts can fire again for previously-seen slots.")
+        if st.button("🔄 Reset state (get notifications again)"):
+            reset_state()
+
+    # Quick finders
     with st.expander("🔎 Quick ID / Slug Finder", expanded=False):
         st.caption("OpenTable — extracts ALL valid IDs (filters 0/null, requires 2+ digits)")
         ot_url = st.text_input("Paste OpenTable link", key="ot_url")
@@ -371,6 +409,7 @@ with col_tools:
             else:
                 st.error("Couldn’t find a slug in that text.")
 
+    # Push settings + test
     with st.expander("🔔 Push notification settings (ntfy)", expanded=False):
         nt = config_data.get("ntfy_default", {})
         server = st.text_input("Server", nt.get("server", "https://ntfy.sh"))
@@ -400,6 +439,7 @@ with col_tools:
                 )
                 st.success("Sent ✅") if ok else st.error(f"Failed: {info}")
 
+    # Add new search
     st.subheader("New search")
 
     plat = st.selectbox("Platform", ["sevenrooms", "opentable"], key="new_platform")
