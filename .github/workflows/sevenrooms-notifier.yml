@@ -2,7 +2,7 @@ name: SevenRooms Notifier
 
 on:
   schedule:
-    - cron: "*/5 * * * *"   # GitHub schedule minimum is 5 minutes [1](https://pypi.org/project/ntfy/)[2](https://github.com/vh8t/python-ntfy-push)
+    - cron: "*/5 * * * *"   # GitHub schedule minimum is 5 minutes
   workflow_dispatch: {}
 
 concurrency:
@@ -32,8 +32,13 @@ jobs:
           pip install -r requirements.txt
 
       # Option A: loop inside the job to run more often than schedule allows
-      # (sleep-in-job approach is the standard workaround) [3](https://cbre.sharepoint.com/teams/PSGlobalDigitalOps/Shared%20Documents/General/Applications%20&%20Systems/Salesforce/SF%20Admin%20Guides/SF%20ADMIN%20-%20Security%20Guide%20-%20W20'.pdf?web=1)
       - name: Run notifier every 60s for 5 minutes (reads config.json)
+        env: 
+          # --- CRITICAL ADDITION START ---
+          # This passes your GitHub Secrets to the Python script
+          EMAIL_USER: ${{ secrets.EMAIL_USER }}
+          EMAIL_PASS: ${{ secrets.EMAIL_PASS }}
+          # --- CRITICAL ADDITION END ---
         run: |
           for i in 1 2 3 4 5; do
             echo "Iteration $i/5 at $(date -u)"
