@@ -11,26 +11,5 @@
     "tags": "rotating_light,warning",
     "topic": "Timo-Sevenrooms-Notify-989qpr989"
   },
-  "searches": [
-    {
-      "date": "2026-01-25",
-      "email_to": "",
-      "id": "The Camberwell Arms",
-      "image_url": "",
-      "notes": "",
-      "ntfy": {
-        "title": "TABLE FOUND"
-      },
-      "num_days": 1,
-      "party_size": 2,
-      "platform": "sevenrooms",
-      "salt": "1768325452.1460536",
-      "time_slot": "",
-      "venues": [
-        "thecamberwellarms"
-      ],
-      "window_end": "16:00",
-      "window_start": "13:00"
-    }
-  ]
+  "searches": []
 }
