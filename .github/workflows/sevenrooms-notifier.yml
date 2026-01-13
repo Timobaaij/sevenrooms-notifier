@@ -31,14 +31,25 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
+      # --- NEW DEBUG STEP ---
+      - name: DEBUG - Check Secrets
+        env:
+          EMAIL_USER: ${{ secrets.EMAIL_USER }}
+        run: |
+          if [ -z "$EMAIL_USER" ]; then
+            echo "❌ CRITICAL ERROR: EMAIL_USER is empty."
+            echo "Please go to Settings -> Secrets -> Actions -> Repository Secrets."
+            exit 1
+          else
+            echo "✅ SUCCESS: EMAIL_USER is loaded correctly. Proceeding..."
+          fi
+
       # Option A: loop inside the job to run more often than schedule allows
-      - name: Run notifier every 60s for 5 minutes (reads config.json)
+      - name: Run notifier every 60s for 5 minutes
         env: 
-          # --- CRITICAL ADDITION START ---
           # This passes your GitHub Secrets to the Python script
           EMAIL_USER: ${{ secrets.EMAIL_USER }}
           EMAIL_PASS: ${{ secrets.EMAIL_PASS }}
-          # --- CRITICAL ADDITION END ---
         run: |
           for i in 1 2 3 4 5; do
             echo "Iteration $i/5 at $(date -u)"
