@@ -4,15 +4,15 @@ from github import Github
 import datetime
 
 # --- Constants ---
-REPO_NAME = "Timobaaij/sevenrooms-notifier" # <--- CHANGE THIS to your actual username/repo
+# CRITICAL: UPDATE THIS TO YOUR REPO
+REPO_NAME = "YOUR_GITHUB_USERNAME/YOUR_REPO_NAME" 
 CONFIG_FILE_PATH = "config.json"
 
 # --- Page Setup ---
 st.set_page_config(page_title="SevenRooms Manager", layout="wide")
 st.title("🍽️ SevenRooms Search Manager")
 
-# --- Authentication & GitHub Connection ---
-# We get the token from Streamlit Secrets (configured in the cloud dashboard later)
+# --- Authentication ---
 try:
     token = st.secrets["GITHUB_TOKEN"]
 except FileNotFoundError:
@@ -25,84 +25,114 @@ try:
     contents = repo.get_contents(CONFIG_FILE_PATH)
     config_data = json.loads(contents.decoded_content.decode("utf-8"))
 except Exception as e:
-    st.error(f"Error connecting to GitHub or reading config: {e}")
+    st.error(f"Error connecting to GitHub: {e}")
     st.stop()
 
-# --- Helper Functions ---
-def save_config_to_github(new_config):
-    """Commits the updated JSON back to GitHub."""
+# --- Helpers ---
+def save_config(new_data):
+    """Commits config to GitHub and reloads."""
     try:
-        updated_content = json.dumps(new_config, indent=2, sort_keys=True)
         repo.update_file(
             path=contents.path,
             message="Update config via Web App",
-            content=updated_content,
+            content=json.dumps(new_data, indent=2, sort_keys=True),
             sha=contents.sha
         )
-        st.success("✅ Configuration saved! The notifier will pick up changes in the next run.")
-        st.cache_data.clear() # Clear cache to force reload next time
+        st.success("✅ Saved to GitHub!")
+        st.cache_data.clear()
+        st.rerun()
     except Exception as e:
-        st.error(f"Failed to save to GitHub: {e}")
+        st.error(f"Failed to save: {e}")
 
-# --- UI Layout ---
+def parse_date(d_str):
+    try: return datetime.datetime.strptime(d_str, "%Y-%m-%d").date()
+    except: return datetime.date.today()
 
-# 1. Display Current Searches
-st.subheader("Current Searches")
+def parse_time(t_str):
+    try: return datetime.datetime.strptime(t_str, "%H:%M").time()
+    except: return datetime.time(18, 0)
+
+# --- Main UI ---
 
 searches = config_data.get("searches", [])
 
-if not searches:
-    st.info("No active searches found.")
-else:
-    for i, search in enumerate(searches):
-        with st.expander(f"📍 {search.get('id', 'Unnamed')} - {', '.join(search.get('venues', []))}"):
-            col1, col2 = st.columns([3, 1])
-            with col1:
-                st.write(f"**Date:** {search.get('date')} | **Party:** {search.get('party_size')}")
-                st.write(f"**Window:** {search.get('window_start')} - {search.get('window_end')}")
-                st.write(f"**Venue(s):** {search.get('venues')}")
-            with col2:
-                if st.button("Delete Search", key=f"del_{i}"):
-                    searches.pop(i)
-                    config_data["searches"] = searches
-                    save_config_to_github(config_data)
-                    st.rerun()
+st.subheader(f"Manage Searches ({len(searches)})")
 
-# 2. Add New Search Form
+if not searches:
+    st.info("No active searches. Add one below.")
+
+# Iterate explicitly by index so we can modify/delete specific items
+for i, search in enumerate(searches):
+    # Create an expander for each search
+    label = f"📍 {search.get('id', 'Unnamed')} ({search.get('date', '?')})"
+    with st.expander(label, expanded=False):
+        
+        # We use a form so the page doesn't reload on every keystroke
+        with st.form(key=f"edit_form_{i}"):
+            c1, c2 = st.columns(2)
+            
+            with c1:
+                # Pre-fill widgets with existing data
+                e_id = st.text_input("ID", value=search.get("id", ""))
+                e_venues = st.text_input("Venues (comma sep)", value=", ".join(search.get("venues", [])))
+                e_date = st.date_input("Date", value=parse_date(search.get("date", "")))
+                
+            with c2:
+                e_party = st.number_input("Party Size", min_value=1, value=int(search.get("party_size", 2)))
+                e_start = st.time_input("Start Time", value=parse_time(search.get("window_start", "18:00")))
+                e_end = st.time_input("End Time", value=parse_time(search.get("window_end", "21:00")))
+                e_days = st.number_input("Days to Check", min_value=1, value=int(search.get("num_days", 1)))
+
+            # Save Button
+            if st.form_submit_button("💾 Update Search"):
+                # Update the specific item in the list
+                searches[i] = {
+                    "id": e_id,
+                    "venues": [v.strip() for v in e_venues.split(",") if v.strip()],
+                    "party_size": e_party,
+                    "date": str(e_date),
+                    "window_start": e_start.strftime("%H:%M"),
+                    "window_end": e_end.strftime("%H:%M"),
+                    "time_slot": e_start.strftime("%H:%M"), # Keep simple
+                    "num_days": e_days,
+                    "ntfy": search.get("ntfy", {"title": f"Slot found: {e_id}"})
+                }
+                config_data["searches"] = searches
+                save_config(config_data)
+
+        # Delete Button (Outside the form to prevent accidental submits)
+        if st.button("🗑️ Delete Search", key=f"del_{i}"):
+            searches.pop(i)
+            config_data["searches"] = searches
+            save_config(config_data)
+
 st.markdown("---")
 st.subheader("➕ Add New Search")
 
-with st.form("add_search_form"):
+with st.form("add_new"):
     c1, c2 = st.columns(2)
     with c1:
-        new_id = st.text_input("Search ID (Unique Name)", value="birthday_dinner")
-        new_venues = st.text_input("Venues (comma separated)", value="rambutan, som saa")
-        new_date = st.date_input("Date", datetime.date.today() + datetime.timedelta(days=7))
+        n_id = st.text_input("ID", value="new_dinner")
+        n_venues = st.text_input("Venues", value="restaurant_a, restaurant_b")
+        n_date = st.date_input("Date", value=datetime.date.today() + datetime.timedelta(days=7))
     with c2:
-        new_party = st.number_input("Party Size", min_value=1, value=2)
-        new_start = st.time_input("Window Start", datetime.time(18, 0))
-        new_end = st.time_input("Window End", datetime.time(21, 0))
-        new_days = st.number_input("Check for X days (default 1)", min_value=1, value=1)
+        n_party = st.number_input("Party", min_value=1, value=2)
+        n_start = st.time_input("Start", value=datetime.time(19, 0))
+        n_end = st.time_input("End", value=datetime.time(21, 30))
+        n_days = st.number_input("Days", min_value=1, value=1)
     
-    submitted = st.form_submit_button("Save New Search")
-
-    if submitted:
-        # Format the data to match config.json requirements
-        venue_list = [v.strip() for v in new_venues.split(",") if v.strip()]
-        
+    if st.form_submit_button("Add Search"):
         new_entry = {
-            "id": new_id,
-            "venues": venue_list,
-            "party_size": int(new_party),
-            "date": str(new_date),
-            "window_start": new_start.strftime("%H:%M"),
-            "window_end": new_end.strftime("%H:%M"),
-            "time_slot": new_start.strftime("%H:%M"), # Defaulting preference to start time
-            "num_days": int(new_days),
-            "ntfy": {"title": f"Slot found: {new_id}"}
+            "id": n_id,
+            "venues": [v.strip() for v in n_venues.split(",") if v.strip()],
+            "party_size": n_party,
+            "date": str(n_date),
+            "window_start": n_start.strftime("%H:%M"),
+            "window_end": n_end.strftime("%H:%M"),
+            "time_slot": n_start.strftime("%H:%M"),
+            "num_days": n_days,
+            "ntfy": {"title": f"Slot found: {n_id}"}
         }
-        
         searches.append(new_entry)
         config_data["searches"] = searches
-        save_config_to_github(config_data)
-        st.rerun()
+        save_config(config_data)
