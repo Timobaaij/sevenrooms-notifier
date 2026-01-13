@@ -1,0 +1,1 @@
+# sevenrooms-notifier
