@@ -1,15 +1,36 @@
 import streamlit as st
 import json
-import time  # <--- NEW IMPORT
+import time
 from github import Github
 import datetime
 
 # --- CONFIGURATION ---
-REPO_NAME = "Timobaaij/sevenrooms-notifier" # <--- CHECK THIS IS CORRECT
+# CRITICAL: UPDATE THIS TO YOUR REPO
+REPO_NAME = "Timobaaij/sevenrooms-notifier" 
 CONFIG_FILE_PATH = "config.json"
 
 st.set_page_config(page_title="SevenRooms Manager", layout="wide")
 st.title("🍽️ SevenRooms Search Manager")
+
+# --- HELP SECTION ---
+with st.expander("ℹ️ Help: How to find 'Venue Slugs'"):
+    st.markdown("""
+    **What is a Slug?**
+    It is the unique ID for the restaurant in the SevenRooms URL.
+    
+    **How to find it:**
+    1. Go to the restaurant's booking page.
+    2. Look at the URL: `https://www.sevenrooms.com/reservations/gymkhana`
+    3. The slug is the last part: **`gymkhana`**
+    
+    **Examples:**
+    - URL: `.../reservations/lidios` -> Slug: `lidios`
+    - URL: `.../reservations/somsaa` -> Slug: `somsaa`
+    
+    **Pro Tip:**
+    To find new restaurants, Google this:  
+    `site:sevenrooms.com/reservations "London"`
+    """)
 
 # --- AUTH ---
 try:
@@ -72,7 +93,7 @@ for i, s in enumerate(searches):
                     "window_end": e_end.strftime("%H:%M"),
                     "email_to": e_email.strip(),
                     "num_days": e_days,
-                    "salt": str(time.time()) # <--- THE MAGIC FIX
+                    "salt": str(time.time()) # Resets the unique ID so you get emailed again
                 }
                 config_data["searches"] = searches
                 save_config(config_data)
@@ -108,7 +129,7 @@ with st.form("add"):
             "window_end": n_end.strftime("%H:%M"),
             "email_to": n_email.strip(),
             "num_days": n_days,
-            "salt": str(time.time()) # <--- THE MAGIC FIX
+            "salt": str(time.time()) # New salt for new search
         })
         config_data["searches"] = searches
         save_config(config_data)
