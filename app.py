@@ -6,7 +6,7 @@ from github import Github
 
 # --- CONFIGURATION ---
 # CRITICAL: UPDATE THIS TO YOUR REPO NAME (e.g., "username/repo")
-REPO_NAME = "YOUR_GITHUB_USERNAME/YOUR_REPO_NAME" 
+REPO_NAME = "Timobaaij/sevenrooms-notifier" 
 CONFIG_FILE_PATH = "config.json"
 
 # --- PAGE SETUP ---
