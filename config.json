@@ -56,21 +56,6 @@
       ],
       "window_end": "19:00",
       "window_start": "18:00"
-    },
-    {
-      "date": "2026-01-14",
-      "email_to": "timobaaij@gmail.com",
-      "id": "Rambutan",
-      "image_url": "",
-      "num_days": 1,
-      "party_size": 2,
-      "platform": "sevenrooms",
-      "salt": "1768323967.182844",
-      "venues": [
-        "rambutan"
-      ],
-      "window_end": "21:00",
-      "window_start": "16:00"
     }
   ]
 }
