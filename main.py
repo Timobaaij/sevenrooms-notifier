@@ -1,14 +1,16 @@
+
 import os
 import json
 import hashlib
 import datetime as dt
+import time
 import requests
 import smtplib
 from email.message import EmailMessage
-from typing import Any, Dict, List, Tuple, Optional
+from typing import Any, List, Optional, Tuple
 
 
-def load_json(path: str, default: Any):
+def load_json(path: str, default: Any) -> Any:
     try:
         with open(path, "r", encoding="utf-8") as f:
             return json.load(f)
@@ -16,39 +18,33 @@ def load_json(path: str, default: Any):
         return default
 
 
-def save_json(path: str, obj: Any):
+def save_json(path: str, obj: Any) -> None:
     with open(path, "w", encoding="utf-8") as f:
         json.dump(obj, f, indent=2)
 
 
-def _iso_to_dt(value: str) -> Optional[dt.datetime]:
-    """Best-effort ISO parsing (handles Z)."""
+def _parse_iso(value: str) -> Optional[dt.datetime]:
     if not value:
         return None
     try:
-        v = value.replace("Z", "+00:00")
-        return dt.datetime.fromisoformat(v)
+        return dt.datetime.fromisoformat(value.replace("Z", "+00:00"))
     except Exception:
-        # Try common SevenRooms format: 2026-01-25T13:00:00
         try:
             return dt.datetime.strptime(value[:19], "%Y-%m-%dT%H:%M:%S")
         except Exception:
             return None
 
 
-def _hhmm_from_any(value: str) -> Optional[str]:
-    if not value:
-        return None
-    d = _iso_to_dt(value)
+def _hhmm(value: str) -> Optional[str]:
+    d = _parse_iso(value)
     if d:
         return d.strftime("%H:%M")
-    # fallback: find HH:MM
     import re
-    m = re.search(r"\b([01]\d|2[0-3]):([0-5]\d)\b", value)
+    m = re.search(r"\b([01]\d|2[0-3]):([0-5]\d)\b", value or "")
     return f"{m.group(1)}:{m.group(2)}" if m else None
 
 
-def _parse_hhmm(value: str) -> Optional[dt.time]:
+def _t(value: str) -> Optional[dt.time]:
     if not value:
         return None
     try:
@@ -57,23 +53,19 @@ def _parse_hhmm(value: str) -> Optional[dt.time]:
         return None
 
 
-def _in_window(hhmm: str, start: Optional[str], end: Optional[str]) -> bool:
-    if not hhmm:
-        return False
-    if not start or not end:
+def _in_window(hhmm: str, start: str, end: str) -> bool:
+    if not (hhmm and start and end):
         return True
-    t = _parse_hhmm(hhmm)
-    s = _parse_hhmm(start)
-    e = _parse_hhmm(end)
-    if not t or not s or not e:
+    tt, ts, te = _t(hhmm), _t(start), _t(end)
+    if not (tt and ts and te):
         return True
-    # handle overnight windows defensively
-    if s <= e:
-        return s <= t <= e
-    return t >= s or t <= e
+    if ts <= te:
+        return ts <= tt <= te
+    # overnight window
+    return tt >= ts or tt <= te
 
 
-def send_push(server: str, topic: str, title: str, message: str, priority: Optional[str] = None, tags: Optional[str] = None):
+def send_push(server: str, topic: str, title: str, message: str, priority: str = "", tags: str = "") -> None:
     if not (server and topic):
         return
     headers = {"Title": title or "Reservation Alert"}
@@ -82,12 +74,12 @@ def send_push(server: str, topic: str, title: str, message: str, priority: Optio
     if tags:
         headers["Tags"] = str(tags)
     url = f"{server.rstrip('/')}/{topic}"
-    requests.post(url, data=message.encode("utf-8"), headers=headers, timeout=15)
+    requests.post(url, data=message.encode("utf-8"), headers=headers, timeout=20)
 
 
-def send_email(to_email: str, subject: str, body: str):
+def send_email(to_email: str, subject: str, body: str) -> None:
     user, pw = os.environ.get("EMAIL_USER"), os.environ.get("EMAIL_PASS")
-    if not user or not pw or not to_email:
+    if not (user and pw and to_email):
         return
     msg = EmailMessage()
     msg.set_content(body)
@@ -98,7 +90,7 @@ def send_email(to_email: str, subject: str, body: str):
 
 
 def fetch_sevenrooms_slots(venue: str, date_yyyy_mm_dd: str, party: int, channel: str, num_days: int = 1, lang: str = "en") -> List[Tuple[str, str]]:
-    """Returns list of (slot_iso, kind) where kind is AVAILABLE/REQUEST."""
+    """Return list of (slot_iso, kind) where kind is AVAILABLE or REQUEST."""
     try:
         d_sr = dt.datetime.strptime(date_yyyy_mm_dd, "%Y-%m-%d").strftime("%m-%d-%Y")
     except Exception:
@@ -109,14 +101,11 @@ def fetch_sevenrooms_slots(venue: str, date_yyyy_mm_dd: str, party: int, channel
         f"?venue={venue}&party_size={party}&start_date={d_sr}&num_days={num_days}"
         f"&channel={channel}&lang={lang}"
     )
-
-    r = requests.get(url, timeout=20)
-    data = r.json() if r.ok else {}
+    r = requests.get(url, timeout=25)
+    j = r.json() if r.ok else {}
 
     out: List[Tuple[str, str]] = []
-    availability = (data.get("data", {}) or {}).get("availability", {}) or {}
-
-    # availability is usually dict keyed by date.
+    availability = (j.get("data", {}) or {}).get("availability", {}) or {}
     for _, day in availability.items():
         if not isinstance(day, list):
             continue
@@ -131,32 +120,27 @@ def fetch_sevenrooms_slots(venue: str, date_yyyy_mm_dd: str, party: int, channel
                 is_req = bool(t.get("is_requestable"))
                 if not (is_avail or is_req):
                     continue
-                slot_iso = t.get("time_iso") or t.get("date_time") or t.get("time")
-                if not slot_iso:
+                iso = t.get("time_iso") or t.get("date_time") or t.get("time")
+                if not iso:
                     continue
-                kind = "AVAILABLE" if is_avail else "REQUEST"
-                out.append((slot_iso, kind))
-
+                out.append((str(iso), "AVAILABLE" if is_avail else "REQUEST"))
     return out
 
 
 def fetch_opentable_slots(rid: str, date_yyyy_mm_dd: str, party: int) -> List[str]:
-    """Returns list of slot ISO strings from OpenTable API (best-effort)."""
     url = (
         "https://www.opentable.com/api/v2/reservation/availability"
         f"?rid={rid}&partySize={party}&dateTime={date_yyyy_mm_dd}T19:00"
     )
     headers = {"User-Agent": "Mozilla/5.0"}
-    r = requests.get(url, headers=headers, timeout=20)
+    r = requests.get(url, headers=headers, timeout=25)
     if not r.ok:
         return []
     j = r.json()
-
     slots: List[str] = []
 
-    def walk(x: Any):
+    def walk(x: Any) -> None:
         if isinstance(x, dict):
-            # common pattern: {dateTime: ..., isAvailable: ...}
             if "dateTime" in x and x.get("isAvailable") is True:
                 slots.append(str(x.get("dateTime")))
             for v in x.values():
@@ -166,9 +150,7 @@ def fetch_opentable_slots(rid: str, date_yyyy_mm_dd: str, party: int) -> List[st
                 walk(v)
 
     walk(j)
-    # de-dup while preserving order
-    seen = set()
-    uniq = []
+    seen, uniq = set(), []
     for s in slots:
         if s not in seen:
             uniq.append(s)
@@ -176,22 +158,22 @@ def fetch_opentable_slots(rid: str, date_yyyy_mm_dd: str, party: int) -> List[st
     return uniq
 
 
-def main():
+def main() -> None:
     config = load_json("config.json", {"searches": []})
     state = load_json("state.json", {"notified": []})
-
     notified = set(state.get("notified", []))
 
     global_cfg = config.get("global", {}) or {}
     channel = global_cfg.get("channel", "SEVENROOMS_WIDGET")
-    delay = float(global_cfg.get("delay_between_venues_sec", 0.5) or 0.5)
     lang = global_cfg.get("lang", "en")
+    delay = float(global_cfg.get("delay_between_venues_sec", 0.5) or 0.5)
 
+    # ✅ FIX: use ntfy_default (matches config.json)
     ntfy_default = config.get("ntfy_default", {}) or {}
-    default_server = ntfy_default.get("server", "https://ntfy.sh")
-    default_topic = ntfy_default.get("topic", "")
-    default_priority = ntfy_default.get("priority", "")
-    default_tags = ntfy_default.get("tags", "")
+    d_server = ntfy_default.get("server", "https://ntfy.sh")
+    d_topic = ntfy_default.get("topic", "")
+    d_priority = ntfy_default.get("priority", "")
+    d_tags = ntfy_default.get("tags", "")
 
     for s in config.get("searches", []):
         sid = s.get("id") or "Unnamed"
@@ -201,21 +183,20 @@ def main():
         party = int(s.get("party_size") or 2)
         salt = str(s.get("salt", ""))
 
-        # Window / time filtering
-        time_slot = (s.get("time_slot") or "").strip()
+        time_slot = (s.get("time_slot") or "").strip()  # HH:MM or empty
         window_start = (s.get("window_start") or "").strip()
         window_end = (s.get("window_end") or "").strip()
         num_days = int(s.get("num_days") or 1)
 
-        # Notification overrides (per search)
+        # per-search overrides (optional)
         ntfy = s.get("ntfy", {}) or {}
-        server = ntfy.get("server") or default_server
-        topic = ntfy.get("topic") or default_topic
-        priority = ntfy.get("priority") or default_priority
-        tags = ntfy.get("tags") or default_tags
+        server = ntfy.get("server") or d_server
+        topic = ntfy.get("topic") or d_topic
+        priority = ntfy.get("priority") or d_priority
+        tags = ntfy.get("tags") or d_tags
         title = ntfy.get("title") or f"Table Alert: {sid}"
 
-        found_lines: List[str] = []
+        found: List[str] = []
 
         for v in venues:
             v = str(v).strip()
@@ -223,53 +204,47 @@ def main():
                 continue
 
             if platform == "opentable":
-                slot_isos = fetch_opentable_slots(v, date, party)
-                slots = [(iso, "AVAILABLE") for iso in slot_isos]
+                slots = [(iso, "AVAILABLE") for iso in fetch_opentable_slots(v, date, party)]
             else:
                 slots = fetch_sevenrooms_slots(v, date, party, channel=channel, num_days=num_days, lang=lang)
 
             for slot_iso, kind in slots:
-                hhmm = _hhmm_from_any(slot_iso)
+                hh = _hhmm(slot_iso) or slot_iso
+
                 if time_slot:
-                    if hhmm != time_slot:
+                    if _hhmm(slot_iso) != time_slot:
                         continue
                 else:
-                    if not _in_window(hhmm or "", window_start, window_end):
+                    if not _in_window(_hhmm(slot_iso) or "", window_start, window_end):
                         continue
 
-                fingerprint = hashlib.sha256(f"{sid}|{platform}|{v}|{slot_iso}|{salt}".encode()).hexdigest()
-                if fingerprint in notified:
+                fp = hashlib.sha256(f"{sid}|{platform}|{v}|{slot_iso}|{salt}".encode()).hexdigest()
+                if fp in notified:
                     continue
+                notified.add(fp)
 
-                label = f"{v} @ {hhmm or slot_iso}"
+                line = f"{v} @ {hh}"
                 if kind and kind != "AVAILABLE":
-                    label += f" ({kind})"
-                found_lines.append(label)
-                notified.add(fingerprint)
+                    line += f" ({kind})"
+                found.append(line)
 
-            # be gentle to endpoints
             if delay:
-                import time
                 time.sleep(delay)
 
-        if found_lines:
-            details = []
+        if found:
+            summary = [f"Date: {date}", f"Party: {party}"]
             if time_slot:
-                details.append(f"Time: {time_slot}")
+                summary.append(f"Time: {time_slot}")
             else:
-                details.append(f"Window: {window_start or '?'}–{window_end or '?'}")
-            details.append(f"Date: {date}")
-            details.append(f"Party: {party}")
-            header = " | ".join(details)
-            msg = f"{sid} — {header}\n" + "\n".join(found_lines)
+                summary.append(f"Window: {window_start or '?'}–{window_end or '?'}")
 
-            # Push + email
+            msg = f"{sid} — " + " | ".join(summary) + "\n" + "\n".join(found)
+
             if topic:
                 send_push(server, topic, title, msg, priority=priority, tags=tags)
             if s.get("email_to"):
                 send_email(s.get("email_to"), title, msg)
 
-    # keep last 2000 fingerprints
     save_json("state.json", {"notified": list(notified)[-2000:]})
 
 
