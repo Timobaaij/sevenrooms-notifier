@@ -5,7 +5,7 @@ import datetime
 
 # --- Constants ---
 # CRITICAL: UPDATE THIS TO YOUR REPO
-REPO_NAME = "YOUR_GITHUB_USERNAME/YOUR_REPO_NAME" 
+REPO_NAME = "Timobaaij/sevenrooms-notifier" 
 CONFIG_FILE_PATH = "config.json"
 
 # --- Page Setup ---
