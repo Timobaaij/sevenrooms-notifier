@@ -17,19 +17,38 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# --- CUSTOM CSS FOR "CARDS" ---
+# --- CUSTOM CSS ---
 st.markdown("""
 <style>
+    /* 1. WIDEN THE SIDEBAR */
+    [data-testid="stSidebar"] {
+        min-width: 500px !important;
+        max-width: 800px !important;
+    }
+
+    /* 2. Hide the close button (the 'X' or arrow) in the sidebar */
+    [data-testid="stSidebarCollapseButton"] {
+        display: none;
+    }
+    
+    /* 3. Hide the sidebar toggle in the top left */
+    [data-testid="stSidebarCollapsedControl"] {
+        display: none;
+    }
+    
+    /* 4. Make buttons full width for better UI */
     .stButton button {
         width: 100%;
     }
+    
+    /* 5. Make metrics text bigger */
     div[data-testid="stMetricValue"] {
         font-size: 1.2rem;
     }
 </style>
 """, unsafe_allow_html=True)
 
-# --- AUTH ---
+# --- AUTHENTICATION ---
 try:
     token = st.secrets["GITHUB_TOKEN"]
     g = Github(token)
@@ -138,7 +157,7 @@ else:
         with col:
             # CARD CONTAINER
             with st.container(border=True):
-                # 1. IMAGE (Fallback to generic if empty)
+                # 1. IMAGE
                 img_link = s.get("image_url")
                 if not img_link:
                     img_link = "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?q=80&w=1000&auto=format&fit=crop"
@@ -187,7 +206,7 @@ else:
                             config_data["searches"] = searches
                             save_config(config_data)
 
-                # 5. DELETE BUTTON (Red styling handled by Streamlit defaults)
+                # 5. DELETE BUTTON
                 if st.button("🗑️ Delete", key=f"del_{i}"):
                     searches.pop(i)
                     config_data["searches"] = searches
