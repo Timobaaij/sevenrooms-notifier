@@ -8,7 +8,7 @@
   "num_days": 1,
   "ntfy": {
     "server": "https://ntfy.sh",
-    "topic": "PUT_RANDOM_TOPIC_HERE",
+    "topic": "Timo-Sevenrooms-Notify-989qpr989",
     "priority": "high",
     "tags": "bell"
   }
