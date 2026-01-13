@@ -4,7 +4,7 @@ from github import Github
 import datetime
 
 # --- Constants ---
-REPO_NAME = "YOUR_GITHUB_USERNAME/YOUR_REPO_NAME" # <--- CHANGE THIS to your actual username/repo
+REPO_NAME = "Timobaaij/sevenrooms-notifier" # <--- CHANGE THIS to your actual username/repo
 CONFIG_FILE_PATH = "config.json"
 
 # --- Page Setup ---
