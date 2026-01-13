@@ -63,6 +63,23 @@
       ],
       "window_end": "21:00",
       "window_start": "16:00"
+    },
+    {
+      "date": "2026-01-14",
+      "email_to": "",
+      "id": "Casa Felicia",
+      "notes": "",
+      "notify": "both",
+      "num_days": 1,
+      "party_size": 2,
+      "platform": "sevenrooms",
+      "salt": "1768342555.676399",
+      "time_slot": "",
+      "venues": [
+        "casafelicia"
+      ],
+      "window_end": "22:00",
+      "window_start": "18:00"
     }
   ]
 }
