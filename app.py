@@ -6,6 +6,7 @@ import datetime as dt
 import requests
 import re
 from github import Github
+from bs4 import BeautifulSoup
 
 # --- CONFIGURATION ---
 REPO_NAME = "timobaaij/sevenrooms-notifier"
@@ -46,28 +47,74 @@ def save_config(new_data: dict):
     except Exception as e:
         st.error(f"Save Failed: {e}")
 
-def parse_opentable_id(text: str):
+# ---------- OpenTable ID Finder (ALL IDs + filtering) ----------
+def parse_opentable_ids_from_url(text: str):
+    """
+    If rid= is present in URL, return all 2+ digit rids.
+    """
     if not text:
-        return None
-    m = re.search(r"[?&]rid=(\d+)", text)
-    if m:
-        return m.group(1)
-    m = re.search(r"(\d{3,})\/?$", text.strip())
-    return m.group(1) if m else None
+        return []
+    return re.findall(r"[?&]rid=(\d{2,})", text)
 
-def get_ot_id(url: str):
-    quick = parse_opentable_id(url)
-    if quick:
-        return quick
+def get_ot_ids(url: str):
+    """
+    Extract ALL restaurantId values from page source (scripts + html),
+    filter out: 0, null, <2 digits. Return de-duped list preserving order.
+    """
+    if not url:
+        return []
+
+    # 1) Quick IDs from URL
+    ids = parse_opentable_ids_from_url(url)
+
     headers = {"User-Agent": "Mozilla/5.0"}
     try:
         r = requests.get(url, headers=headers, timeout=12)
-        matches = re.findall(r'"restaurantId":\s*"?(\d+)"?', r.text)
-        valid = [m for m in matches if len(m) > 1 and m != "0"]
-        return valid[0] if valid else None
+        html = r.text or ""
     except Exception:
-        return None
+        html = ""
 
+    if not html:
+        # still return URL ids if present
+        seen = set()
+        uniq = []
+        for x in ids:
+            if x not in seen:
+                uniq.append(x)
+                seen.add(x)
+        return uniq
+
+    # 2) Soup the HTML and gather scripts for cleaner extraction
+    soup = BeautifulSoup(html, "html.parser")
+    script_blob = "\n".join(s.get_text(" ", strip=True) for s in soup.find_all("script"))
+
+    combined = script_blob + "\n" + html
+
+    # 3) Find all restaurantId tokens (captures null or digits, quoted or not)
+    raw = re.findall(r'"restaurantId"\s*:\s*(null|"?\d+"?)', combined, flags=re.IGNORECASE)
+
+    cleaned = []
+    for val in raw:
+        v = str(val).strip().strip('"').lower()
+        if v in ("null", "0", ""):
+            continue
+        if not v.isdigit():
+            continue
+        if len(v) < 2:
+            continue
+        cleaned.append(v)
+
+    # 4) Merge URL ids + cleaned, dedupe preserving order
+    all_ids = ids + cleaned
+    seen = set()
+    uniq = []
+    for x in all_ids:
+        if x not in seen:
+            uniq.append(x)
+            seen.add(x)
+    return uniq
+
+# ---------- SevenRooms slug finder ----------
 def get_sevenrooms_slug(text: str):
     if not text:
         return None
@@ -81,6 +128,7 @@ def get_sevenrooms_slug(text: str):
         return text.strip()
     return None
 
+# ---------- Availability fetchers for time selection ----------
 def fetch_sevenrooms_times(venue: str, date_yyyy_mm_dd: str, party: int, channel: str, num_days: int = 1, lang: str = "en"):
     try:
         d_sr = dt.datetime.strptime(date_yyyy_mm_dd, "%Y-%m-%d").strftime("%m-%d-%Y")
@@ -99,6 +147,7 @@ def fetch_sevenrooms_times(venue: str, date_yyyy_mm_dd: str, party: int, channel
     j = r.json()
     out = []
     availability = (j.get("data", {}) or {}).get("availability", {}) or {}
+
     for _, day in availability.items():
         if not isinstance(day, list):
             continue
@@ -189,7 +238,7 @@ config_data.setdefault("searches", [])
 col_main, col_tools = st.columns([2.5, 1.5], gap="large")
 
 # =======================
-# LEFT: Active searches
+# LEFT: Active searches (clean tiles)
 # =======================
 with col_main:
     st.title("🍽️ My Active Searches")
@@ -290,26 +339,30 @@ with col_main:
                         save_config(config_data)
 
 # =======================
-# RIGHT: Tools + Add new
+# RIGHT: Tools + Add new (simple, not fancy)
 # =======================
 with col_tools:
     st.header("➕ Add / Tools")
 
-    # Simple finders (not fancy)
     with st.expander("🔎 Quick ID / Slug Finder", expanded=False):
-        st.caption("OpenTable")
-        ot_url = st.text_input("Paste OpenTable link")
-        if st.button("Extract OpenTable ID"):
-            found = get_ot_id(ot_url)
-            if found:
-                st.success(f"ID: {found}")
-                st.session_state["last_ot_id"] = found
-            else:
-                st.error("Couldn’t find an ID from that link.")
+        st.caption("OpenTable — extracts ALL valid IDs (filters 0/null, requires 2+ digits)")
+        ot_url = st.text_input("Paste OpenTable link", key="ot_url")
+
+        if st.button("Extract OpenTable IDs"):
+            ids = get_ot_ids(ot_url)
+            st.session_state["ot_ids_found"] = ids
+
+        ids_found = st.session_state.get("ot_ids_found", [])
+        if ids_found:
+            st.success(f"Found {len(ids_found)} IDs: {', '.join(ids_found)}")
+            chosen = st.selectbox("Use this ID", ids_found, key="ot_id_choice")
+            st.session_state["last_ot_id"] = chosen
+        else:
+            st.caption("No IDs found yet (or none match the filter).")
 
         st.divider()
         st.caption("SevenRooms")
-        sr_text = st.text_input("Paste SevenRooms link (or type slug)")
+        sr_text = st.text_input("Paste SevenRooms link (or type slug)", key="sr_url")
         if st.button("Extract SevenRooms slug"):
             slug = get_sevenrooms_slug(sr_text)
             if slug:
@@ -318,7 +371,6 @@ with col_tools:
             else:
                 st.error("Couldn’t find a slug in that text.")
 
-    # Push settings + test
     with st.expander("🔔 Push notification settings (ntfy)", expanded=False):
         nt = config_data.get("ntfy_default", {})
         server = st.text_input("Server", nt.get("server", "https://ntfy.sh"))
@@ -348,7 +400,6 @@ with col_tools:
                 )
                 st.success("Sent ✅") if ok else st.error(f"Failed: {info}")
 
-    # Add new search
     st.subheader("New search")
 
     plat = st.selectbox("Platform", ["sevenrooms", "opentable"], key="new_platform")
@@ -367,16 +418,15 @@ with col_tools:
     st.caption("Time")
     any_time = st.checkbox("Any time in a window", value=True, key="new_any_time")
 
-    # Load availability to allow real selection
     if st.button("🔄 Load available times", key="load_times"):
         venue_first = (n_venue.split(",")[0].strip() if n_venue else "")
         if venue_first:
             with st.spinner("Fetching times…"):
                 if plat == "opentable":
-                    times = fetch_opentable_times(venue_first, str(n_date), int(n_party))
+                    times_list = fetch_opentable_times(venue_first, str(n_date), int(n_party))
                 else:
-                    times = fetch_sevenrooms_times(venue_first, str(n_date), int(n_party), channel=channel, num_days=int(n_num_days), lang=lang)
-            st.session_state["loaded_times"] = times
+                    times_list = fetch_sevenrooms_times(venue_first, str(n_date), int(n_party), channel=channel, num_days=int(n_num_days), lang=lang)
+            st.session_state["loaded_times"] = times_list
         else:
             st.session_state["loaded_times"] = []
 
