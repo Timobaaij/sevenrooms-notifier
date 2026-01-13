@@ -7,9 +7,12 @@ import time
 import requests
 import smtplib
 from email.message import EmailMessage
-from typing import Any, List, Optional
+from typing import Any, List, Optional, Tuple
 
 
+# =========================================================
+# JSON HELPERS
+# =========================================================
 def load_json(path: str, default: Any) -> Any:
     try:
         with open(path, "r", encoding="utf-8") as f:
@@ -23,6 +26,9 @@ def save_json(path: str, obj: Any) -> None:
         json.dump(obj, f, indent=2)
 
 
+# =========================================================
+# TIME HELPERS
+# =========================================================
 def _parse_iso(value: str) -> Optional[dt.datetime]:
     if not value:
         return None
@@ -35,9 +41,12 @@ def _parse_iso(value: str) -> Optional[dt.datetime]:
             return None
 
 
-def _hhmm(value: str) -> Optionald = _parse_iso(value)
+def _hhmm(value: str) -> Optional[str]:
+    """Convert ISO datetime or string with time to HH:MM."""
+    d = _parse_iso(value)
     if d:
         return d.strftime("%H:%M")
+
     import re
     m = re.search(r"\b([01]\d|2[0-3]):([0-5]\d)\b", value or "")
     return f"{m.group(1)}:{m.group(2)}" if m else None
@@ -53,18 +62,28 @@ def _parse_time(value: str) -> Optional[dt.time]:
 
 
 def _in_window(hhmm: str, start: str, end: str) -> bool:
-    """Allow when times are missing; handle overnight windows."""
+    """Check if hhmm is inside [start, end], supports overnight."""
     if not (hhmm and start and end):
         return True
-    tt, ts, te = _parse_time(hhmm), _parse_time(start), _parse_time(end)
+
+    tt = _parse_time(hhmm)
+    ts = _parse_time(start)
+    te = _parse_time(end)
+
     if not (tt and ts and te):
         return True
+
     if ts <= te:
         return ts <= tt <= te
-    return tt >= ts or tt <= te
+    else:
+        return tt >= ts or tt <= te
 
 
-def send_push(server: str, topic: str, title: str, message: str, priority: str = "", tags: str = "") -> None:
+# =========================================================
+# NOTIFICATION SENDERS
+# =========================================================
+def send_push(server: str, topic: str, title: str, message: str,
+              priority: str = "", tags: str = "") -> None:
     if not (server and topic):
         return
     headers = {"Title": title or "Reservation Alert"}
@@ -72,32 +91,47 @@ def send_push(server: str, topic: str, title: str, message: str, priority: str =
         headers["Priority"] = str(priority)
     if tags:
         headers["Tags"] = str(tags)
+
     url = f"{server.rstrip('/')}/{topic}"
-    requests.post(url, data=message.encode("utf-8"), headers=headers, timeout=20)
+    try:
+        requests.post(url, data=message.encode("utf-8"), headers=headers, timeout=20)
+    except Exception:
+        pass
 
 
 def send_email(to_email: str, subject: str, body: str) -> None:
-    user, pw = os.environ.get("EMAIL_USER"), os.environ.get("EMAIL_PASS")
+    user = os.environ.get("EMAIL_USER")
+    pw = os.environ.get("EMAIL_PASS")
     if not (user and pw and to_email):
         return
+
     msg = EmailMessage()
     msg.set_content(body)
-    msg["Subject"], msg["From"], msg["To"] = subject, user, to_email
-    with smtplib.SMTP_SSL("smtp.gmail.com", 465) as s:
-        s.login(user, pw)
-        s.send_message(msg)
+    msg["Subject"] = subject
+    msg["From"] = user
+    msg["To"] = to_email
+
+    try:
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as s:
+            s.login(user, pw)
+            s.send_message(msg)
+    except Exception:
+        pass
 
 
+# =========================================================
+# AVAILABILITY FETCHERS
+# =========================================================
 def fetch_sevenrooms_slots(
     venue: str,
     date_yyyy_mm_dd: str,
     party: int,
     channel: str,
     num_days: int = 1,
-    lang: str = "en",
-) -> List"""
-    Return list of *bookable* slot ISO strings from SevenRooms.
-    We IGNORE request-only slots and include ONLY is_available==True.
+    lang: str = "en"
+) -> List[str]:
+    """
+    Returns list of actual *bookable* slots (NOT requestable).
     """
     try:
         d_sr = dt.datetime.strptime(date_yyyy_mm_dd, "%Y-%m-%d").strftime("%m-%d-%Y")
@@ -106,53 +140,63 @@ def fetch_sevenrooms_slots(
 
     url = (
         "https://www.sevenrooms.com/api-yoa/availability/widget/range"
-        f"?venue={venue}&party_size={party}&start_date={d_sr}&num_days={num_days}"
-        f"&channel={channel}&lang={lang}"
+        f"?venue={venue}&party_size={party}&start_date={d_sr}"
+        f"&num_days={num_days}&channel={channel}&lang={lang}"
     )
-    r = requests.get(url, timeout=25)
-    j = r.json() if r.ok else {}
 
-    out: List[str] = []
-    availability = (j.get("data", {}) or {}).get("availability", {}) or {}
+    try:
+        r = requests.get(url, timeout=25)
+        j = r.json() if r.ok else {}
+    except Exception:
+        return []
 
-    for _, day in availability.items():
-        if not isinstance(day, list):
+    out = []
+    avail = (j.get("data", {}) or {}).get("availability", {}) or {}
+
+    for _, day_blocks in avail.items():
+        if not isinstance(day_blocks, list):
             continue
-        for block in day:
-            times = (block or {}).get("times", [])
-            if not isinstance(times, list):
-                continue
-            for t in times:
+        for block in day_blocks:
+            for t in block.get("times", []):
                 if not isinstance(t, dict):
                     continue
+
+                # strict: only notify on real availability
                 if not bool(t.get("is_available")):
-                    continue  # <-- ignore requestable-only
-                iso = t.get("time_iso") or t.get("date_time") or t.get("time")
+                    continue
+
+                iso = (
+                    t.get("time_iso")
+                    or t.get("date_time")
+                    or t.get("time")
+                )
                 if iso:
                     out.append(str(iso))
+
     return out
 
 
-def fetch_opentable_slots(rid: str, date_yyyy_mm_dd: str, party: int) -> List"""
-    Returns list of ISO dateTime strings from OpenTable API (bookable only).
-    We gate on isAvailable==True while walking the JSON.
+def fetch_opentable_slots(rid: str, date_yyyy_mm_dd: str, party: int) -> List[str]:
+    """
+    Returns bookable ISO datetimes from OpenTable.
     """
     url = (
         "https://www.opentable.com/api/v2/reservation/availability"
         f"?rid={rid}&partySize={party}&dateTime={date_yyyy_mm_dd}T19:00"
     )
     headers = {"User-Agent": "Mozilla/5.0"}
-    r = requests.get(url, headers=headers, timeout=25)
-    if not r.ok:
+    try:
+        r = requests.get(url, headers=headers, timeout=25)
+        j = r.json() if r.ok else {}
+    except Exception:
         return []
 
-    j = r.json()
-    slots: List[str] = []
+    slots = []
 
-    def walk(x: Any) -> None:
+    def walk(x):
         if isinstance(x, dict):
             if "dateTime" in x and x.get("isAvailable") is True:
-                slots.append(str(x.get("dateTime")))
+                slots.append(str(x["dateTime"]))
             for v in x.values():
                 walk(v)
         elif isinstance(x, list):
@@ -161,6 +205,7 @@ def fetch_opentable_slots(rid: str, date_yyyy_mm_dd: str, party: int) -> List"""
 
     walk(j)
 
+    # de-dupe but preserve order
     seen, uniq = set(), []
     for s in slots:
         if s not in seen:
@@ -169,46 +214,51 @@ def fetch_opentable_slots(rid: str, date_yyyy_mm_dd: str, party: int) -> List"""
     return uniq
 
 
+# =========================================================
+# MAIN SCHEDULER LOGIC
+# =========================================================
 def main() -> None:
     config = load_json("config.json", {"searches": []})
     state = load_json("state.json", {"notified": []})
+
     notified = set(state.get("notified", []))
 
     global_cfg = config.get("global", {}) or {}
     channel = global_cfg.get("channel", "SEVENROOMS_WIDGET")
     lang = global_cfg.get("lang", "en")
-    delay = float(global_cfg.get("delay_between_venues_sec", 0.5) or 0.5)
+    delay = float(global_cfg.get("delay_between_venues_sec", 0.5))
 
     ntfy_default = config.get("ntfy_default", {}) or {}
-    d_server = ntfy_default.get("server", "https://ntfy.sh")
+    d_server = ntfy_default.get("server", "")
     d_topic = ntfy_default.get("topic", "")
     d_priority = ntfy_default.get("priority", "")
     d_tags = ntfy_default.get("tags", "")
 
-    for s in config.get("searches", []):
-        sid = s.get("id") or "Unnamed"
-        platform = (s.get("platform") or "sevenrooms").lower()
-        venues = s.get("venues") or []
-        date = s.get("date")
-        party = int(s.get("party_size") or 2)
-        salt = str(s.get("salt", ""))
+    for search in config.get("searches", []):
+        sid = search.get("id") or "Unnamed"
+        platform = (search.get("platform") or "sevenrooms").lower()
+        venues = search.get("venues") or []
+        date = search.get("date")
+        party = int(search.get("party_size") or 2)
+        num_days = int(search.get("num_days") or 1)
 
-        time_slot = (s.get("time_slot") or "").strip()
-        window_start = (s.get("window_start") or "").strip()
-        window_end = (s.get("window_end") or "").strip()
-        num_days = int(s.get("num_days") or 1)
+        time_slot = (search.get("time_slot") or "").strip()
+        window_start = (search.get("window_start") or "").strip()
+        window_end = (search.get("window_end") or "").strip()
 
-        # NEW: per-search notification mode (default "both")
-        notify = (s.get("notify") or "both").lower().strip()
+        notify_mode = (search.get("notify") or "both").lower()
+        email_to = search.get("email_to")
 
-        ntfy = s.get("ntfy", {}) or {}
+        salt = str(search.get("salt") or "")
+
+        # notifier override
+        ntfy = search.get("ntfy", {}) or {}
         server = ntfy.get("server") or d_server
         topic = ntfy.get("topic") or d_topic
         priority = ntfy.get("priority") or d_priority
         tags = ntfy.get("tags") or d_tags
-        title = ntfy.get("title") or f"Table Alert: {sid}"
 
-        found_lines: List[str] = []
+        found = []
 
         for v in venues:
             v = str(v).strip()
@@ -216,46 +266,58 @@ def main() -> None:
                 continue
 
             if platform == "opentable":
-                slot_isos = fetch_opentable_slots(v, date, party)
+                iso_slots = fetch_opentable_slots(v, date, party)
             else:
-                slot_isos = fetch_sevenrooms_slots(v, date, party, channel=channel, num_days=num_days, lang=lang)
+                iso_slots = fetch_sevenrooms_slots(
+                    v, date, party, channel=channel, num_days=num_days, lang=lang
+                )
 
-            for slot_iso in slot_isos:
-                hhmm = _hhmm(slot_iso) or slot_iso
+            for iso in iso_slots:
+                hh = _hhmm(iso) or iso
 
+                # time check
                 if time_slot:
-                    if (_hhmm(slot_iso) or "") != time_slot:
+                    if (_hhmm(iso) or "") != time_slot:
                         continue
                 else:
-                    if not _in_window((_hhmm(slot_iso) or ""), window_start, window_end):
+                    if not _in_window(_hhmm(iso) or "", window_start, window_end):
                         continue
 
-                fp = hashlib.sha256(f"{sid}|{platform}|{v}|{slot_iso}|{salt}".encode()).hexdigest()
+                # dedupe
+                fp = hashlib.sha256(
+                    f"{sid}|{platform}|{v}|{iso}|{salt}".encode()
+                ).hexdigest()
+
                 if fp in notified:
                     continue
-                notified.add(fp)
 
-                found_lines.append(f"{v} @ {hhmm}")
+                notified.add(fp)
+                found.append(f"{v} @ {hh}")
 
             if delay:
                 time.sleep(delay)
 
-        if found_lines and notify != "none":
+        if found and notify_mode != "none":
             summary = [f"Date: {date}", f"Party: {party}"]
             if time_slot:
                 summary.append(f"Time: {time_slot}")
             else:
                 summary.append(f"Window: {window_start or '?'}–{window_end or '?'}")
-            msg = f"{sid} — " + " | ".join(summary) + "\n" + "\n".join(found_lines)
 
-            # send according to mode
-            if notify in ("push", "both") and topic:
-                send_push(server, topic, title, msg, priority=priority, tags=tags)
-            if notify in ("email", "both") and s.get("email_to"):
-                send_email(s.get("email_to"), title, msg)
+            msg = (
+                f"{sid} — " + " | ".join(summary) +
+                "\n" + "\n".join(found)
+            )
+
+            if notify_mode in ("push", "both") and topic:
+                send_push(server, topic, f"Table Alert: {sid}", msg, priority, tags)
+
+            if notify_mode in ("email", "both") and email_to:
+                send_email(email_to, f"Table Alert: {sid}", msg)
 
     save_json("state.json", {"notified": list(notified)[-2000:]})
 
 
 if __name__ == "__main__":
     main()
+``
