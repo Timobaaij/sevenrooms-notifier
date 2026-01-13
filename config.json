@@ -54,6 +54,19 @@
       ],
       "window_end": "21:00",
       "window_start": "16:00"
+    },
+    {
+      "date": "2026-01-13",
+      "email_to": "luke.blythe@cbre.com",
+      "id": "Luke",
+      "num_days": 1,
+      "party_size": 2,
+      "salt": "1768319779.296586",
+      "venues": [
+        "rambutan"
+      ],
+      "window_end": "21:00",
+      "window_start": "16:00"
     }
   ]
 }
