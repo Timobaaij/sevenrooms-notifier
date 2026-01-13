@@ -13,42 +13,27 @@
   },
   "searches": [
     {
-      "id": "rambutan_early",
-      "venues": ["rambutan"],
+      "id": "watermans",
+      "venues": ["thewatermansarms"],
       "party_size": 2,
-      "date": "2026-01-14",
-      "window_start": "18:00",
-      "window_end": "19:15",
-      "time_slot": "18:00",
+      "date": "2026-01-25",
+      "window_start": "13:00",
+      "window_end": "16:00",
       "num_days": 1,
       "ntfy": {
-        "title": "TABLE FOUND (early)"
+        "title": "TABLE FOUND"
       }
     },
     {
-      "id": "rambutan_late",
-      "venues": ["rambutan"],
+      "id": "thecamberwellarms",
+      "venues": ["thecamberwellarms"],
       "party_size": 2,
-      "date": "2026-01-14",
-      "window_start": "19:15",
-      "window_end": "20:30",
-      "time_slot": "19:00",
+      "date": "2026-01-25",
+      "window_start": "13:00",
+      "window_end": "16:00",
       "num_days": 1,
       "ntfy": {
-        "title": "TABLE FOUND (late)"
-      }
-    },
-    {
-      "id": "four_top_anytime",
-      "venues": ["rambutan"],
-      "party_size": 4,
-      "date": "2026-01-14",
-      "window_start": "18:00",
-      "window_end": "21:30",
-      "time_slot": "18:00",
-      "num_days": 1,
-      "ntfy": {
-        "title": "4-top found"
+        "title": "TABLE FOUND"
       }
     }
   ]
