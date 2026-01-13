@@ -41,22 +41,6 @@
       ],
       "window_end": "16:00",
       "window_start": "13:00"
-    },
-    {
-      "date": "2026-01-13",
-      "email_to": "timobaaij@gmail.com",
-      "id": "Rambutan",
-      "ntfy": {
-        "title": "Slot found: Rambutan"
-      },
-      "num_days": 1,
-      "party_size": 2,
-      "time_slot": "16:00",
-      "venues": [
-        "rambutan"
-      ],
-      "window_end": "22:00",
-      "window_start": "16:00"
     }
   ]
 }
