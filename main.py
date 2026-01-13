@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-SevenRooms notifier - Updated to include Salt for resets
+Reservation Notifier - Supports SevenRooms & OpenTable
 """
 
 import os
@@ -13,214 +13,201 @@ from email.message import EmailMessage
 from typing import Any, Dict, List, Optional, Tuple
 import requests
 
+# --- ENDPOINTS ---
 SEVENROOMS_ENDPOINT = "https://www.sevenrooms.com/api-yoa/availability/widget/range"
+OPENTABLE_ENDPOINT = "https://www.opentable.com/api/v2/reservation/availability"
 
-# -------------------------
-# JSON helpers
-# -------------------------
+# --- JSON HELPERS ---
 def load_json(path: str, default: Any) -> Any:
     try:
-        with open(path, "r", encoding="utf-8") as f:
-            return json.load(f)
-    except FileNotFoundError:
-        return default
-    except json.JSONDecodeError:
-        return default
+        with open(path, "r", encoding="utf-8") as f: return json.load(f)
+    except: return default
 
 def save_json(path: str, obj: Any) -> None:
     tmp = path + ".tmp"
-    with open(tmp, "w", encoding="utf-8") as f:
-        json.dump(obj, f, indent=2, sort_keys=True)
+    with open(tmp, "w", encoding="utf-8") as f: json.dump(obj, f, indent=2, sort_keys=True)
     os.replace(tmp, path)
 
-# -------------------------
-# Parsing helpers
-# -------------------------
-def parse_date_yyyy_mm_dd(s: str) -> dt.date:
+# --- TIME HELPERS ---
+def parse_date_iso(s: str) -> dt.date:
     return dt.datetime.strptime(s.strip(), "%Y-%m-%d").date()
 
-def parse_time_hh_mm(s: str) -> dt.time:
+def parse_time_iso(s: str) -> dt.time:
     return dt.datetime.strptime(s.strip(), "%H:%M").time()
 
-def to_mmddyyyy(d: dt.date) -> str:
-    return d.strftime("%m-%d-%Y")
+def sha_key(*parts: str) -> str:
+    return hashlib.sha256("|".join(parts).encode("utf-8")).hexdigest()
 
 def within_window(t: dt.time, start: dt.time, end: dt.time) -> bool:
     return start <= t <= end
 
-def sha_key(*parts: str) -> str:
-    # This creates the unique ID for the notification history
-    raw = "|".join(parts)
-    return hashlib.sha256(raw.encode("utf-8")).hexdigest()
-
-def parse_time_from_time_iso(time_iso: str) -> Optional[dt.datetime]:
-    s = (time_iso or "").strip()
-    if not s: return None
-    fmts = ["%Y-%m-%d %H:%M:%S", "%Y-%m-%dT%H:%M:%S", "%Y-%m-%d %H:%M", "%Y-%m-%dT%H:%M"]
-    for fmt in fmts:
-        try: return dt.datetime.strptime(s, fmt)
-        except ValueError: continue
-    try: return dt.datetime.fromisoformat(s)
-    except: return None
-
-# -------------------------
-# Notification Systems
-# -------------------------
-def ntfy_publish(server: str, topic: str, title: str, message: str, priority: str = "high", tags: str = "bell") -> None:
+# --- NOTIFICATIONS ---
+def send_ntfy(server, topic, title, message, priority="high"):
     if not topic: return
-    url = f"{(server or 'https://ntfy.sh').rstrip('/')}/{topic}"
-    headers = {"Title": title or "SevenRooms alert", "Priority": priority, "Tags": tags}
-    try: requests.post(url, data=message.encode("utf-8"), headers=headers, timeout=20)
-    except Exception as e: print(f"[ERR] ntfy failed: {e}")
+    try:
+        requests.post(f"{(server or 'https://ntfy.sh').rstrip('/')}/{topic}", 
+                      data=message.encode("utf-8"), 
+                      headers={"Title": title, "Priority": priority}, timeout=15)
+    except Exception as e: print(f"[ERR] ntfy: {e}")
 
-def send_email(target_email: str, subject: str, body: str) -> None:
-    email_user = os.environ.get("EMAIL_USER")
-    email_pass = os.environ.get("EMAIL_PASS")
-    if not email_user or not email_pass:
-        print(f"[INFO] Skipping email to {target_email}: Secrets not set.")
-        return
+def send_email(target, subject, body):
+    user, pwd = os.environ.get("EMAIL_USER"), os.environ.get("EMAIL_PASS")
+    if not user or not pwd: return
     msg = EmailMessage()
     msg.set_content(body)
     msg['Subject'] = subject
-    msg['From'] = email_user
-    msg['To'] = target_email
+    msg['From'] = user
+    msg['To'] = target
     try:
-        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
-            smtp.login(email_user, email_pass)
-            smtp.send_message(msg)
-        print(f"[OK] Email sent to {target_email}")
-    except Exception as e: print(f"[ERR] Email failed: {e}")
+        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as s:
+            s.login(user, pwd)
+            s.send_message(msg)
+        print(f"[OK] Email sent to {target}")
+    except Exception as e: print(f"[ERR] Email: {e}")
 
-# -------------------------
-# SevenRooms calls
-# -------------------------
-def build_query_params(venue, party_size, start_date, num_days, time_slot, halo_size_interval=64, channel="SEVENROOMS_WIDGET", lang="en"):
-    return {
-        "venue": venue, "time_slot": time_slot, "party_size": str(party_size),
-        "halo_size_interval": str(halo_size_interval), "start_date": to_mmddyyyy(start_date),
-        "num_days": str(num_days), "channel": channel, "selected_lang_code": lang,
+# --- FETCHERS ---
+
+def check_sevenrooms(venue_slug, date, party, days):
+    """SevenRooms Fetcher"""
+    params = {
+        "venue": venue_slug,
+        "time_slot": "18:00", # Arbitrary start point
+        "party_size": str(party),
+        "halo_size_interval": "120", # Look 2 hours around
+        "start_date": date.strftime("%m-%d-%Y"),
+        "num_days": str(days),
+        "channel": "SEVENROOMS_WIDGET"
     }
+    slots = []
+    try:
+        r = requests.get(SEVENROOMS_ENDPOINT, params=params, timeout=20)
+        if r.status_code != 200: return []
+        data = r.json().get("data", {}).get("availability", {})
+        for day, times in data.items():
+            for t in times:
+                if t.get("is_closed"): continue
+                for slot in t.get("times", []):
+                    if slot.get("is_requestable"): continue # Skip 'request only'
+                    iso_str = slot.get("time_iso")
+                    if iso_str: slots.append(iso_str)
+    except Exception as e:
+        print(f"[WARN] SR {venue_slug}: {e}")
+    return slots
 
-def fetch_availability(params):
-    r = requests.get(SEVENROOMS_ENDPOINT, params=params, timeout=25)
-    r.raise_for_status()
-    return r.json()
+def check_opentable(venue_id, date, party, days):
+    """OpenTable Fetcher (Requires Numeric ID)"""
+    slots = []
+    headers = {
+        "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.0 Mobile/15E148 Safari/604.1",
+        "Accept": "application/json",
+        "Content-Type": "application/json"
+    }
+    
+    # OpenTable checks one day at a time, so we loop manually
+    for i in range(days):
+        check_date = date + dt.timedelta(days=i)
+        check_str = check_date.strftime("%Y-%m-%d")
+        
+        # We check a broad range to simulate a "day view"
+        params = {
+            "rid": venue_id,
+            "partySize": str(party),
+            "dateTime": f"{check_str}T19:00" # Center around 7pm
+        }
+        
+        try:
+            r = requests.get(OPENTABLE_ENDPOINT, params=params, headers=headers, timeout=20)
+            if r.status_code == 200:
+                # OpenTable returns 'availability' keys
+                avail = r.json().get("availability", {})
+                for day_key, day_data in avail.items():
+                    for time_slot in day_data:
+                        # Construct ISO string: YYYY-MM-DDTHH:MM
+                        # OT format is usually "2025-01-01T19:00:00"
+                        if time_slot.get("isAvailable"):
+                            slots.append(time_slot.get("dateTime"))
+        except Exception as e:
+            print(f"[WARN] OT {venue_id}: {e}")
+        
+        time.sleep(1) # Be polite to OpenTable
+        
+    return slots
 
-def extract_bookable_times(payload):
-    out = []
-    if payload.get("status") != 200: return out
-    data = payload.get("data", {}).get("availability", {})
-    if not isinstance(data, dict): return out
-    for date_iso, slots in data.items():
-        if not isinstance(slots, list): continue
-        for slot in slots:
-            if slot.get("is_closed") or not isinstance(slot.get("times"), list): continue
-            for t in slot.get("times"):
-                if t.get("is_requestable") is True: continue
-                time_iso = t.get("time_iso") or f"{date_iso} {t.get('time')}"
-                if time_iso: out.append((date_iso, t.get("time", ""), time_iso))
-    return out
+# --- MAIN ENGINE ---
 
-def normalize_config(cfg):
-    global_cfg = cfg.get("global", {})
-    ntfy_default = cfg.get("ntfy_default", {}) or cfg.get("ntfy", {})
-    searches = cfg.get("searches", [])
-    if not searches and "venues" in cfg: # Legacy support
-        cfg["salt"] = "legacy"
-        searches = [cfg] 
-    return global_cfg, ntfy_default, searches
-
-def merge_ntfy(default, override):
-    out = dict(default or {})
-    out.update(override or {})
-    return out
-
-# -------------------------
-# Main
-# -------------------------
 def main():
     config_path = os.getenv("CONFIG_PATH", "config.json")
     state_path = os.getenv("STATE_PATH", "state.json")
-
-    cfg = load_json(config_path, default=None)
-    if not isinstance(cfg, dict): raise SystemExit(f"Invalid {config_path}")
-
-    global_cfg, ntfy_default, searches = normalize_config(cfg)
-    state = load_json(state_path, default={"notified": []})
+    
+    cfg = load_json(config_path, {})
+    state = load_json(state_path, {"notified": []})
     notified = set(state.get("notified", []))
     
-    # Prune old notifications to keep state file small
-    if len(notified) > 5000:
-        notified = set(list(notified)[-5000:])
-
-    total_matches = 0
-
+    searches = cfg.get("searches", [])
+    total_new = 0
+    
     for s in searches:
-        if not isinstance(s, dict): continue
+        s_id = s.get("id")
+        platform = s.get("platform", "sevenrooms").lower() # Default to SR
+        venues = s.get("venues", [])
+        salt = s.get("salt", "")
         
-        # --- NEW LOGIC: GET SALT ---
-        # The salt makes this configuration unique. Changing it resets notifications.
-        salt = str(s.get("salt", "")).strip()
-        
-        search_id = str(s.get("id", "unknown")).strip()
-        venues = [str(v).strip() for v in s.get("venues", []) if str(v).strip()]
-        if not venues: continue
-
+        # Parse Dates/Times
         try:
-            target_date = parse_date_yyyy_mm_dd(str(s.get("date", "")))
-            win_start = parse_time_hh_mm(str(s.get("window_start", "18:00")))
-            win_end = parse_time_hh_mm(str(s.get("window_end", "20:30")))
-        except ValueError: continue
-
-        party_size = int(s.get("party_size", 2))
-        email_to = str(s.get("email_to", "")).strip()
+            start_date = parse_date_iso(s.get("date"))
+            w_start = parse_time_iso(s.get("window_start"))
+            w_end = parse_time_iso(s.get("window_end"))
+        except: continue
+            
+        party = int(s.get("party_size", 2))
+        days = int(s.get("num_days", 1))
         
-        ntfy_cfg = merge_ntfy(ntfy_default, s.get("ntfy", {}))
-        matches = []
-
-        for venue in venues:
-            params = build_query_params(venue, party_size, target_date, int(s.get("num_days", 1)), "18:00")
-            try:
-                times = extract_bookable_times(fetch_availability(params))
-            except Exception as e:
-                print(f"[WARN] {venue} err: {e}")
-                continue
-
-            for date_iso, label, iso in times:
-                if date_iso != to_mmddyyyy(target_date) and date_iso != str(target_date): pass # simplified check
+        found_matches = []
+        
+        for v in venues:
+            # SWITCH: CHOOSE PLATFORM
+            if platform == "opentable":
+                slots = check_opentable(v, start_date, party, days)
+            else:
+                slots = check_sevenrooms(v, start_date, party, days)
                 
-                # Check Time Window
-                dt_obj = parse_time_from_time_iso(iso)
-                if not dt_obj or not within_window(dt_obj.time(), win_start, win_end): continue
-
-                # --- NEW LOGIC: INCLUDE SALT IN HASH ---
-                # If you deleted and re-added the search, 'salt' is new, so 'k' is new.
-                k = sha_key("search", search_id, venue, str(party_size), iso, salt)
+            for slot_iso in slots:
+                # Convert slot to objects
+                try:
+                    slot_dt = dt.datetime.fromisoformat(slot_iso)
+                    slot_date = slot_dt.date()
+                    slot_time = slot_dt.time()
+                except: continue
                 
+                # Check Logic: Date Range & Time Window
+                date_diff = (slot_date - start_date).days
+                if not (0 <= date_diff < days): continue
+                if not within_window(slot_time, w_start, w_end): continue
+                
+                # Fingerprint
+                k = sha_key(s_id, platform, v, str(party), slot_iso, salt)
                 if k in notified: continue
-                matches.append((venue, label, iso, k))
-
-        if matches:
-            total_matches += len(matches)
-            msg_lines = [f"✅ Table Found: {search_id}", f"Date: {target_date}", f"Party: {party_size}"]
-            for v, l, i, k in matches:
-                msg_lines.append(f"• {v} @ {l or i}")
+                
+                found_matches.append(f"{v} ({platform}) @ {slot_dt.strftime('%Y-%m-%d %H:%M')}")
                 notified.add(k)
-            
-            full_msg = "\n".join(msg_lines)
-            
-            # Send Push
-            if ntfy_cfg.get("topic"):
-                ntfy_publish(ntfy_cfg.get("server"), ntfy_cfg.get("topic"), "Table Found", full_msg, ntfy_cfg.get("priority"), ntfy_cfg.get("tags"))
-            
-            # Send Email
-            if email_to:
-                send_email(email_to, f"Table Available: {search_id}", full_msg)
-            
-            print(f"[OK] {search_id}: Found {len(matches)} slots.")
 
-    save_json(state_path, {"notified": list(notified)})
-    print(f"[DONE] New slots: {total_matches}")
+        # Notify
+        if found_matches:
+            total_new += len(found_matches)
+            msg = "\n".join(found_matches)
+            print(f"FOUND: {msg}")
+            
+            # Push
+            ntfy = cfg.get("ntfy", {}) or s.get("ntfy", {})
+            if ntfy.get("topic"):
+                send_ntfy(ntfy.get("server"), ntfy.get("topic"), f"Table: {s_id}", msg)
+            
+            # Email
+            if s.get("email_to"):
+                send_email(s.get("email_to"), f"Table: {s_id}", msg)
+                
+    # Save State
+    save_json(state_path, {"notified": list(notified)[-5000:]})
 
 if __name__ == "__main__":
     main()
