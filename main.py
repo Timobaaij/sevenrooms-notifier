@@ -1,11 +1,10 @@
-
 #!/usr/bin/env python3
 """
-SevenRooms availability notifier (config-file driven, no GitHub Secrets required)
+SevenRooms availability notifier (multi-search config.json, no GitHub Secrets required)
 
 Files expected in repo:
-- config.json  (editable settings)
-- state.json   (dedupe store, committed back by workflow or kept local)
+- config.json  (editable settings; supports multiple searches)
+- state.json   (dedupe store)
 
 Requires:
 - requests
@@ -20,12 +19,11 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import requests
 
-
 SEVENROOMS_ENDPOINT = "https://www.sevenrooms.com/api-yoa/availability/widget/range"
 
 
 # -------------------------
-# Utilities
+# JSON helpers
 # -------------------------
 
 def load_json(path: str, default: Any) -> Any:
@@ -45,6 +43,10 @@ def save_json(path: str, obj: Any) -> None:
     os.replace(tmp, path)
 
 
+# -------------------------
+# Parsing helpers
+# -------------------------
+
 def parse_date_yyyy_mm_dd(s: str) -> dt.date:
     return dt.datetime.strptime(s.strip(), "%Y-%m-%d").date()
 
@@ -54,12 +56,11 @@ def parse_time_hh_mm(s: str) -> dt.time:
 
 
 def to_mmddyyyy(d: dt.date) -> str:
-    # SevenRooms widget endpoint uses MM-DD-YYYY in many implementations.
     return d.strftime("%m-%d-%Y")
 
 
 def within_window(t: dt.time, start: dt.time, end: dt.time) -> bool:
-    # Inclusive start, inclusive end (user expectation for booking windows)
+    # inclusive start and end
     return start <= t <= end
 
 
@@ -68,27 +69,10 @@ def sha_key(*parts: str) -> str:
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()
 
 
-def safe_get(d: Dict[str, Any], keys: List[str], default=None):
-    cur = d
-    for k in keys:
-        if not isinstance(cur, dict) or k not in cur:
-            return default
-        cur = cur[k]
-    return cur
-
-
 def parse_time_from_time_iso(time_iso: str) -> Optional[dt.datetime]:
-    """
-    Best-effort parsing for SevenRooms time strings.
-    Seen formats:
-      - "2025-05-30 21:45:00"
-      - "2025-05-30T21:45:00"
-      - ISO with timezone (rare in widget)
-    """
     s = (time_iso or "").strip()
     if not s:
         return None
-
     fmts = [
         "%Y-%m-%d %H:%M:%S",
         "%Y-%m-%dT%H:%M:%S",
@@ -100,8 +84,6 @@ def parse_time_from_time_iso(time_iso: str) -> Optional[dt.datetime]:
             return dt.datetime.strptime(s, fmt)
         except ValueError:
             continue
-
-    # last resort: try fromisoformat (handles some variants)
     try:
         return dt.datetime.fromisoformat(s)
     except Exception:
@@ -117,21 +99,20 @@ def ntfy_publish(server: str, topic: str, title: str, message: str,
     server = (server or "https://ntfy.sh").strip().rstrip("/")
     topic = (topic or "").strip()
     if not topic:
-        raise RuntimeError("Missing ntfy topic in config.json (ntfy.topic)")
+        raise RuntimeError("Missing ntfy topic (set ntfy_default.topic or search.ntfy.topic).")
 
     url = f"{server}/{topic}"
     headers = {
-        "Title": title,
-        "Priority": priority or "high",
-        "Tags": tags or "bell",
+        "Title": title or "SevenRooms alert",
+        "Priority": (priority or "high").strip(),
+        "Tags": (tags or "bell").strip(),
     }
-
     r = requests.post(url, data=message.encode("utf-8"), headers=headers, timeout=20)
     r.raise_for_status()
 
 
 # -------------------------
-# SevenRooms fetch + extract
+# SevenRooms calls
 # -------------------------
 
 def build_query_params(venue: str, party_size: int, start_date: dt.date,
@@ -141,7 +122,7 @@ def build_query_params(venue: str, party_size: int, start_date: dt.date,
                        lang: str = "en") -> Dict[str, str]:
     return {
         "venue": venue,
-        "time_slot": time_slot,  # anchor time used by widget endpoint
+        "time_slot": time_slot,
         "party_size": str(party_size),
         "halo_size_interval": str(halo_size_interval),
         "start_date": to_mmddyyyy(start_date),
@@ -159,56 +140,93 @@ def fetch_availability(params: Dict[str, str]) -> Dict[str, Any]:
 
 def extract_bookable_times(payload: Dict[str, Any]) -> List[Tuple[str, str, str]]:
     """
-    Returns list of tuples: (date_iso "YYYY-MM-DD", time_label, time_iso_str)
-    Filters out requestable slots where is_requestable=true.
+    Returns list of (date_iso "YYYY-MM-DD", time_label, time_iso_str).
+    Excludes request-only times where is_requestable=true.
     """
     out: List[Tuple[str, str, str]] = []
 
     if payload.get("status") != 200:
         return out
 
-    availability = safe_get(payload, ["data", "availability"], default={})
+    data = payload.get("data") or {}
+    availability = data.get("availability") or {}
     if not isinstance(availability, dict):
         return out
 
     for date_iso, slots in availability.items():
         if not isinstance(slots, list):
             continue
-
         for slot in slots:
             if not isinstance(slot, dict):
                 continue
-
             if slot.get("is_closed") is True:
                 continue
-
             times = slot.get("times") or []
             if not isinstance(times, list):
                 continue
-
             for t in times:
                 if not isinstance(t, dict):
                     continue
-
-                # Exclude request-only slots
                 if t.get("is_requestable") is True:
                     continue
-
                 time_label = str(t.get("time") or "").strip()
                 time_iso = str(t.get("time_iso") or "").strip()
-
-                # Some payloads may omit time_iso; best effort fallback
                 if not time_iso and time_label:
                     time_iso = f"{date_iso} {time_label}"
-
                 if time_label or time_iso:
                     out.append((date_iso, time_label, time_iso))
-
     return out
 
 
 # -------------------------
-# Main logic
+# Config normalization
+# -------------------------
+
+def normalize_config(cfg: Dict[str, Any]) -> Tuple[Dict[str, Any], Dict[str, Any], List[Dict[str, Any]]]:
+    """
+    Returns (global_cfg, ntfy_default, searches)
+
+    Backward compatible:
+    - If cfg has 'searches', use them.
+    - Else, treat cfg as a single search and wrap into searches[].
+    """
+    global_cfg = cfg.get("global", {}) if isinstance(cfg.get("global"), dict) else {}
+
+    ntfy_default = cfg.get("ntfy_default", {}) if isinstance(cfg.get("ntfy_default"), dict) else {}
+    if not ntfy_default:
+        # fallback to legacy 'ntfy' block if present
+        if isinstance(cfg.get("ntfy"), dict):
+            ntfy_default = cfg.get("ntfy")
+
+    searches = cfg.get("searches")
+    if isinstance(searches, list) and searches:
+        return global_cfg, ntfy_default, searches
+
+    # Legacy single-search shape
+    legacy_search = {
+        "id": cfg.get("id", "default"),
+        "venues": cfg.get("venues", []),
+        "party_size": cfg.get("party_size", 2),
+        "date": cfg.get("date"),
+        "window_start": cfg.get("window_start", "18:00"),
+        "window_end": cfg.get("window_end", "20:30"),
+        "time_slot": cfg.get("time_slot", cfg.get("window_start", "18:00")),
+        "num_days": cfg.get("num_days", 1),
+        "ntfy": cfg.get("ntfy", {}),
+    }
+    return global_cfg, ntfy_default, [legacy_search]
+
+
+def merge_ntfy(ntfy_default: Dict[str, Any], ntfy_override: Dict[str, Any]) -> Dict[str, Any]:
+    out = dict(ntfy_default or {})
+    if isinstance(ntfy_override, dict):
+        for k, v in ntfy_override.items():
+            out[k] = v
+    return out
+
+
+# -------------------------
+# Main
 # -------------------------
 
 def main():
@@ -217,157 +235,152 @@ def main():
 
     cfg = load_json(config_path, default=None)
     if not isinstance(cfg, dict):
-        raise SystemExit(f"Missing or invalid {config_path}. Create it as valid JSON.")
+        raise SystemExit(f"Missing/invalid {config_path}. Must be valid JSON object.")
 
-    # Venues (list) — your "any restaurant" = keep adding venue slugs here
-    venues = cfg.get("venues", [])
-    if isinstance(venues, str):
-        venues = [venues]
-    if not isinstance(venues, list) or not venues:
-        raise SystemExit("config.json must include a non-empty 'venues' list.")
+    global_cfg, ntfy_default, searches = normalize_config(cfg)
 
-    venues = [str(v).strip() for v in venues if str(v).strip()]
+    # Global tuning
+    delay_between_venues_sec = float(global_cfg.get("delay_between_venues_sec", 0.5))
+    halo_size_interval = int(global_cfg.get("halo_size_interval", 64))
+    channel = str(global_cfg.get("channel", "SEVENROOMS_WIDGET"))
+    lang = str(global_cfg.get("lang", "en"))
 
-    # Reservation search config
-    party_size = int(cfg.get("party_size", 2))
-    date_str = str(cfg.get("date", "")).strip()
-    if not date_str:
-        raise SystemExit("config.json must include 'date' in YYYY-MM-DD format.")
-    target_date = parse_date_yyyy_mm_dd(date_str)
-
-    window_start = parse_time_hh_mm(str(cfg.get("window_start", "18:00")))
-    window_end = parse_time_hh_mm(str(cfg.get("window_end", "20:30")))
-
-    # Widget query tuning (optional)
-    halo_size_interval = int(cfg.get("halo_size_interval", 64))
-    channel = str(cfg.get("channel", "SEVENROOMS_WIDGET"))
-    lang = str(cfg.get("lang", "en"))
-
-    # Anchor time_slot (optional but recommended: set near window start)
-    time_slot = str(cfg.get("time_slot", cfg.get("window_start", "18:00"))).strip() or "18:00"
-
-    # How many days to search — for a specific date, we search exactly 1 day
-    num_days = int(cfg.get("num_days", 1))
-    if num_days < 1:
-        num_days = 1
-
-    # ntfy config
-    ntfy_cfg = cfg.get("ntfy", {}) if isinstance(cfg.get("ntfy", {}), dict) else {}
-    ntfy_server = str(ntfy_cfg.get("server", "https://ntfy.sh")).strip()
-    ntfy_topic = str(ntfy_cfg.get("topic", "")).strip()
-    ntfy_priority = str(ntfy_cfg.get("priority", "high")).strip()
-    ntfy_tags = str(ntfy_cfg.get("tags", "bell")).strip()
-
-    # Dedupe state
+    # State (dedupe)
     state = load_json(state_path, default={"notified": []})
     notified = set(state.get("notified", [])) if isinstance(state, dict) else set()
 
-    all_matches = []  # list of dicts: {venue, date, label, iso, key}
+    all_new_keys = []
+    total_matches = 0
 
-    # Small polite delay between venues (reduces chance of rate limiting)
-    delay_between_venues_sec = float(cfg.get("delay_between_venues_sec", 0.5))
-
-    for venue in venues:
-        params = build_query_params(
-            venue=venue,
-            party_size=party_size,
-            start_date=target_date,
-            num_days=num_days,
-            time_slot=time_slot,
-            halo_size_interval=halo_size_interval,
-            channel=channel,
-            lang=lang,
-        )
-
-        try:
-            payload = fetch_availability(params)
-        except Exception as e:
-            # Continue other venues even if one fails
-            print(f"[WARN] Venue '{venue}': fetch failed: {e}")
-            time.sleep(delay_between_venues_sec)
+    for s in searches:
+        if not isinstance(s, dict):
             continue
 
-        times = extract_bookable_times(payload)
+        search_id = str(s.get("id", "")).strip() or sha_key(json.dumps(s, sort_keys=True))
+        venues = s.get("venues", [])
+        if isinstance(venues, str):
+            venues = [venues]
+        venues = [str(v).strip() for v in venues if str(v).strip()]
+        if not venues:
+            print(f"[WARN] search '{search_id}': no venues; skipping.")
+            continue
 
-        for date_iso, label, iso in times:
-            # Only keep target date (sometimes API returns beyond range depending on parameters)
-            if date_iso != target_date.strftime("%Y-%m-%d"):
+        date_str = str(s.get("date", "")).strip()
+        if not date_str:
+            print(f"[WARN] search '{search_id}': missing date; skipping.")
+            continue
+        target_date = parse_date_yyyy_mm_dd(date_str)
+
+        party_size = int(s.get("party_size", 2))
+        window_start = parse_time_hh_mm(str(s.get("window_start", "18:00")))
+        window_end = parse_time_hh_mm(str(s.get("window_end", "20:30")))
+
+        time_slot = str(s.get("time_slot", s.get("window_start", "18:00"))).strip() or "18:00"
+        num_days = int(s.get("num_days", 1))
+        if num_days < 1:
+            num_days = 1
+
+        ntfy_cfg = merge_ntfy(ntfy_default, s.get("ntfy", {}))
+        ntfy_server = str(ntfy_cfg.get("server", "https://ntfy.sh")).strip()
+        ntfy_topic = str(ntfy_cfg.get("topic", "")).strip()
+        ntfy_priority = str(ntfy_cfg.get("priority", "high")).strip()
+        ntfy_tags = str(ntfy_cfg.get("tags", "bell")).strip()
+        ntfy_title = str(ntfy_cfg.get("title", "Reservation slot found")).strip()
+
+        matches_for_search = []  # list of (venue, date_iso, label, iso)
+
+        for venue in venues:
+            params = build_query_params(
+                venue=venue,
+                party_size=party_size,
+                start_date=target_date,
+                num_days=num_days,
+                time_slot=time_slot,
+                halo_size_interval=halo_size_interval,
+                channel=channel,
+                lang=lang,
+            )
+
+            try:
+                payload = fetch_availability(params)
+            except Exception as e:
+                print(f"[WARN] search '{search_id}' venue '{venue}': fetch failed: {e}")
+                time.sleep(delay_between_venues_sec)
                 continue
 
-            dt_obj = parse_time_from_time_iso(iso)
-            if dt_obj is None:
-                # If no parse, skip to avoid false alerts
-                continue
+            times = extract_bookable_times(payload)
+            for date_iso, label, iso in times:
+                if date_iso != target_date.strftime("%Y-%m-%d"):
+                    continue
+                dt_obj = parse_time_from_time_iso(iso)
+                if dt_obj is None:
+                    continue
+                t = dt_obj.time()
+                if not within_window(t, window_start, window_end):
+                    continue
 
-            t = dt_obj.time()
-            if not within_window(t, window_start, window_end):
-                continue
+                # IMPORTANT: include search_id in dedupe key so different searches don't collide
+                k = sha_key("search", search_id, venue, str(party_size), date_iso, iso)
+                if k in notified:
+                    continue
 
-            k = sha_key(venue, str(party_size), date_iso, iso)
-            if k in notified:
-                continue
+                matches_for_search.append((venue, date_iso, label, iso, k))
 
-            all_matches.append({
-                "venue": venue,
-                "date": date_iso,
-                "time_label": label,
-                "time_iso": iso,
-                "key": k
-            })
+            time.sleep(delay_between_venues_sec)
 
-        time.sleep(delay_between_venues_sec)
+        if matches_for_search:
+            total_matches += len(matches_for_search)
 
-    # If matches found: send push + update state.json
-    if all_matches:
-        # Group by venue for nicer message
-        by_venue: Dict[str, List[Dict[str, str]]] = {}
-        for m in all_matches:
-            by_venue.setdefault(m["venue"], []).append(m)
-
-        # Sort times within each venue
-        for v in by_venue:
-            by_venue[v].sort(key=lambda x: x["time_iso"])
-
-        lines = []
-        lines.append(f"✅ SevenRooms availability found")
-        lines.append(f"Date: {target_date.strftime('%Y-%m-%d')}")
-        lines.append(f"Window: {window_start.strftime('%H:%M')}–{window_end.strftime('%H:%M')}")
-        lines.append(f"Party size: {party_size}")
-        lines.append("")
-
-        for v, items in by_venue.items():
-            lines.append(f"• {v}")
-            for it in items[:25]:
-                # Prefer the human label, fall back to parsed time
-                pretty = it["time_label"] or parse_time_from_time_iso(it["time_iso"]).strftime("%H:%M")
-                lines.append(f"  - {pretty} ({it['time_iso']})")
-            if len(items) > 25:
-                lines.append(f"  …plus {len(items)-25} more")
+            # Build message
+            lines = []
+            lines.append("✅ SevenRooms availability found")
+            lines.append(f"Search: {search_id}")
+            lines.append(f"Date: {target_date.strftime('%Y-%m-%d')}")
+            lines.append(f"Window: {window_start.strftime('%H:%M')}–{window_end.strftime('%H:%M')}")
+            lines.append(f"Party size: {party_size}")
             lines.append("")
 
-        message = "\n".join(lines).strip()
+            # group by venue
+            by_venue: Dict[str, List[Tuple[str, str]]] = {}
+            for v, d_iso, label, iso, _k in matches_for_search:
+                by_venue.setdefault(v, []).append((label, iso))
 
-        # Send push
-        ntfy_publish(
-            server=ntfy_server,
-            topic=ntfy_topic,
-            title="Reservation slot found",
-            message=message,
-            priority=ntfy_priority,
-            tags=ntfy_tags
-        )
+            for v in sorted(by_venue.keys()):
+                lines.append(f"• {v}")
+                for label, iso in sorted(by_venue[v], key=lambda x: x[1])[:25]:
+                    pretty = label or (parse_time_from_time_iso(iso).strftime("%H:%M") if parse_time_from_time_iso(iso) else iso)
+                    lines.append(f"  - {pretty} ({iso})")
+                if len(by_venue[v]) > 25:
+                    lines.append(f"  …plus {len(by_venue[v]) - 25} more")
+                lines.append("")
 
-        # Update state
-        for m in all_matches:
-            notified.add(m["key"])
+            message = "\n".join(lines).strip()
 
-        # Keep bounded
-        state_out = {"notified": list(notified)[-1000:]}
-        save_json(state_path, state_out)
+            # Send push
+            ntfy_publish(
+                server=ntfy_server,
+                topic=ntfy_topic,
+                title=ntfy_title,
+                message=message,
+                priority=ntfy_priority,
+                tags=ntfy_tags
+            )
 
-        print(f"[OK] Notified {len(all_matches)} new slot(s).")
-    else:
-        print("[OK] No new matching availability.")
+            # Update dedupe
+            for *_rest, k in matches_for_search:
+                notified.add(k)
+                all_new_keys.append(k)
+
+            print(f"[OK] search '{search_id}': notified {len(matches_for_search)} new slot(s).")
+        else:
+            print(f"[OK] search '{search_id}': no new matching availability.")
+
+    # Persist state (even if no matches, keep it stable)
+    # Keep bounded
+    state_out = {"notified": list(notified)[-2000:]}
+    save_json(state_path, state_out)
+
+    print(f"[DONE] Total new slots notified this run: {total_matches}")
 
 
 if __name__ == "__main__":
