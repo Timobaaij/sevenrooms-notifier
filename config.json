@@ -41,6 +41,21 @@
       ],
       "window_end": "16:00",
       "window_start": "13:00"
+    },
+    {
+      "date": "2026-01-14",
+      "email_to": "timobaaij@gmail.com",
+      "id": "Dinner",
+      "image_url": "",
+      "num_days": 1,
+      "party_size": 2,
+      "platform": "opentable",
+      "salt": "1768323721.9883409",
+      "venues": [
+        "82351"
+      ],
+      "window_end": "19:00",
+      "window_start": "18:00"
     }
   ]
 }
