@@ -30,7 +30,6 @@ except Exception as e:
 
 # --- Helpers ---
 def save_config(new_data):
-    """Commits config to GitHub and reloads."""
     try:
         repo.update_file(
             path=contents.path,
@@ -61,18 +60,14 @@ st.subheader(f"Manage Searches ({len(searches)})")
 if not searches:
     st.info("No active searches. Add one below.")
 
-# Iterate explicitly by index so we can modify/delete specific items
 for i, search in enumerate(searches):
-    # Create an expander for each search
     label = f"📍 {search.get('id', 'Unnamed')} ({search.get('date', '?')})"
     with st.expander(label, expanded=False):
         
-        # We use a form so the page doesn't reload on every keystroke
         with st.form(key=f"edit_form_{i}"):
-            c1, c2 = st.columns(2)
+            c1, c2, c3 = st.columns(3)
             
             with c1:
-                # Pre-fill widgets with existing data
                 e_id = st.text_input("ID", value=search.get("id", ""))
                 e_venues = st.text_input("Venues (comma sep)", value=", ".join(search.get("venues", [])))
                 e_date = st.date_input("Date", value=parse_date(search.get("date", "")))
@@ -81,11 +76,13 @@ for i, search in enumerate(searches):
                 e_party = st.number_input("Party Size", min_value=1, value=int(search.get("party_size", 2)))
                 e_start = st.time_input("Start Time", value=parse_time(search.get("window_start", "18:00")))
                 e_end = st.time_input("End Time", value=parse_time(search.get("window_end", "21:00")))
+            
+            with c3:
                 e_days = st.number_input("Days to Check", min_value=1, value=int(search.get("num_days", 1)))
+                # NEW FIELD
+                e_email = st.text_input("Email Alert To (Optional)", value=search.get("email_to", ""))
 
-            # Save Button
             if st.form_submit_button("💾 Update Search"):
-                # Update the specific item in the list
                 searches[i] = {
                     "id": e_id,
                     "venues": [v.strip() for v in e_venues.split(",") if v.strip()],
@@ -93,14 +90,14 @@ for i, search in enumerate(searches):
                     "date": str(e_date),
                     "window_start": e_start.strftime("%H:%M"),
                     "window_end": e_end.strftime("%H:%M"),
-                    "time_slot": e_start.strftime("%H:%M"), # Keep simple
+                    "time_slot": e_start.strftime("%H:%M"), 
                     "num_days": e_days,
+                    "email_to": e_email.strip(), # Save Email
                     "ntfy": search.get("ntfy", {"title": f"Slot found: {e_id}"})
                 }
                 config_data["searches"] = searches
                 save_config(config_data)
 
-        # Delete Button (Outside the form to prevent accidental submits)
         if st.button("🗑️ Delete Search", key=f"del_{i}"):
             searches.pop(i)
             config_data["searches"] = searches
@@ -110,7 +107,7 @@ st.markdown("---")
 st.subheader("➕ Add New Search")
 
 with st.form("add_new"):
-    c1, c2 = st.columns(2)
+    c1, c2, c3 = st.columns(3)
     with c1:
         n_id = st.text_input("ID", value="new_dinner")
         n_venues = st.text_input("Venues", value="restaurant_a, restaurant_b")
@@ -119,7 +116,10 @@ with st.form("add_new"):
         n_party = st.number_input("Party", min_value=1, value=2)
         n_start = st.time_input("Start", value=datetime.time(19, 0))
         n_end = st.time_input("End", value=datetime.time(21, 30))
+    with c3:
         n_days = st.number_input("Days", min_value=1, value=1)
+        # NEW FIELD
+        n_email = st.text_input("Email Alert To (Optional)", value="")
     
     if st.form_submit_button("Add Search"):
         new_entry = {
@@ -131,6 +131,7 @@ with st.form("add_new"):
             "window_end": n_end.strftime("%H:%M"),
             "time_slot": n_start.strftime("%H:%M"),
             "num_days": n_days,
+            "email_to": n_email.strip(), # Save Email
             "ntfy": {"title": f"Slot found: {n_id}"}
         }
         searches.append(new_entry)
