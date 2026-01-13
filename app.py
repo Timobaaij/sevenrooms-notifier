@@ -2,13 +2,10 @@ import streamlit as st
 import json
 import time
 import datetime
-import requests
-import re
-from bs4 import BeautifulSoup
 from github import Github
 
 # --- CONFIGURATION ---
-REPO_NAME = "Timobaaij/sevenrooms-notifier"  # <--- UPDATE THIS
+REPO_NAME = "Timobaaij/sevenrooms-notifier" # <--- CHECK THIS
 CONFIG_FILE_PATH = "config.json"
 
 st.set_page_config(page_title="Reservation Manager", page_icon="🍽️", layout="wide")
@@ -16,9 +13,16 @@ st.set_page_config(page_title="Reservation Manager", page_icon="🍽️", layout
 # --- CUSTOM CSS ---
 st.markdown("""
 <style>
-    .stButton button { width: 100%; }
-    div[data-testid="stMetricValue"] { font-size: 1.2rem; }
-    .big-font { font-size: 1.1rem; font-weight: 500; }
+    .stButton button { width: 100%; font-weight: 600; }
+    div[data-testid="stMetricValue"] { font-size: 1.1rem; }
+    [data-testid="stSidebarCollapseButton"] { display: none; }
+    .help-box { 
+        background-color: #f0f2f6; 
+        padding: 15px; 
+        border-radius: 8px; 
+        border: 1px solid #d6d6d6;
+        margin-bottom: 20px;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -48,157 +52,49 @@ def save_config(new_data):
         st.rerun()
     except Exception as e: st.error(f"Save Failed: {e}")
 
-def opentable_id_search(query):
-    """
-    Search OpenTable's API directly for the ID.
-    Much more reliable than scraping the website.
-    """
-    # This endpoint is used by their search bar
-    url = "https://www.opentable.com/d/api/v1/autocomplete"
-    
-    params = {
-        "term": query,
-        "latitude": "51.5074", # Default to London/UK lat/long to bias results
-        "longitude": "-0.1278",
-        "language": "en-GB"
-    }
-    
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Accept": "application/json"
-    }
-    
-    try:
-        r = requests.get(url, params=params, headers=headers, timeout=5)
-        if r.status_code == 200:
-            data = r.json()
-            # The API returns a list of results. We look for 'restaurants'.
-            candidates = []
-            
-            # Autocomplete often returns mixed results, we filter for restaurants
-            if "autocomplete_results" in data:
-                for item in data["autocomplete_results"]:
-                    # We are looking for items that have an ID
-                    if "id" in item and "name" in item:
-                        candidates.append((item["name"], item["id"], item.get("display_line_2", "")))
-            
-            return candidates
-    except Exception as e:
-        print(f"API Search Error: {e}")
-        
-    return []
-
-# --- MAIN LAYOUT ---
-col_main, col_tools = st.columns([3, 1.3], gap="medium")
+# --- LAYOUT ---
+col_main, col_add = st.columns([3, 1.2], gap="medium")
 
 # ==========================================
-# LEFT: DASHBOARD (Your Searches)
+# RIGHT COLUMN: ADD SEARCH & HELPERS
 # ==========================================
-with col_main:
-    st.title("🍽️ Active Searches")
-    searches = config_data.get("searches", [])
-    
-    if not searches: st.info("No active searches.")
-    else:
-        grid = st.columns(2)
-        for i, s in enumerate(searches):
-            with grid[i % 2]:
-                with st.container(border=True):
-                    c_title, c_badge = st.columns([3, 1])
-                    c_title.subheader(s.get("id", "Unnamed"))
-                    
-                    plat = s.get("platform", "sevenrooms")
-                    if plat == "opentable":
-                        c_badge.markdown(":red[**OpenTable**]")
-                    else:
-                        c_badge.markdown(":blue[**7Rooms**]")
-                    
-                    m1, m2 = st.columns(2)
-                    m1.metric("Date", s.get("date"))
-                    m2.metric("Venues", len(s.get("venues", [])))
-                    
-                    with st.expander("Details"):
-                        st.write(f"**IDs/Slugs:** {', '.join(s.get('venues', []))}")
-                        if st.button("🗑️ Delete Search", key=f"del_{i}"):
-                            searches.pop(i)
-                            config_data["searches"] = searches
-                            save_config(config_data)
-
-# ==========================================
-# RIGHT: SMART ADD TOOL
-# ==========================================
-with col_tools:
-    st.header("➕ Add New Search")
+with col_add:
+    st.header("➕ Add Search")
     
     with st.container(border=True):
-        platform = st.radio("Choose Platform", ["SevenRooms", "OpenTable"], horizontal=True)
+        platform = st.radio("Platform", ["SevenRooms", "OpenTable"], horizontal=True)
         is_ot = (platform == "OpenTable")
         
-        # 1. FINDER TOOL
-        found_venues = [] # Store IDs/Slugs here
-        
-        if is_ot:
-            st.info("🔎 **Search OpenTable Database:**")
-            ot_query = st.text_input("Restaurant Name", placeholder="e.g. Gymkhana")
+        with st.form("add_form"):
+            st.write("### 1. Venue Details")
+            n_id = st.text_input("Friendly Name", placeholder="e.g. Anniversary Dinner")
             
-            if ot_query:
-                with st.spinner("Searching OpenTable API..."):
-                    results = opentable_id_search(ot_query)
-                    
-                if results:
-                    st.success(f"Found {len(results)} matches:")
-                    # Create a selectbox so user can pick the right one
-                    options = {f"{name} ({loc})": rid for name, rid, loc in results}
-                    selected_label = st.selectbox("Select Restaurant", options.keys())
-                    
-                    if selected_label:
-                        selected_id = options[selected_label]
-                        st.code(selected_id, language="text")
-                        found_venues = [str(selected_id)] # Auto-select this ID
-                else:
-                    st.warning("No matches found via API. Try exact spelling.")
-                    st.markdown("""
-                    **Manual Fallback:**
-                    1. Go to restaurant page on OpenTable.
-                    2. Right Click -> **View Page Source**.
-                    3. Search (Ctrl+F) for `"restaurantId"`.
-                    4. Copy the number next to it.
-                    """)
-                    
-        else:
-            # SevenRooms Logic
-            st.info("💡 **Slug Tip:** It's the last part of the URL (sevenrooms.com/reservations/**slug**)")
-            sr_input = st.text_input("Venue Slug", placeholder="e.g. sexyfishlondon")
-            if sr_input:
-                found_venues = [x.strip() for x in sr_input.split(",") if x.strip()]
+            if is_ot:
+                n_venues = st.text_input("Restaurant ID", placeholder="e.g. 109283")
+                st.caption("See 'How to find ID' below")
+            else:
+                n_venues = st.text_input("Venue Slug", placeholder="e.g. gymkhanalondon")
+                st.caption("See 'How to find Slug' below")
 
-        st.divider()
-        
-        # 2. CONFIGURATION FORM
-        with st.form("add_final"):
-            st.write("### Search Config")
-            # If we found an ID above, pre-fill it. 
-            # If not, let user type manually (Fallback).
-            default_val = found_venues[0] if found_venues else ""
-            
-            n_venues = st.text_input("Venue ID / Slug", value=default_val, help="The ID we found above")
-            n_id = st.text_input("Search Name", placeholder="My Dinner")
-            
+            st.write("### 2. Time & Date")
             n_date = st.date_input("Date")
             c1, c2 = st.columns(2)
-            n_start = c1.time_input("Start", datetime.time(18,0))
+            n_start = c1.time_input("Start", datetime.time(19,0))
             n_end = c2.time_input("End", datetime.time(21,0))
             
+            st.write("### 3. Settings")
             c3, c4 = st.columns(2)
-            n_party = c3.number_input("Party", 2)
-            n_days = c4.number_input("Flexibility (Days)", 1)
+            n_party = c3.number_input("Guests", 2)
+            n_days = c4.number_input("Days", 1, help="Check X days starting from the date")
             
-            n_email = st.text_input("Email", placeholder="me@gmail.com")
+            n_email = st.text_input("Email Alert", placeholder="me@gmail.com")
+            n_img = st.text_input("Image URL (Optional)")
             
-            if st.form_submit_button("🚀 Start Searching", type="primary"):
-                if not n_venues:
-                    st.error("Missing Venue ID/Slug")
+            if st.form_submit_button("🚀 Add Search", type="primary"):
+                if not n_venues or not n_id:
+                    st.error("Name and Venue ID/Slug are required.")
                 else:
+                    searches = config_data.get("searches", [])
                     searches.append({
                         "id": n_id,
                         "platform": "opentable" if is_ot else "sevenrooms",
@@ -209,7 +105,117 @@ with col_tools:
                         "window_end": n_end.strftime("%H:%M"),
                         "num_days": n_days,
                         "email_to": n_email,
+                        "image_url": n_img,
                         "salt": str(time.time())
                     })
                     config_data["searches"] = searches
                     save_config(config_data)
+
+    st.write("")
+    st.markdown("### 🕵️‍♀️ Finder Tools")
+    
+    # --- MANUAL HELPERS ---
+    if not is_ot:
+        # SEVENROOMS HELPER
+        st.markdown("""
+        <div class="help-box">
+        <b>Finding a SevenRooms Slug:</b><br>
+        1. Click the button below to find the booking page.<br>
+        2. Look at the URL bar.<br>
+        3. Copy the text AFTER <code>/reservations/</code>.<br>
+        <br>
+        <i>Example: sevenrooms.com/reservations/<b>gymkhanalondon</b></i>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        sr_name = st.text_input("Restaurant Name", placeholder="e.g. Gymkhana")
+        if sr_name:
+            url = f"https://www.google.com/search?q={sr_name.replace(' ', '+')}+sevenrooms+reservations"
+            st.link_button(f"🔍 Search for '{sr_name}'", url)
+            
+    else:
+        # OPENTABLE HELPER
+        st.markdown("""
+        <div class="help-box">
+        <b>Finding an OpenTable ID:</b><br>
+        1. Go to the restaurant's OpenTable page.<br>
+        2. Right-click blank space -> <b>View Page Source</b>.<br>
+        3. Search (Ctrl+F) for: <code>"restaurantId"</code>.<br>
+        4. Copy the number next to it (e.g. <code>12345</code>).
+        </div>
+        """, unsafe_allow_html=True)
+        st.link_button("Go to OpenTable.com", "https://www.opentable.com")
+
+# ==========================================
+# LEFT COLUMN: DASHBOARD
+# ==========================================
+with col_main:
+    st.title("🍽️ Dashboard")
+    
+    searches = config_data.get("searches", [])
+    
+    if not searches:
+        st.info("No active searches. Use the form on the right.")
+    
+    grid = st.columns(2)
+    
+    for i, s in enumerate(searches):
+        with grid[i % 2]:
+            with st.container(border=True):
+                # IMAGE
+                img = s.get("image_url")
+                if not img: img = "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=800&q=80"
+                st.image(img, use_container_width=True, clamp=True)
+                
+                # HEADER
+                c_title, c_badge = st.columns([3, 1])
+                c_title.subheader(s.get("id", "Unnamed"))
+                
+                plat = s.get("platform", "sevenrooms")
+                if plat == "opentable":
+                    c_badge.error("OpenTable", icon="🔴")
+                else:
+                    c_badge.info("7Rooms", icon="🔵")
+                
+                # STATS
+                m1, m2, m3 = st.columns(3)
+                m1.caption(f"📅 {s.get('date')}")
+                m2.caption(f"👥 {s.get('party_size')} ppl")
+                m3.caption(f"🕑 {s.get('window_start')}")
+
+                # EDIT / DELETE
+                with st.expander("⚙️ Edit / Delete"):
+                    with st.form(key=f"edit_form_{i}"):
+                        e_id = st.text_input("Name", s.get("id"))
+                        e_venues = st.text_input("ID / Slug", ", ".join(s.get("venues", [])))
+                        
+                        ec1, ec2 = st.columns(2)
+                        e_date = ec1.date_input("Date", datetime.datetime.strptime(s.get("date"), "%Y-%m-%d").date())
+                        e_days = ec2.number_input("Days", 1, value=int(s.get("num_days", 1)))
+                        
+                        ec3, ec4 = st.columns(2)
+                        e_start = ec3.time_input("Start", datetime.datetime.strptime(s.get("window_start"), "%H:%M").time())
+                        e_end = ec4.time_input("End", datetime.datetime.strptime(s.get("window_end"), "%H:%M").time())
+                        
+                        e_email = st.text_input("Email", s.get("email_to", ""))
+                        e_img = st.text_input("Image", s.get("image_url", ""))
+                        
+                        if st.form_submit_button("💾 Save Changes"):
+                            searches[i].update({
+                                "id": e_id,
+                                "venues": [v.strip() for v in e_venues.split(",") if v.strip()],
+                                "date": str(e_date),
+                                "window_start": e_start.strftime("%H:%M"),
+                                "window_end": e_end.strftime("%H:%M"),
+                                "num_days": e_days,
+                                "email_to": e_email,
+                                "image_url": e_img,
+                                "salt": str(time.time())
+                            })
+                            config_data["searches"] = searches
+                            save_config(config_data)
+
+                    if st.button("🗑️ Delete Search", key=f"del_{i}"):
+                        searches.pop(i)
+                        config_data["searches"] = searches
+                        save_config(config_data)
