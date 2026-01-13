@@ -1,9 +1,8 @@
-
 name: SevenRooms Notifier
 
 on:
   schedule:
-    - cron: "*/5 * * * *"   # every 5 minutes (minimum interval) [1](https://github.com/vh8t/python-ntfy-push)[2](https://docs.ntfy.sh/)
+    - cron: "*/5 * * * *"
   workflow_dispatch: {}
 
 concurrency:
@@ -11,12 +10,13 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
-  contents: write  # required to commit/push state.json updates [3](https://dev.to/hugovalters/revolutionizing-notifications-with-ntfysh-use-cases-benefits-and-best-practices-1gaf)[4](https://cbre.sharepoint.com/sites/intra-TS-CloudPlatformEngineering/SitePages/Cloud-Assistant-VS-Code-Ext-Installation.aspx?web=1)[5](https://pypi.org/project/ntfy/)
+  contents: write   # only needed because we commit state.json
 
 jobs:
   run:
     runs-on: ubuntu-latest
     timeout-minutes: 3
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -31,19 +31,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Run notifier
-        env:
-          SEVENROOMS_VENUE: ${{ secrets.SEVENROOMS_VENUE }}
-          PARTY_SIZE: ${{ secrets.PARTY_SIZE }}
-          START_DATE: ${{ secrets.START_DATE }}
-          NUM_DAYS: ${{ secrets.NUM_DAYS }}
-          TIME_SLOT: ${{ secrets.TIME_SLOT }}
-          DESIRED_TIMES: ${{ secrets.DESIRED_TIMES }}
-          WINDOW_START: ${{ secrets.WINDOW_START }}
-          WINDOW_END: ${{ secrets.WINDOW_END }}
-          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
-          NTFY_SERVER: ${{ secrets.NTFY_SERVER }}
-          NTFY_TOKEN: ${{ secrets.NTFY_TOKEN }}
+      - name: Run notifier (reads config.json)
         run: python main.py
 
       - name: Commit updated state.json (if changed)
