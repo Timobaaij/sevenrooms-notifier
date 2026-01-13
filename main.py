@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-SevenRooms availability notifier (multi-search config.json, no GitHub Secrets required)
+SevenRooms availability notifier (multi-search config.json, GitHub Secrets for Email)
 
 Files expected in repo:
 - config.json  (editable settings; supports multiple searches)
@@ -15,6 +15,8 @@ import json
 import time
 import hashlib
 import datetime as dt
+import smtplib
+from email.message import EmailMessage
 from typing import Any, Dict, List, Optional, Tuple
 
 import requests
@@ -91,7 +93,7 @@ def parse_time_from_time_iso(time_iso: str) -> Optional[dt.datetime]:
 
 
 # -------------------------
-# NTFY push
+# Notification Systems (NTFY + Email)
 # -------------------------
 
 def ntfy_publish(server: str, topic: str, title: str, message: str,
@@ -99,7 +101,8 @@ def ntfy_publish(server: str, topic: str, title: str, message: str,
     server = (server or "https://ntfy.sh").strip().rstrip("/")
     topic = (topic or "").strip()
     if not topic:
-        raise RuntimeError("Missing ntfy topic (set ntfy_default.topic or search.ntfy.topic).")
+        # We allow missing topic if user only wants email, so just return
+        return
 
     url = f"{server}/{topic}"
     headers = {
@@ -107,8 +110,36 @@ def ntfy_publish(server: str, topic: str, title: str, message: str,
         "Priority": (priority or "high").strip(),
         "Tags": (tags or "bell").strip(),
     }
-    r = requests.post(url, data=message.encode("utf-8"), headers=headers, timeout=20)
-    r.raise_for_status()
+    try:
+        r = requests.post(url, data=message.encode("utf-8"), headers=headers, timeout=20)
+        r.raise_for_status()
+    except Exception as e:
+        print(f"[ERR] ntfy failed: {e}")
+
+
+def send_email(target_email: str, subject: str, body: str) -> None:
+    """Sends an email using secrets from environment variables."""
+    email_user = os.environ.get("EMAIL_USER")
+    email_pass = os.environ.get("EMAIL_PASS")
+
+    if not email_user or not email_pass:
+        print(f"[INFO] Skipping email to {target_email}: EMAIL_USER or EMAIL_PASS secrets not set.")
+        return
+
+    msg = EmailMessage()
+    msg.set_content(body)
+    msg['Subject'] = subject
+    msg['From'] = email_user
+    msg['To'] = target_email
+
+    try:
+        # Using Gmail's standard SSL port
+        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
+            smtp.login(email_user, email_pass)
+            smtp.send_message(msg)
+        print(f"[OK] Email sent to {target_email}")
+    except Exception as e:
+        print(f"[ERR] Failed to send email: {e}")
 
 
 # -------------------------
@@ -185,10 +216,6 @@ def extract_bookable_times(payload: Dict[str, Any]) -> List[Tuple[str, str, str]
 def normalize_config(cfg: Dict[str, Any]) -> Tuple[Dict[str, Any], Dict[str, Any], List[Dict[str, Any]]]:
     """
     Returns (global_cfg, ntfy_default, searches)
-
-    Backward compatible:
-    - If cfg has 'searches', use them.
-    - Else, treat cfg as a single search and wrap into searches[].
     """
     global_cfg = cfg.get("global", {}) if isinstance(cfg.get("global"), dict) else {}
 
@@ -213,6 +240,7 @@ def normalize_config(cfg: Dict[str, Any]) -> Tuple[Dict[str, Any], Dict[str, Any
         "time_slot": cfg.get("time_slot", cfg.get("window_start", "18:00")),
         "num_days": cfg.get("num_days", 1),
         "ntfy": cfg.get("ntfy", {}),
+        "email_to": cfg.get("email_to", ""), # Added legacy support for email
     }
     return global_cfg, ntfy_default, [legacy_search]
 
@@ -280,6 +308,10 @@ def main():
         if num_days < 1:
             num_days = 1
 
+        # Email Config
+        email_to = str(s.get("email_to", "")).strip()
+
+        # NTFY Config
         ntfy_cfg = merge_ntfy(ntfy_default, s.get("ntfy", {}))
         ntfy_server = str(ntfy_cfg.get("server", "https://ntfy.sh")).strip()
         ntfy_topic = str(ntfy_cfg.get("topic", "")).strip()
@@ -356,15 +388,21 @@ def main():
 
             message = "\n".join(lines).strip()
 
-            # Send push
-            ntfy_publish(
-                server=ntfy_server,
-                topic=ntfy_topic,
-                title=ntfy_title,
-                message=message,
-                priority=ntfy_priority,
-                tags=ntfy_tags
-            )
+            # 1. Send push (NTFY)
+            if ntfy_topic:
+                ntfy_publish(
+                    server=ntfy_server,
+                    topic=ntfy_topic,
+                    title=ntfy_title,
+                    message=message,
+                    priority=ntfy_priority,
+                    tags=ntfy_tags
+                )
+            
+            # 2. Send Email (New Feature)
+            if email_to:
+                email_subject = f"Table Available: {search_id} ({target_date})"
+                send_email(email_to, email_subject, message)
 
             # Update dedupe
             for *_rest, k in matches_for_search:
