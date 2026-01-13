@@ -9,7 +9,7 @@
   "ntfy": {
     "server": "https://ntfy.sh",
     "topic": "Timo-Sevenrooms-Notify-989qpr989",
-    "priority": "high",
+    "priority": "urgent",
     "tags": "bell"
   }
 }
