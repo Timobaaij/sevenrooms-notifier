@@ -1,36 +1,33 @@
 import streamlit as st
 import json
 import time
-from github import Github
 import datetime
+from github import Github
 
 # --- CONFIGURATION ---
 # CRITICAL: UPDATE THIS TO YOUR REPO
 REPO_NAME = "Timobaaij/sevenrooms-notifier" 
 CONFIG_FILE_PATH = "config.json"
 
-st.set_page_config(page_title="SevenRooms Manager", layout="wide")
-st.title("🍽️ SevenRooms Search Manager")
+# --- PAGE SETUP ---
+st.set_page_config(
+    page_title="SevenRooms Manager", 
+    page_icon="🍽️",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
 
-# --- HELP SECTION ---
-with st.expander("ℹ️ Help: How to find 'Venue Slugs'"):
-    st.markdown("""
-    **What is a Slug?**
-    It is the unique ID for the restaurant in the SevenRooms URL.
-    
-    **How to find it:**
-    1. Go to the restaurant's booking page.
-    2. Look at the URL: `https://www.sevenrooms.com/reservations/gymkhana`
-    3. The slug is the last part: **`gymkhana`**
-    
-    **Examples:**
-    - URL: `.../reservations/lidios` -> Slug: `lidios`
-    - URL: `.../reservations/somsaa` -> Slug: `somsaa`
-    
-    **Pro Tip:**
-    To find new restaurants, Google this:  
-    `site:sevenrooms.com/reservations "London"`
-    """)
+# --- CUSTOM CSS FOR "CARDS" ---
+st.markdown("""
+<style>
+    .stButton button {
+        width: 100%;
+    }
+    div[data-testid="stMetricValue"] {
+        font-size: 1.2rem;
+    }
+</style>
+""", unsafe_allow_html=True)
 
 # --- AUTH ---
 try:
@@ -40,96 +37,158 @@ try:
     contents = repo.get_contents(CONFIG_FILE_PATH)
     config_data = json.loads(contents.decoded_content.decode("utf-8"))
 except Exception as e:
-    st.error(f"Connection Error: {e}")
+    st.error(f"❌ Connection Error: {e}")
     st.stop()
 
-# --- FUNCTIONS ---
+# --- HELPER FUNCTIONS ---
 def save_config(new_data):
     try:
-        repo.update_file(contents.path, "Update config via Web App", json.dumps(new_data, indent=2, sort_keys=True), contents.sha)
-        st.success("✅ Saved to GitHub!")
+        repo.update_file(
+            path=contents.path,
+            message="Update config via Web App",
+            content=json.dumps(new_data, indent=2, sort_keys=True),
+            sha=contents.sha
+        )
+        st.toast("✅ Saved to GitHub!", icon="💾")
+        time.sleep(1)
         st.cache_data.clear()
         st.rerun()
-    except Exception as e: st.error(f"Save Failed: {e}")
+    except Exception as e:
+        st.error(f"Save Failed: {e}")
 
 def parse_date(d):
-    try: return datetime.datetime.strptime(d, "%Y-%m-%d").date()
+    try: return datetime.datetime.strptime(str(d), "%Y-%m-%d").date()
     except: return datetime.date.today()
 
 def parse_time(t):
-    try: return datetime.datetime.strptime(t, "%H:%M").time()
+    try: return datetime.datetime.strptime(str(t), "%H:%M").time()
     except: return datetime.time(19, 0)
 
-# --- UI ---
-searches = config_data.get("searches", [])
-st.subheader(f"Active Searches ({len(searches)})")
-
-if not searches: st.info("No active searches.")
-
-for i, s in enumerate(searches):
-    label = f"📍 {s.get('id')} - {s.get('date')}"
-    with st.expander(label):
-        with st.form(key=f"edit_{i}"):
-            c1, c2, c3 = st.columns(3)
-            with c1:
-                e_id = st.text_input("ID", s.get("id"))
-                e_venues = st.text_input("Venues (comma sep)", ", ".join(s.get("venues", [])))
-                e_date = st.date_input("Date", parse_date(s.get("date")))
-            with c2:
-                e_party = st.number_input("Party", 1, value=int(s.get("party_size", 2)))
-                e_start = st.time_input("Start Window", parse_time(s.get("window_start")))
-                e_end = st.time_input("End Window", parse_time(s.get("window_end")))
-            with c3:
-                e_email = st.text_input("Email Alert To", s.get("email_to", ""))
-                e_days = st.number_input("Days to check", 1, value=int(s.get("num_days", 1)))
-                
-            if st.form_submit_button("💾 Update (Resets Notifications)"):
-                searches[i] = {
-                    "id": e_id,
-                    "venues": [v.strip() for v in e_venues.split(",") if v.strip()],
-                    "party_size": e_party,
-                    "date": str(e_date),
-                    "window_start": e_start.strftime("%H:%M"),
-                    "window_end": e_end.strftime("%H:%M"),
-                    "email_to": e_email.strip(),
-                    "num_days": e_days,
-                    "salt": str(time.time()) # Resets the unique ID so you get emailed again
-                }
-                config_data["searches"] = searches
-                save_config(config_data)
-                
-        if st.button("Delete", key=f"del_{i}"):
-            searches.pop(i)
+# --- SIDEBAR: TOOLS ---
+with st.sidebar:
+    st.title("🛠️ Tools")
+    
+    # 1. SLUG HUNTER
+    st.divider()
+    st.subheader("🕵️‍♀️ Slug Hunter")
+    st.info("SevenRooms 'slugs' are the last part of the booking URL. e.g. `sevenrooms.com/reservations/sexyfishlondon` -> `sexyfishlondon`")
+    
+    hunt_name = st.text_input("Restaurant Name + City", placeholder="e.g. Gymkhana London")
+    if hunt_name:
+        query = f"{hunt_name} SevenRooms reservations".replace(" ", "+")
+        url = f"https://www.google.com/search?q={query}"
+        st.link_button(f"🔍 Find '{hunt_name}' Slug", url)
+    
+    # 2. ADD NEW SEARCH
+    st.divider()
+    st.subheader("➕ Add New Search")
+    with st.form("add_new_form"):
+        n_id = st.text_input("Search Name", placeholder="Birthday Dinner")
+        n_venues = st.text_input("Venue Slugs", placeholder="lidios, som-saa")
+        n_date = st.date_input("Date")
+        
+        c1, c2 = st.columns(2)
+        with c1:
+            n_start = st.time_input("Start", datetime.time(18,0))
+            n_party = st.number_input("Party", 1, value=2)
+        with c2:
+            n_end = st.time_input("End", datetime.time(21,0))
+            n_days = st.number_input("Days", 1, value=1)
+            
+        n_email = st.text_input("Email Alert (Optional)", placeholder="me@gmail.com")
+        n_img = st.text_input("Image URL (Optional)", placeholder="https://...")
+        
+        if st.form_submit_button("🚀 Launch Search", type="primary"):
+            searches = config_data.get("searches", [])
+            searches.append({
+                "id": n_id,
+                "venues": [v.strip() for v in n_venues.split(",") if v.strip()],
+                "party_size": n_party,
+                "date": str(n_date),
+                "window_start": n_start.strftime("%H:%M"),
+                "window_end": n_end.strftime("%H:%M"),
+                "email_to": n_email.strip(),
+                "num_days": n_days,
+                "image_url": n_img.strip(),
+                "salt": str(time.time())
+            })
             config_data["searches"] = searches
             save_config(config_data)
 
-st.markdown("---")
-st.subheader("➕ Add New Search")
-with st.form("add"):
-    c1, c2, c3 = st.columns(3)
-    with c1:
-        n_id = st.text_input("ID", "Birthday")
-        n_venues = st.text_input("Venues (slugs)", "lidios, som-saa")
-        n_date = st.date_input("Date")
-    with c2:
-        n_party = st.number_input("Party", 1, 2)
-        n_start = st.time_input("Start", datetime.time(18,0))
-        n_end = st.time_input("End", datetime.time(21,0))
-    with c3:
-        n_email = st.text_input("Email To", "")
-        n_days = st.number_input("Days to check", 1, value=1)
+# --- MAIN DASHBOARD ---
+st.title("🍽️ Active Searches")
+
+searches = config_data.get("searches", [])
+
+if not searches:
+    st.markdown("""
+        <div style="text-align: center; padding: 50px; background: #f0f2f6; border-radius: 10px;">
+            <h3>No active searches</h3>
+            <p>Use the sidebar 👈 to add your first restaurant watch.</p>
+        </div>
+    """, unsafe_allow_html=True)
+else:
+    # GRID LAYOUT (3 Columns)
+    cols = st.columns(3)
+    
+    for i, s in enumerate(searches):
+        # Calculate which column to use
+        col = cols[i % 3]
         
-    if st.form_submit_button("Add Search"):
-        searches.append({
-            "id": n_id,
-            "venues": [v.strip() for v in n_venues.split(",") if v.strip()],
-            "party_size": n_party,
-            "date": str(n_date),
-            "window_start": n_start.strftime("%H:%M"),
-            "window_end": n_end.strftime("%H:%M"),
-            "email_to": n_email.strip(),
-            "num_days": n_days,
-            "salt": str(time.time()) # New salt for new search
-        })
-        config_data["searches"] = searches
-        save_config(config_data)
+        with col:
+            # CARD CONTAINER
+            with st.container(border=True):
+                # 1. IMAGE (Fallback to generic if empty)
+                img_link = s.get("image_url")
+                if not img_link:
+                    img_link = "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?q=80&w=1000&auto=format&fit=crop"
+                
+                st.image(img_link, use_container_width=True, clamp=True)
+                
+                # 2. HEADER
+                st.subheader(s.get("id", "Unnamed"))
+                
+                # 3. METRICS
+                m1, m2 = st.columns(2)
+                m1.metric("Date", s.get("date"))
+                m2.metric("Venues", len(s.get("venues", [])))
+                
+                # 4. DETAILS (Collapsed)
+                with st.expander("Show Details & Edit"):
+                    with st.form(key=f"edit_{i}"):
+                        e_id = st.text_input("Name", s.get("id"))
+                        e_venues = st.text_input("Venues", ", ".join(s.get("venues", [])))
+                        e_date = st.date_input("Date", parse_date(s.get("date")))
+                        
+                        ec1, ec2 = st.columns(2)
+                        with ec1:
+                            e_start = st.time_input("Start", parse_time(s.get("window_start")))
+                            e_party = st.number_input("Party", 1, value=int(s.get("party_size", 2)))
+                        with ec2:
+                            e_end = st.time_input("End", parse_time(s.get("window_end")))
+                            e_days = st.number_input("Days", 1, value=int(s.get("num_days", 1)))
+                        
+                        e_email = st.text_input("Email", s.get("email_to", ""))
+                        e_img = st.text_input("Image URL", s.get("image_url", ""))
+                        
+                        if st.form_submit_button("💾 Save Changes"):
+                            searches[i] = {
+                                "id": e_id,
+                                "venues": [v.strip() for v in e_venues.split(",") if v.strip()],
+                                "party_size": e_party,
+                                "date": str(e_date),
+                                "window_start": e_start.strftime("%H:%M"),
+                                "window_end": e_end.strftime("%H:%M"),
+                                "email_to": e_email.strip(),
+                                "num_days": e_days,
+                                "image_url": e_img.strip(),
+                                "salt": str(time.time()) # FORCE RESET
+                            }
+                            config_data["searches"] = searches
+                            save_config(config_data)
+
+                # 5. DELETE BUTTON (Red styling handled by Streamlit defaults)
+                if st.button("🗑️ Delete", key=f"del_{i}"):
+                    searches.pop(i)
+                    config_data["searches"] = searches
+                    save_config(config_data)
