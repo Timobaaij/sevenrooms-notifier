@@ -39,7 +39,6 @@ def _hhmm(value: str) -> Optional[str]:
     d = _parse_iso(value)
     if d:
         return d.strftime("%H:%M")
-    # fallback: try to find HH:MM in any string
     import re
     m = re.search(r"\b([01]\d|2[0-3]):([0-5]\d)\b", value or "")
     return f"{m.group(1)}:{m.group(2)}" if m else None
@@ -55,10 +54,6 @@ def _parse_time(value: str) -> Optional[dt.time]:
 
 
 def _in_window(hhmm: str, start: str, end: str) -> bool:
-    """
-    If start/end missing or unparsable -> allow.
-    Handles overnight windows (e.g., 22:00–01:00).
-    """
     if not (hhmm and start and end):
         return True
     tt, ts, te = _parse_time(hhmm), _parse_time(start), _parse_time(end)
@@ -93,17 +88,8 @@ def send_email(to_email: str, subject: str, body: str) -> None:
         s.send_message(msg)
 
 
-def fetch_sevenrooms_slots(
-    venue: str,
-    date_yyyy_mm_dd: str,
-    party: int,
-    channel: str,
-    num_days: int = 1,
-    lang: str = "en"
-) -> List[Tuple[str, str]]:
-    """
-    Returns list of (slot_iso, kind) where kind is AVAILABLE or REQUEST.
-    """
+def fetch_sevenrooms_slots(venue: str, date_yyyy_mm_dd: str, party: int, channel: str, num_days: int = 1, lang: str = "en") -> List[Tuple[str, str]]:
+    """Return list of (slot_iso, kind) where kind is AVAILABLE or REQUEST."""
     try:
         d_sr = dt.datetime.strptime(date_yyyy_mm_dd, "%Y-%m-%d").strftime("%m-%d-%Y")
     except Exception:
@@ -120,7 +106,6 @@ def fetch_sevenrooms_slots(
 
     out: List[Tuple[str, str]] = []
     availability = (j.get("data", {}) or {}).get("availability", {}) or {}
-
     for _, day in availability.items():
         if not isinstance(day, list):
             continue
@@ -131,28 +116,19 @@ def fetch_sevenrooms_slots(
             for t in times:
                 if not isinstance(t, dict):
                     continue
-
                 is_avail = bool(t.get("is_available"))
                 is_req = bool(t.get("is_requestable"))
-
-                # include both real availability + requestable slots
                 if not (is_avail or is_req):
                     continue
-
                 iso = t.get("time_iso") or t.get("date_time") or t.get("time")
                 if not iso:
                     continue
-
-                kind = "AVAILABLE" if is_avail else "REQUEST"
-                out.append((str(iso), kind))
+                out.append((str(iso), "AVAILABLE" if is_avail else "REQUEST"))
 
     return out
 
 
 def fetch_opentable_slots(rid: str, date_yyyy_mm_dd: str, party: int) -> List[str]:
-    """
-    Returns list of ISO dateTime strings from OpenTable availability API.
-    """
     url = (
         "https://www.opentable.com/api/v2/reservation/availability"
         f"?rid={rid}&partySize={party}&dateTime={date_yyyy_mm_dd}T19:00"
@@ -177,7 +153,6 @@ def fetch_opentable_slots(rid: str, date_yyyy_mm_dd: str, party: int) -> List[st
 
     walk(j)
 
-    # de-dupe preserving order
     seen = set()
     uniq = []
     for s in slots:
@@ -197,7 +172,6 @@ def main() -> None:
     lang = global_cfg.get("lang", "en")
     delay = float(global_cfg.get("delay_between_venues_sec", 0.5) or 0.5)
 
-    # ✅ FIX: read defaults from ntfy_default (matches your config.json)
     ntfy_default = config.get("ntfy_default", {}) or {}
     d_server = ntfy_default.get("server", "https://ntfy.sh")
     d_topic = ntfy_default.get("topic", "")
@@ -212,13 +186,11 @@ def main() -> None:
         party = int(s.get("party_size") or 2)
         salt = str(s.get("salt", ""))
 
-        # filter mode: exact time OR window
-        time_slot = (s.get("time_slot") or "").strip()     # "HH:MM" or ""
+        time_slot = (s.get("time_slot") or "").strip()
         window_start = (s.get("window_start") or "").strip()
         window_end = (s.get("window_end") or "").strip()
         num_days = int(s.get("num_days") or 1)
 
-        # per-search ntfy override (optional)
         ntfy = s.get("ntfy", {}) or {}
         server = ntfy.get("server") or d_server
         topic = ntfy.get("topic") or d_topic
@@ -280,4 +252,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-``
