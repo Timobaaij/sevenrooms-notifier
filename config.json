@@ -1,4 +1,3 @@
-
 {
   "global": {
     "channel": "SEVENROOMS_WIDGET",
@@ -15,13 +14,18 @@
   "searches": [
     {
       "date": "2026-01-25",
+      "email_to": "",
       "id": "Watermans",
+      "image_url": "",
+      "notes": "",
       "ntfy": {
         "title": "TABLE FOUND"
       },
       "num_days": 1,
       "party_size": 2,
-      "time_slot": "13:00",
+      "platform": "sevenrooms",
+      "salt": "1768325428.6814213",
+      "time_slot": "",
       "venues": [
         "thewatermansarms"
       ],
