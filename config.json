@@ -1,4 +1,3 @@
-
 {
   "venues": ["thecamberwellarms","thewatermansarms"],
   "party_size": 2,
@@ -12,4 +11,61 @@
     "priority": "urgent",
     "tags": "bell"
   }
+}
+
+
+{
+  "global": {
+    "delay_between_venues_sec": 0.5,
+    "halo_size_interval": 64,
+    "channel": "SEVENROOMS_WIDGET",
+    "lang": "en"
+  },
+  "ntfy_default": {
+    "server": "https://ntfy.sh",
+    "topic": "Timo-Sevenrooms-Notify-989qpr989",
+    "priority": "urgent",
+    "tags": "rotating_light,warning"
+  },
+  "searches": [
+    {
+      "id": "rambutan_early",
+      "venues": ["rambutan"],
+      "party_size": 2,
+      "date": "2026-01-14",
+      "window_start": "18:00",
+      "window_end": "19:15",
+      "time_slot": "18:00",
+      "num_days": 1,
+      "ntfy": {
+        "title": "TABLE FOUND (early)"
+      }
+    },
+    {
+      "id": "rambutan_late",
+      "venues": ["rambutan"],
+      "party_size": 2,
+      "date": "2026-01-14",
+      "window_start": "19:15",
+      "window_end": "20:30",
+      "time_slot": "19:00",
+      "num_days": 1,
+      "ntfy": {
+        "title": "TABLE FOUND (late)"
+      }
+    },
+    {
+      "id": "four_top_anytime",
+      "venues": ["rambutan"],
+      "party_size": 4,
+      "date": "2026-01-14",
+      "window_start": "18:00",
+      "window_end": "21:30",
+      "time_slot": "18:00",
+      "num_days": 1,
+      "ntfy": {
+        "title": "4-top found"
+      }
+    }
+  ]
 }
