@@ -35,10 +35,11 @@
       "id": "The Camberwell Arms",
       "image_url": "",
       "notes": "",
+      "notify": "both",
       "num_days": 1,
       "party_size": 2,
       "platform": "sevenrooms",
-      "salt": "1768327273.8732924",
+      "salt": "1768334632.2206461",
       "time_slot": "",
       "venues": [
         "thecamberwellarms"
