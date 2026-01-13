@@ -3,20 +3,22 @@ import json
 import time
 import datetime
 import requests
+import re
 from bs4 import BeautifulSoup
 from github import Github
 
 # --- CONFIGURATION ---
-REPO_NAME = "Timobaaij/sevenrooms-notifier" # <--- UPDATE THIS
+REPO_NAME = "Timobaaij/sevenrooms-notifier"  # <--- UPDATE THIS
 CONFIG_FILE_PATH = "config.json"
 
-st.set_page_config(page_title="Resy/SR/OT Manager", page_icon="🍽️", layout="wide")
+st.set_page_config(page_title="Reservation Manager", page_icon="🍽️", layout="wide")
 
 # --- CUSTOM CSS ---
 st.markdown("""
 <style>
     .stButton button { width: 100%; }
     div[data-testid="stMetricValue"] { font-size: 1.2rem; }
+    .big-font { font-size: 1.1rem; font-weight: 500; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -34,141 +36,180 @@ except Exception as e:
 # --- HELPERS ---
 def save_config(new_data):
     try:
-        repo.update_file(contents.path, "Update config via Web App", json.dumps(new_data, indent=2, sort_keys=True), contents.sha)
-        st.toast("✅ Saved!", icon="💾")
+        repo.update_file(
+            path=contents.path,
+            message="Update via Web App",
+            content=json.dumps(new_data, indent=2, sort_keys=True),
+            sha=contents.sha
+        )
+        st.toast("✅ Saved to GitHub!", icon="💾")
         time.sleep(1)
         st.cache_data.clear()
         st.rerun()
     except Exception as e: st.error(f"Save Failed: {e}")
 
-def get_opentable_id(url):
-    """Scrapes the Numeric ID from an OpenTable URL"""
-    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"}
-    try:
-        r = requests.get(url, headers=headers, timeout=10)
-        soup = BeautifulSoup(r.text, 'html.parser')
-        # Look for the RID in meta tags or specific scripts
-        # Method 1: Meta tag
-        meta = soup.find("meta", {"name": "ot:restaurant_id"})
-        if meta: return meta.get("content")
-        # Method 2: Script regex (fallback)
-        import re
-        match = re.search(r'"restaurantId":\s*(\d+)', r.text)
-        if match: return match.group(1)
-        return None
-    except: return None
+def magic_get_opentable_id(url_or_id):
+    """
+    Smart Function:
+    1. If user pastes a URL (opentable.com/r/...), it fetches the page and finds the ID.
+    2. If user pastes a number (12345), it returns it as is.
+    """
+    clean_input = url_or_id.strip()
+    
+    # If it's already a number, just return it
+    if clean_input.isdigit():
+        return clean_input
+        
+    # If it's a URL, let's go hunting
+    if "opentable" in clean_input:
+        try:
+            headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"}
+            r = requests.get(clean_input, headers=headers, timeout=10)
+            
+            if r.status_code == 200:
+                soup = BeautifulSoup(r.text, 'html.parser')
+                
+                # Method A: Look for the specific meta tag (Most reliable)
+                # <meta name="ot:restaurant_id" content="12345">
+                meta = soup.find("meta", {"name": "ot:restaurant_id"})
+                if meta:
+                    return meta.get("content")
+                
+                # Method B: Look for the ID in the JSON data scripts
+                # "restaurantId":12345
+                match = re.search(r'"restaurantId":\s*(\d+)', r.text)
+                if match:
+                    return match.group(1)
+                    
+        except Exception as e:
+            print(f"Error fetching ID: {e}")
+            return None
+            
+    return None
 
-# --- LAYOUT ---
-col_main, col_tools = st.columns([3, 1.2], gap="medium")
+# --- MAIN LAYOUT ---
+col_main, col_tools = st.columns([3, 1.3], gap="medium")
 
+# ==========================================
+# LEFT: DASHBOARD (Your Searches)
+# ==========================================
 with col_main:
     st.title("🍽️ Active Searches")
     searches = config_data.get("searches", [])
     
     if not searches: st.info("No active searches.")
     else:
-        cols = st.columns(2)
+        # 2-Column Grid for cards
+        grid = st.columns(2)
         for i, s in enumerate(searches):
-            with cols[i % 2]:
+            with grid[i % 2]:
                 with st.container(border=True):
-                    # Badge for Platform
-                    plat = s.get("platform", "sevenrooms").upper()
-                    st.caption(f"🏷️ {plat}")
+                    # Header with Badge
+                    c_title, c_badge = st.columns([3, 1])
+                    c_title.subheader(s.get("id", "Unnamed"))
                     
-                    st.subheader(s.get("id", "Unnamed"))
+                    plat = s.get("platform", "sevenrooms")
+                    if plat == "opentable":
+                        c_badge.markdown(":red[**OpenTable**]")
+                    else:
+                        c_badge.markdown(":blue[**7Rooms**]")
+                    
+                    # Metrics
                     m1, m2 = st.columns(2)
                     m1.metric("Date", s.get("date"))
                     m2.metric("Venues", len(s.get("venues", [])))
                     
-                    with st.expander("Edit"):
-                        with st.form(key=f"edit_{i}"):
-                            # Note: Platform is locked on edit for simplicity
-                            e_id = st.text_input("Name", s.get("id"))
-                            e_venues = st.text_input("IDs/Slugs", ", ".join(s.get("venues", [])))
-                            e_date = st.date_input("Date", datetime.datetime.strptime(s.get("date"), "%Y-%m-%d").date())
-                            c1, c2 = st.columns(2)
-                            with c1: e_start = st.time_input("Start", datetime.datetime.strptime(s.get("window_start"), "%H:%M").time())
-                            with c2: e_end = st.time_input("End", datetime.datetime.strptime(s.get("window_end"), "%H:%M").time())
-                            e_email = st.text_input("Email", s.get("email_to", ""))
-                            
-                            if st.form_submit_button("💾 Save"):
-                                searches[i].update({
-                                    "id": e_id,
-                                    "venues": [v.strip() for v in e_venues.split(",") if v.strip()],
-                                    "date": str(e_date),
-                                    "window_start": e_start.strftime("%H:%M"),
-                                    "window_end": e_end.strftime("%H:%M"),
-                                    "email_to": e_email,
-                                    "salt": str(time.time())
-                                })
-                                config_data["searches"] = searches
-                                save_config(config_data)
+                    # Edit / Delete
+                    with st.expander("Details"):
+                        st.write(f"**Venues:** {', '.join(s.get('venues', []))}")
+                        if st.button("🗑️ Delete Search", key=f"del_{i}"):
+                            searches.pop(i)
+                            config_data["searches"] = searches
+                            save_config(config_data)
 
-                    if st.button("Delete", key=f"del_{i}"):
-                        searches.pop(i)
-                        config_data["searches"] = searches
-                        save_config(config_data)
-
-# --- RIGHT PANEL (TOOLS) ---
+# ==========================================
+# RIGHT: SMART ADD TOOL
+# ==========================================
 with col_tools:
-    st.header("🛠️ Tools")
+    st.header("➕ Add New Search")
     
     with st.container(border=True):
-        st.subheader("Add Search")
+        # 1. Platform Switch
+        platform = st.radio("Choose Platform", ["SevenRooms", "OpenTable"], horizontal=True)
+        is_ot = (platform == "OpenTable")
         
-        # 1. Choose Platform
-        platform_choice = st.radio("Platform", ["SevenRooms", "OpenTable"], horizontal=True)
-        platform_key = platform_choice.lower()
-        
-        with st.form("add"):
-            n_id = st.text_input("Name", placeholder="Anniversary")
+        with st.form("add_form"):
+            st.write("### 1. Restaurant Details")
+            n_id = st.text_input("Name this Search", placeholder="e.g. Birthday Dinner")
             
-            # Helper text changes based on platform
-            if platform_key == "opentable":
-                n_venues = st.text_input("Restaurant IDs", placeholder="e.g. 12345 (Use ID Finder below)")
+            # --- SMART INPUT FIELD ---
+            if is_ot:
+                st.info("💡 **Easy Mode:** Just paste the full OpenTable website link below. We'll find the ID for you.")
+                n_input = st.text_input("Restaurant Link", placeholder="https://www.opentable.com/r/gymkhana-london")
             else:
-                n_venues = st.text_input("Restaurant Slugs", placeholder="e.g. sexyfishlondon")
-                
+                st.info("💡 **Tip:** The slug is the last part of the URL. (sevenrooms.com/reservations/**slug**)")
+                n_input = st.text_input("Venue Slug", placeholder="e.g. sexyfishlondon")
+
+            st.write("### 2. Date & Time")
             n_date = st.date_input("Date")
             c1, c2 = st.columns(2)
-            with c1: n_start = st.time_input("Start", datetime.time(18,0))
-            with c2: n_end = st.time_input("End", datetime.time(21,0))
-            n_party = st.number_input("Party", 2)
-            n_days = st.number_input("Days", 1)
-            n_email = st.text_input("Email", placeholder="me@gmail.com")
+            n_start = c1.time_input("Start", datetime.time(18,0))
+            n_end = c2.time_input("End", datetime.time(21,0))
             
-            if st.form_submit_button("🚀 Launch"):
-                searches.append({
-                    "id": n_id,
-                    "platform": platform_key,
-                    "venues": [v.strip() for v in n_venues.split(",") if v.strip()],
-                    "party_size": n_party,
-                    "date": str(n_date),
-                    "window_start": n_start.strftime("%H:%M"),
-                    "window_end": n_end.strftime("%H:%M"),
-                    "num_days": n_days,
-                    "email_to": n_email,
-                    "salt": str(time.time())
-                })
-                config_data["searches"] = searches
-                save_config(config_data)
+            st.write("### 3. Preferences")
+            c3, c4 = st.columns(2)
+            n_party = c3.number_input("Party Size", 2)
+            n_days = c4.number_input("Flexibility (Days)", 1, help="Check X days starting from the date above")
+            
+            n_email = st.text_input("Email Alert To", placeholder="me@gmail.com")
+            
+            submit = st.form_submit_button("🚀 Start Searching", type="primary")
+            
+            if submit:
+                # --- THE MAGIC LOGIC ---
+                final_venues = []
+                
+                if is_ot:
+                    # Logic for OpenTable: Convert Link -> ID
+                    with st.spinner("🕵️‍♂️ Visiting OpenTable to find ID..."):
+                        # Split by comma in case user pastes multiple links
+                        links = [x.strip() for x in n_input.split(",") if x.strip()]
+                        for link in links:
+                            found_id = magic_get_opentable_id(link)
+                            if found_id:
+                                final_venues.append(found_id)
+                                st.success(f"Found ID: {found_id}")
+                            else:
+                                st.error(f"Could not find ID for: {link}")
+                                st.stop()
+                else:
+                    # Logic for SevenRooms: Use slug directly
+                    final_venues = [x.strip() for x in n_input.split(",") if x.strip()]
 
-    st.write("")
-    
-    # DYNAMIC TOOL SECTION
-    with st.container(border=True):
-        if platform_key == "opentable":
-            st.subheader("🆔 OpenTable ID Finder")
-            st.info("Paste the restaurant URL to find its ID.")
-            ot_url = st.text_input("URL", placeholder="opentable.com/r/...")
-            if st.button("Find ID"):
-                if ot_url:
-                    rid = get_opentable_id(ot_url)
-                    if rid: st.success(f"ID Found: `{rid}`")
-                    else: st.error("Could not find ID. Try another URL.")
-        else:
-            st.subheader("🕵️‍♀️ SevenRooms Slug Hunter")
-            st.info("Find the slug (the part after /reservations/)")
-            q = st.text_input("Restaurant Name")
+                # Save if we have valid venues
+                if final_venues:
+                    searches.append({
+                        "id": n_id,
+                        "platform": "opentable" if is_ot else "sevenrooms",
+                        "venues": final_venues,
+                        "party_size": n_party,
+                        "date": str(n_date),
+                        "window_start": n_start.strftime("%H:%M"),
+                        "window_end": n_end.strftime("%H:%M"),
+                        "num_days": n_days,
+                        "email_to": n_email,
+                        "salt": str(time.time())
+                    })
+                    config_data["searches"] = searches
+                    save_config(config_data)
+                else:
+                    st.error("Please enter a valid Link or Slug.")
+
+    # Extra helper for SevenRooms since it doesn't have the Magic Link feature yet
+    if not is_ot:
+        st.write("")
+        with st.expander("Don't know the SevenRooms slug?"):
+            q = st.text_input("Restaurant Name", placeholder="Gymkhana")
             if q:
-                st.link_button("Search Google", f"https://www.google.com/search?q={q}+SevenRooms+reservations")
+                url = f"https://www.google.com/search?q={q.replace(' ', '+')}+SevenRooms+reservations"
+                st.link_button("Search on Google", url)
