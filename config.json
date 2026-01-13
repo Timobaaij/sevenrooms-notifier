@@ -1,0 +1,14 @@
+{
+  "venues": ["PUT_VENUE_SLUG_HERE"],
+  "party_size": 2,
+  "date": "2026-01-14",
+  "window_start": "18:00",
+  "window_end": "20:30",
+
+  "ntfy": {
+    "server": "https://ntfy.sh",
+    "topic": "PUT_RANDOM_TOPIC_HERE",
+    "priority": "high",
+    "tags": "bell"
+  }
+}
