@@ -5,7 +5,7 @@ import datetime
 from github import Github
 
 # --- CONFIGURATION ---
-REPO_NAME = "YOUR_GITHUB_USERNAME/YOUR_REPO_NAME" # <--- CHECK THIS
+REPO_NAME = "Timobaaij/sevenrooms-notifier" # <--- CHECK THIS
 CONFIG_FILE_PATH = "config.json"
 
 st.set_page_config(page_title="Reservation Manager", page_icon="🍽️", layout="wide")
