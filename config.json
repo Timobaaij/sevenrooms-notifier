@@ -14,14 +14,14 @@
   "searches": [
     {
       "date": "2026-01-25",
-      "email_to": "timobaaij@gmail.com",
+      "email_to": "",
       "id": "Watermans Arms",
       "image_url": "",
       "notes": "",
       "num_days": 1,
       "party_size": 2,
       "platform": "sevenrooms",
-      "salt": "1768326492.2559066",
+      "salt": "1768327302.7428772",
       "time_slot": "",
       "venues": [
         "thewatermansarms"
