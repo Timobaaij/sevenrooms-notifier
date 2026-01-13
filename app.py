@@ -71,7 +71,7 @@ def reset_state():
 def parse_opentable_ids_from_url(text: str):
     if not text:
         return []
-    return re.findall(r"[?&]rid=(\d{2,})", text)
+    return re.findall(r"[?&amp;]rid=(\d{2,})", text)
 
 def get_ot_ids(url: str):
     """Get ALL OpenTable restaurant IDs from page source (and URL).
@@ -112,7 +112,7 @@ def get_ot_ids(url: str):
 def get_sevenrooms_slug(text: str):
     if not text:
         return None
-    m = re.search(r"[?&]venue=([a-zA-Z0-9_-]+)", text)
+    m = re.search(r"[?&amp;]venue=([a-zA-Z0-9_-]+)", text)
     if m:
         return m.group(1)
     m = re.search(r"/reservations/([a-zA-Z0-9_-]+)", text)
@@ -132,8 +132,8 @@ def fetch_sevenrooms_times(venue: str, date_yyyy_mm_dd: str, party: int, channel
         return []
     url = (
         "https://www.sevenrooms.com/api-yoa/availability/widget/range"
-        f"?venue={venue}&party_size={party}&start_date={d_sr}&num_days={num_days}"
-        f"&channel={channel}&lang={lang}"
+        f"?venue={venue}&amp;party_size={party}&amp;start_date={d_sr}&amp;num_days={num_days}"
+        f"&amp;channel={channel}&amp;lang={lang}"
     )
     r = requests.get(url, timeout=15)
     if not r.ok:
@@ -173,7 +173,7 @@ def fetch_sevenrooms_times(venue: str, date_yyyy_mm_dd: str, party: int, channel
 def fetch_opentable_times(rid: str, date_yyyy_mm_dd: str, party: int):
     url = (
         "https://www.opentable.com/api/v2/reservation/availability"
-        f"?rid={rid}&partySize={party}&dateTime={date_yyyy_mm_dd}T19:00"
+        f"?rid={rid}&amp;partySize={party}&amp;dateTime={date_yyyy_mm_dd}T19:00"
     )
     headers = {"User-Agent": "Mozilla/5.0"}
     r = requests.get(url, headers=headers, timeout=15)
@@ -247,21 +247,43 @@ for i, s in enumerate(searches):
     time_txt = time_slot if time_slot else window_txt
     notify_txt = (s.get("notify") or "both").title()
 
-    # Use pure Streamlit container with a border — no raw HTML wrappers
     with st.container(border=True):
         # Header line
         header_cols = st.columns([0.65, 0.35])
         with header_cols[0]:
             st.markdown(f"**📍 {s.get('id','Unnamed')} ({p_label})**")
             st.caption(f"🗓 {date_txt} · 👥 {party_txt} · ⏱ {time_txt} · 🔔 {notify_txt}")
+
         with header_cols[1]:
-            action_cols = st.columns(2)
+            # ✅ changed from 2 → 3 columns to add Delete
+            action_cols = st.columns(3)
             with action_cols[0]:
                 if st.button("See details", key=f"btn_details_{i}"):
                     _toggle(f"show_details_{i}")
             with action_cols[1]:
                 if st.button("Edit", key=f"btn_edit_{i}"):
                     _toggle(f"show_edit_{i}")
+            with action_cols[2]:
+                # ---- DELETE BUTTON (two-step confirm) ----
+                if st.button("🗑️ Delete", key=f"btn_delete_{i}"):
+                    st.session_state[f"confirm_delete_{i}"] = True
+
+        # ✅ Confirmation UI (only shows if delete clicked)
+        if st.session_state.get(f"confirm_delete_{i}", False):
+            st.divider()
+            st.warning(f"Delete **{s.get('id','Unnamed')}**? This will remove the search from `config.json`.", icon="⚠️")
+            cdel1, cdel2 = st.columns(2)
+            with cdel1:
+                if st.button("✅ Confirm delete", type="primary", key=f"btn_confirm_delete_{i}"):
+                    # Remove the search and save
+                    searches.pop(i)
+                    config_data["searches"] = searches
+                    # clear confirmation flag (optional; rerun happens)
+                    st.session_state[f"confirm_delete_{i}"] = False
+                    save_config(config_data)
+            with cdel2:
+                if st.button("Cancel", key=f"btn_cancel_delete_{i}"):
+                    st.session_state[f"confirm_delete_{i}"] = False
 
         # Details (view-only) section
         if st.session_state.get(f"show_details_{i}", False):
@@ -278,7 +300,6 @@ for i, s in enumerate(searches):
         if st.session_state.get(f"show_edit_{i}", False):
             st.divider()
             with st.form(f"edit_form_{i}"):
-                # Capitalized platform labels in UI; normalized value stored
                 current_label = "SevenRooms" if (s.get("platform", "sevenrooms") == "sevenrooms") else "OpenTable"
                 e_platform_label = st.selectbox("Platform", PLATFORM_LABELS, index=PLATFORM_LABELS.index(current_label))
                 e_platform = PLATFORM_MAP[e_platform_label]
@@ -296,7 +317,11 @@ for i, s in enumerate(searches):
                 e_window_start = st.text_input("Window start (HH:MM)", s.get("window_start", "18:00"))
                 e_window_end = st.text_input("Window end (HH:MM)", s.get("window_end", "22:00"))
 
-                e_notify_label = st.selectbox("Notification method", NOTIFY_LABELS, index=NOTIFY_LABELS.index((s.get("notify") or "both").title()))
+                e_notify_label = st.selectbox(
+                    "Notification method",
+                    NOTIFY_LABELS,
+                    index=NOTIFY_LABELS.index((s.get("notify") or "both").title())
+                )
                 e_notify = NOTIFY_MAP[e_notify_label]
 
                 e_email = st.text_input("Email alert to (optional)", s.get("email_to", ""))
@@ -463,7 +488,6 @@ with st.expander("⚙️ Advanced", expanded=False):
             }
             save_config(config_data)
     with c2:
-        # Optional: live test
         def post_test_push(server: str, topic: str, title: str, msg: str, priority: str = "", tags: str = ""):
             if not (server and topic):
                 return False, "Missing server/topic"
