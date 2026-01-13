@@ -1,20 +1,4 @@
 {
-  "venues": ["thecamberwellarms","thewatermansarms"],
-  "party_size": 2,
-  "date": "2026-01-25",
-  "window_start": "13:00",
-  "window_end": "16:00",
-  "num_days": 1,
-  "ntfy": {
-    "server": "https://ntfy.sh",
-    "topic": "Timo-Sevenrooms-Notify-989qpr989",
-    "priority": "urgent",
-    "tags": "bell"
-  }
-}
-
-
-{
   "global": {
     "delay_between_venues_sec": 0.5,
     "halo_size_interval": 64,
