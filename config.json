@@ -1,10 +1,11 @@
+
 {
-  "venues": ["PUT_VENUE_SLUG_HERE"],
+  "venues": ["rambutan"],
   "party_size": 2,
   "date": "2026-01-14",
   "window_start": "18:00",
   "window_end": "20:30",
-
+  "num_days": 1,
   "ntfy": {
     "server": "https://ntfy.sh",
     "topic": "PUT_RANDOM_TOPIC_HERE",
