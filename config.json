@@ -28,6 +28,23 @@
       ],
       "window_end": "16:00",
       "window_start": "13:00"
+    },
+    {
+      "date": "2026-01-25",
+      "email_to": "timobaaij@gmail.com",
+      "id": "The Camberwell Arms",
+      "image_url": "",
+      "notes": "",
+      "num_days": 1,
+      "party_size": 2,
+      "platform": "sevenrooms",
+      "salt": "1768326517.9871237",
+      "time_slot": "",
+      "venues": [
+        "thecamberwellarms"
+      ],
+      "window_end": "16:00",
+      "window_start": "13:00"
     }
   ]
 }
