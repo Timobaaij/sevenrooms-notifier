@@ -34,13 +34,18 @@
     },
     {
       "date": "2026-01-25",
+      "email_to": "",
       "id": "The Camberwell Arms",
+      "image_url": "",
+      "notes": "",
       "ntfy": {
         "title": "TABLE FOUND"
       },
       "num_days": 1,
       "party_size": 2,
-      "time_slot": "13:00",
+      "platform": "sevenrooms",
+      "salt": "1768325452.1460536",
+      "time_slot": "",
       "venues": [
         "thecamberwellarms"
       ],
