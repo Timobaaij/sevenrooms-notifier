@@ -29,12 +29,13 @@
     },
     {
       "date": "2026-01-25",
-      "id": "thecamberwellarms",
+      "id": "The Camberwell Arms",
       "ntfy": {
         "title": "TABLE FOUND"
       },
       "num_days": 1,
       "party_size": 2,
+      "time_slot": "13:00",
       "venues": [
         "thecamberwellarms"
       ],
