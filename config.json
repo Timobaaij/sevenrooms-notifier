@@ -1,40 +1,45 @@
 {
   "global": {
+    "channel": "SEVENROOMS_WIDGET",
     "delay_between_venues_sec": 0.5,
     "halo_size_interval": 64,
-    "channel": "SEVENROOMS_WIDGET",
     "lang": "en"
   },
   "ntfy_default": {
-    "server": "https://ntfy.sh",
-    "topic": "Timo-Sevenrooms-Notify-989qpr989",
     "priority": "urgent",
-    "tags": "rotating_light,warning"
+    "server": "https://ntfy.sh",
+    "tags": "rotating_light,warning",
+    "topic": "Timo-Sevenrooms-Notify-989qpr989"
   },
   "searches": [
     {
-      "id": "watermans",
-      "venues": ["thewatermansarms"],
-      "party_size": 2,
       "date": "2026-01-25",
-      "window_start": "13:00",
-      "window_end": "16:00",
-      "num_days": 1,
+      "id": "Watermans",
       "ntfy": {
         "title": "TABLE FOUND"
-      }
+      },
+      "num_days": 1,
+      "party_size": 2,
+      "time_slot": "13:00",
+      "venues": [
+        "thewatermansarms"
+      ],
+      "window_end": "16:00",
+      "window_start": "13:00"
     },
     {
-      "id": "thecamberwellarms",
-      "venues": ["thecamberwellarms"],
-      "party_size": 2,
       "date": "2026-01-25",
-      "window_start": "13:00",
-      "window_end": "16:00",
-      "num_days": 1,
+      "id": "thecamberwellarms",
       "ntfy": {
         "title": "TABLE FOUND"
-      }
+      },
+      "num_days": 1,
+      "party_size": 2,
+      "venues": [
+        "thecamberwellarms"
+      ],
+      "window_end": "16:00",
+      "window_start": "13:00"
     }
   ]
 }
