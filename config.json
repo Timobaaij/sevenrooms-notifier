@@ -97,6 +97,23 @@
       ],
       "window_end": "22:00",
       "window_start": "18:00"
+    },
+    {
+      "date": "2026-02-14",
+      "email_to": "",
+      "id": "kolae",
+      "notes": "",
+      "notify": "both",
+      "num_days": 1,
+      "party_size": 2,
+      "platform": "sevenrooms",
+      "salt": "1768401813.3942418",
+      "time_slot": "",
+      "venues": [
+        "Kolae"
+      ],
+      "window_end": "21:00",
+      "window_start": "18:00"
     }
   ]
 }
