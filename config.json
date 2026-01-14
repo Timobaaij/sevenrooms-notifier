@@ -63,23 +63,6 @@
       ],
       "window_end": "21:00",
       "window_start": "18:00"
-    },
-    {
-      "date": "2026-02-14",
-      "email_to": "",
-      "id": "Legado",
-      "notes": "",
-      "notify": "push",
-      "num_days": 1,
-      "party_size": 2,
-      "platform": "sevenrooms",
-      "salt": "1768400102.9170816",
-      "time_slot": "",
-      "venues": [
-        "legado"
-      ],
-      "window_end": "21:00",
-      "window_start": "18:00"
     }
   ]
 }
