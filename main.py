@@ -1,4 +1,7 @@
 
+# =========================
+# main.py
+# =========================
 import os
 import json
 import hashlib
@@ -44,9 +47,9 @@ def _hhmm(value: str) -> Optional[str]:
     """
     Convert ISO datetime or string with time to HH:MM.
     Supports:
-      - ISO strings: 2026-01-14T18:00:00Z
-      - 24h: 18:00
-      - 12h: 9:45 PM
+    - ISO strings: 2026-01-14T18:00:00Z
+    - 24h: 18:00
+    - 12h: 9:45 PM
     """
     d = _parse_iso(value)
     if d:
@@ -66,7 +69,6 @@ def _hhmm(value: str) -> Optional[str]:
         if m.group(3).upper() == "PM":
             hh += 12
         return f"{hh:02d}:{m.group(2)}"
-
     return None
 
 
@@ -83,11 +85,9 @@ def _in_window(hhmm: str, start: str, end: str) -> bool:
     """Check if hhmm is inside [start, end], supports overnight."""
     if not (hhmm and start and end):
         return True
-
     tt = _parse_time(hhmm)
     ts = _parse_time(start)
     te = _parse_time(end)
-
     if not (tt and ts and te):
         return True
 
@@ -135,7 +135,6 @@ def send_push(
 def send_email(to_email: str, subject: str, body: str, debug: bool = False) -> bool:
     user = os.environ.get("EMAIL_USER")
     pw = os.environ.get("EMAIL_PASS")
-
     if not (user and pw and to_email):
         if debug:
             print("[email] missing EMAIL_USER/EMAIL_PASS or to_email")
@@ -159,14 +158,14 @@ def send_email(to_email: str, subject: str, body: str, debug: bool = False) -> b
 
 
 # =========================================================
-# AVAILABILITY FETCHERS
+# AVAILABILITY FETCHERS (SevenRooms only)
 # =========================================================
 def is_bookable_time(t: dict) -> bool:
     """
     Robust bookability:
-      - If is_available is present: must be True
-      - Else: exclude requestable/waitlist
-      - Requires some time field
+    - If is_available is present: must be True
+    - Else: exclude requestable/waitlist
+    - Requires some time field
     """
     if "is_available" in t:
         return t.get("is_available") is True
@@ -206,7 +205,6 @@ def fetch_sevenrooms_slots(
         f"&selected_lang_code={lang}"
         f"&halo_size_interval={halo_size_interval}"
     )
-
     headers = {
         "User-Agent": "Mozilla/5.0",
         "Accept": "application/json,text/plain,*/*",
@@ -241,169 +239,25 @@ def fetch_sevenrooms_slots(
         return []
 
     avail = (j.get("data", {}) or {}).get("availability", {}) or {}
-
-    if debug:
-        try:
-            print(f"[sevenrooms] {venue} availability_days={len(avail)}")
-        except Exception:
-            pass
-
     out: List[str] = []
+
     for _, day_blocks in avail.items():
         if not isinstance(day_blocks, list):
             continue
         for block in day_blocks:
             if not isinstance(block, dict):
                 continue
-
-            # block can be closed
             if block.get("is_closed") is True:
                 continue
-
             for t in block.get("times", []) or []:
                 if not isinstance(t, dict):
                     continue
                 if not is_bookable_time(t):
                     continue
-
                 iso = t.get("time_iso") or t.get("date_time") or t.get("time")
                 if iso:
                     out.append(str(iso))
-
     return out
-
-
-# -----------------------------
-# OpenTable (UPDATED)
-# -----------------------------
-def fetch_opentable_slots(
-    rid: str,
-    date_yyyy_mm_dd: str,
-    party: int,
-    time_hints: Optional[List[str]] = None,
-    debug: bool = False,
-) -> List[str]:
-    """
-    Returns bookable ISO datetimes from OpenTable.
-
-    Why it can return nothing even when the widget shows availability:
-      - Marketplace host matters (UK often uses opentable.co.uk, not opentable.com).
-      - Availability is anchored around the provided dateTime.
-      - Some deployments are picky about timezone offsets.
-
-    This implementation:
-      - Tries multiple anchors via time_hints.
-      - Tries multiple hosts (.co.uk and .com).
-      - Tries dateTime both with and without +00:00.
-      - Parses common schema variants (boolean flags + simple status strings).
-    """
-    hints = [h for h in (time_hints or []) if h]
-    if not hints:
-        hints = ["19:00"]
-
-    hosts = [
-        "https://www.opentable.co.uk",
-        "https://www.opentable.com",
-    ]
-
-    headers = {
-        "User-Agent": "Mozilla/5.0",
-        "Accept": "application/json,text/plain,*/*",
-        "Accept-Language": "en-GB,en;q=0.9",
-        "Referer": "https://www.opentable.com/",
-        "Origin": "https://www.opentable.com",
-        "X-Requested-With": "XMLHttpRequest",
-    }
-
-    def dt_candidates(hhmm: str) -> List[str]:
-        hhmm = _hhmm(hhmm) or hhmm
-        if not hhmm or len(hhmm) < 4:
-            hhmm = "19:00"
-        base = f"{date_yyyy_mm_dd}T{hhmm}:00"
-        return [base, base + "+00:00"]
-
-    slots: List[str] = []
-
-    def walk_collect(x, out: List[str]) -> None:
-        if isinstance(x, dict):
-            dt_key = None
-            for k in ("dateTime", "datetime", "date_time", "time"):
-                if k in x:
-                    dt_key = k
-                    break
-
-            avail = None
-            for k in ("isAvailable", "is_available", "available"):
-                if k in x:
-                    avail = x.get(k)
-                    break
-
-            if avail is None and "status" in x:
-                v = str(x.get("status") or "").lower()
-                if v in ("available", "open"):
-                    avail = True
-
-            if dt_key and (avail is True):
-                out.append(str(x.get(dt_key)))
-
-            for v in x.values():
-                walk_collect(v, out)
-
-        elif isinstance(x, list):
-            for v in x:
-                walk_collect(v, out)
-
-    for host in hosts:
-        for h in hints:
-            for dt_value in dt_candidates(h):
-                url = host.rstrip("/") + "/api/v2/reservation/availability"
-                params = {"rid": str(rid), "partySize": int(party), "dateTime": dt_value}
-
-                try:
-                    r = requests.get(url, params=params, headers=headers, timeout=25)
-                except Exception as e:
-                    if debug:
-                        print(f"[opentable] request error {rid} host={host}: {e}")
-                    continue
-
-                if debug:
-                    print(f"[opentable] {rid} host={host} HTTP {r.status_code} url={r.url}")
-
-                if not r.ok:
-                    if debug:
-                        print(f"[opentable] non-OK HTTP {r.status_code} host={host} body={r.text[:400]}")
-                    continue
-
-                ct = (r.headers.get("Content-Type") or "").lower()
-                if "json" not in ct:
-                    if debug:
-                        print(f"[opentable] non-JSON host={host} content-type={ct} first400={r.text[:400]}")
-                    continue
-
-                try:
-                    j = r.json()
-                except Exception as e:
-                    if debug:
-                        print(f"[opentable] JSON parse error host={host}: {e} first400={r.text[:400]}")
-                    continue
-
-                before = len(slots)
-                walk_collect(j, slots)
-
-                if debug and len(slots) == before:
-                    try:
-                        if isinstance(j, dict):
-                            print(f"[opentable] no slots parsed host={host} keys={list(j.keys())[:25]}")
-                    except Exception:
-                        pass
-
-    # de-dupe but preserve order
-    seen, uniq = set(), []
-    for s in slots:
-        if s not in seen:
-            uniq.append(s)
-            seen.add(s)
-    return uniq
 
 
 # =========================================================
@@ -430,13 +284,22 @@ def main() -> None:
     for search in config.get("searches", []):
         sid = search.get("id") or "Unnamed"
         platform = (search.get("platform") or "sevenrooms").lower()
+
+        # SevenRooms only — ignore anything else safely
+        if platform != "sevenrooms":
+            if debug:
+                print(f"[{sid}] skipping unsupported platform={platform}")
+            continue
+
         venues = search.get("venues") or []
         date = search.get("date")
         party = int(search.get("party_size") or 2)
         num_days = int(search.get("num_days") or 1)
+
         time_slot = (search.get("time_slot") or "").strip()
         window_start = (search.get("window_start") or "").strip()
         window_end = (search.get("window_end") or "").strip()
+
         notify_mode = (search.get("notify") or "both").lower()
         email_to = search.get("email_to")
         salt = str(search.get("salt") or "")
@@ -448,7 +311,6 @@ def main() -> None:
         priority = ntfy.get("priority") or d_priority
         tags = ntfy.get("tags") or d_tags
 
-        # Collect candidates but do NOT mark notified until send succeeds
         candidates: List[Tuple[str, str]] = []  # (fp, label)
 
         for v in venues:
@@ -456,45 +318,19 @@ def main() -> None:
             if not v:
                 continue
 
-            if platform == "opentable":
-                # OpenTable availability is anchored around the provided dateTime.
-                # Use a few anchors to reliably capture slots across the requested window.
-                ot_hints: List[str] = []
-                if time_slot:
-                    ot_hints = [time_slot]
-                elif window_start and window_end:
-                    ot_hints = [window_start, window_end]
-                    try:
-                        ts = _parse_time(window_start)
-                        te = _parse_time(window_end)
-                        if ts and te:
-                            base = dt.datetime(2000, 1, 1, ts.hour, ts.minute)
-                            end = dt.datetime(2000, 1, 1, te.hour, te.minute)
-                            if end < base:
-                                end += dt.timedelta(days=1)
-                            mid = base + (end - base) / 2
-                            ot_hints.insert(1, mid.strftime("%H:%M"))
-                    except Exception:
-                        pass
-                else:
-                    ot_hints = ["19:00", "12:00", "21:00"]
-
-                iso_slots = fetch_opentable_slots(v, date, party, time_hints=ot_hints, debug=debug)
-
-            else:
-                iso_slots = fetch_sevenrooms_slots(
-                    v,
-                    date,
-                    party,
-                    channel=channel,
-                    num_days=num_days,
-                    lang=lang,
-                    halo_size_interval=halo,
-                    debug=debug,
-                )
+            iso_slots = fetch_sevenrooms_slots(
+                v,
+                date,
+                party,
+                channel=channel,
+                num_days=num_days,
+                lang=lang,
+                halo_size_interval=halo,
+                debug=debug,
+            )
 
             if debug:
-                print(f"[{sid}] {platform} venue={v} raw_slots={len(iso_slots)}")
+                print(f"[{sid}] sevenrooms venue={v} raw_slots={len(iso_slots)}")
 
             for iso in iso_slots:
                 hh = _hhmm(iso) or iso
@@ -527,10 +363,7 @@ def main() -> None:
                 summary.append(f"Window: {window_start or '?'}–{window_end or '?'}")
 
             found_lines = [label for _, label in candidates]
-            msg = (
-                f"{sid} — " + " \n ".join(summary) +
-                "\n" + "\n".join(found_lines)
-            )
+            msg = f"{sid} — " + "\n".join(summary) + "\n" + "\n".join(found_lines)
 
             push_ok = False
             email_ok = False
@@ -549,7 +382,7 @@ def main() -> None:
                 if debug:
                     print(f"[notify] FAILED (not marking notified) sid={sid}")
 
-        save_json("state.json", {"notified": list(notified)[-2000:]})
+    save_json("state.json", {"notified": list(notified)[-2000:]})
 
 
 if __name__ == "__main__":
