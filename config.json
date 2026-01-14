@@ -82,23 +82,6 @@
       "window_start": "18:00"
     },
     {
-      "date": "2026-01-14",
-      "email_to": "",
-      "id": "Legado Test",
-      "notes": "",
-      "notify": "push",
-      "num_days": 1,
-      "party_size": 2,
-      "platform": "sevenrooms",
-      "salt": "1768401854.753833",
-      "time_slot": "",
-      "venues": [
-        "legado"
-      ],
-      "window_end": "22:00",
-      "window_start": "18:00"
-    },
-    {
       "date": "2026-02-14",
       "email_to": "",
       "id": "Kolae",
