@@ -63,6 +63,23 @@
       ],
       "window_end": "21:00",
       "window_start": "18:00"
+    },
+    {
+      "date": "2026-02-07",
+      "email_to": "",
+      "id": "Singburi Test",
+      "notes": "",
+      "notify": "push",
+      "num_days": 1,
+      "party_size": 4,
+      "platform": "opentable",
+      "salt": "1768382033.6700547",
+      "time_slot": "",
+      "venues": [
+        "342303"
+      ],
+      "window_end": "22:00",
+      "window_start": "18:00"
     }
   ]
 }
