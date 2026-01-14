@@ -14,7 +14,6 @@ from bs4 import BeautifulSoup
 REPO_NAME = "timobaaij/sevenrooms-notifier"
 CONFIG_FILE_PATH = "config.json"
 STATE_FILE_PATH = "state.json"
-
 st.set_page_config(page_title="Reservation Manager", page_icon="🍽️", layout="wide")
 
 # =========================================================
@@ -71,16 +70,18 @@ def reset_state():
 def parse_opentable_ids_from_url(text: str):
     if not text:
         return []
-    return re.findall(r"[?&amp;]rid=(\d{2,})", text)
+    # Extract rid=12345 from URLs or raw query strings
+    return re.findall(r"[?&]rid=(\d{2,})", text)
 
 def get_ot_ids(url: str):
     """Get ALL OpenTable restaurant IDs from page source (and URL).
-       Filters out null/0/1-digit; returns de-duped list."""
+    Filters out null/0/1-digit; returns de-duped list."""
     if not url:
         return []
-    ids = parse_opentable_ids_from_url(url)
 
+    ids = parse_opentable_ids_from_url(url)
     headers = {"User-Agent": "Mozilla/5.0"}
+
     try:
         r = requests.get(url, headers=headers, timeout=12)
         html = r.text or ""
@@ -91,15 +92,19 @@ def get_ot_ids(url: str):
         soup = BeautifulSoup(html, "html.parser")
         script_blob = "\n".join(s.get_text(" ", strip=True) for s in soup.find_all("script"))
         combined = script_blob + "\n" + html
-        raw = re.findall(r'"restaurantId"\s*:\s*(null|"?\d+"?)', combined, flags=re.IGNORECASE)
+
+        # More tolerant restaurantId extraction (numbers only)
+        raw = re.findall(r'"restaurantId"\s*:\s*(?:"?(\d+)"?)', combined, flags=re.IGNORECASE)
+
         cleaned = []
-        for val in raw:
-            v = str(val).strip().strip('"').lower()
+        for v in raw:
+            v = str(v).strip().strip('"').lower()
             if v in ("null", "0", ""):
                 continue
             if not v.isdigit() or len(v) < 2:
                 continue
             cleaned.append(v)
+
         ids = ids + cleaned
 
     seen, uniq = set(), []
@@ -112,13 +117,13 @@ def get_ot_ids(url: str):
 def get_sevenrooms_slug(text: str):
     if not text:
         return None
-    m = re.search(r"[?&amp;]venue=([a-zA-Z0-9_-]+)", text)
+    m = re.search(r"[?&]venue=([a-zA-Z0-9_\-]+)", text)
     if m:
         return m.group(1)
-    m = re.search(r"/reservations/([a-zA-Z0-9_-]+)", text)
+    m = re.search(r"/reservations/([a-zA-Z0-9_\-]+)", text)
     if m:
         return m.group(1)
-    if re.fullmatch(r"[a-zA-Z0-9_-]{3,}", text.strip()):
+    if re.fullmatch(r"[a-zA-Z0-9_\-]{3,}", text.strip()):
         return text.strip()
     return None
 
@@ -130,10 +135,11 @@ def fetch_sevenrooms_times(venue: str, date_yyyy_mm_dd: str, party: int, channel
         d_sr = dt.datetime.strptime(date_yyyy_mm_dd, "%Y-%m-%d").strftime("%m-%d-%Y")
     except Exception:
         return []
+
     url = (
         "https://www.sevenrooms.com/api-yoa/availability/widget/range"
-        f"?venue={venue}&amp;party_size={party}&amp;start_date={d_sr}&amp;num_days={num_days}"
-        f"&amp;channel={channel}&amp;lang={lang}"
+        f"?venue={venue}&party_size={party}&start_date={d_sr}&num_days={num_days}"
+        f"&channel={channel}&lang={lang}"
     )
     r = requests.get(url, timeout=15)
     if not r.ok:
@@ -141,6 +147,7 @@ def fetch_sevenrooms_times(venue: str, date_yyyy_mm_dd: str, party: int, channel
     j = r.json()
     out = []
     availability = (j.get("data", {}) or {}).get("availability", {}) or {}
+
     for _, day in availability.items():
         if not isinstance(day, list):
             continue
@@ -162,6 +169,7 @@ def fetch_sevenrooms_times(venue: str, date_yyyy_mm_dd: str, party: int, channel
                     hhmm = f"{m.group(1)}:{m.group(2)}" if m else str(iso)
                 label = hhmm + (" (REQUEST)" if (is_req and not is_avail) else "")
                 out.append(label)
+
     # de-dup
     seen, uniq = set(), []
     for x in out:
@@ -170,35 +178,105 @@ def fetch_sevenrooms_times(venue: str, date_yyyy_mm_dd: str, party: int, channel
             seen.add(x)
     return uniq
 
-def fetch_opentable_times(rid: str, date_yyyy_mm_dd: str, party: int):
-    url = (
-        "https://www.opentable.com/api/v2/reservation/availability"
-        f"?rid={rid}&amp;partySize={party}&amp;dateTime={date_yyyy_mm_dd}T19:00"
-    )
-    headers = {"User-Agent": "Mozilla/5.0"}
-    r = requests.get(url, headers=headers, timeout=15)
-    if not r.ok:
-        return []
-    j = r.json()
-    slots = []
-    def walk(x):
-        if isinstance(x, dict):
-            if "dateTime" in x and x.get("isAvailable") is True:
-                slots.append(str(x.get("dateTime")))
-            for v in x.values():
-                walk(v)
-        elif isinstance(x, list):
-            for v in x:
-                walk(v)
-    walk(j)
+# ---------------------------
+# OPEN TABLE (FIXED for UI)
+# ---------------------------
+def fetch_opentable_times(rid: str, date_yyyy_mm_dd: str, party: int, time_hints=None):
+    """UI helper: fetch available OpenTable times (HH:MM) for a date/party.
+
+    OpenTable availability is often anchored around the provided dateTime.
+    To avoid missing slots, we query a few anchors and merge the results.
+    """
+    hints = [h for h in (time_hints or []) if h]
+    if not hints:
+        hints = ["19:00", "12:00", "21:00"]
+
+    headers = {
+        "User-Agent": "Mozilla/5.0",
+        "Accept": "application/json,text/plain,*/*",
+        "Accept-Language": "en-GB,en;q=0.9",
+        "Referer": "https://www.opentable.com/",
+        "Origin": "https://www.opentable.com",
+        "X-Requested-With": "XMLHttpRequest",
+    }
+
+    def _norm_hhmm(v: str) -> str:
+        m = re.search(r"\b([01]\d|2[0-3]):([0-5]\d)\b", v or "")
+        return f"{m.group(1)}:{m.group(2)}" if m else "19:00"
+
+    def _dt_param(hhmm: str) -> str:
+        hhmm = _norm_hhmm(hhmm)
+        return f"{date_yyyy_mm_dd}T{hhmm}:00"
+
+    def _collect_slots(j):
+        slots = []
+
+        def walk(x):
+            if isinstance(x, dict):
+                dt_key = None
+                for k in ("dateTime", "datetime", "date_time", "time"):
+                    if k in x:
+                        dt_key = k
+                        break
+
+                avail = None
+                for k in ("isAvailable", "is_available", "available"):
+                    if k in x:
+                        avail = x.get(k)
+                        break
+
+                if dt_key and (avail is True):
+                    slots.append(str(x.get(dt_key)))
+
+                for v in x.values():
+                    walk(v)
+            elif isinstance(x, list):
+                for v in x:
+                    walk(v)
+
+        walk(j)
+
+        seen, uniq = set(), []
+        for s in slots:
+            if s not in seen:
+                uniq.append(s)
+                seen.add(s)
+        return uniq
+
+    iso_slots = []
+    seen_iso = set()
+
+    for h in hints:
+        params = {"rid": str(rid), "partySize": int(party), "dateTime": _dt_param(h)}
+        r = requests.get(
+            "https://www.opentable.com/api/v2/reservation/availability",
+            params=params,
+            headers=headers,
+            timeout=15,
+        )
+        if not r.ok:
+            continue
+        if "json" not in (r.headers.get("Content-Type") or "").lower():
+            continue
+        try:
+            j = r.json()
+        except Exception:
+            continue
+
+        for s in _collect_slots(j):
+            if s and s not in seen_iso:
+                iso_slots.append(s)
+                seen_iso.add(s)
+
     out = []
-    for iso in slots:
+    for iso in iso_slots:
         try:
             out.append(dt.datetime.fromisoformat(iso.replace("Z", "+00:00")).strftime("%H:%M"))
         except Exception:
             m = re.search(r"\b([01]\d|2[0-3]):([0-5]\d)\b", iso)
             if m:
                 out.append(f"{m.group(1)}:{m.group(2)}")
+
     seen, uniq = set(), []
     for x in out:
         if x not in seen:
@@ -239,7 +317,6 @@ for i, s in enumerate(searches):
     # Derive labels
     p_val = s.get("platform", "sevenrooms")
     p_label = "SevenRooms" if p_val == "sevenrooms" else "OpenTable"
-
     date_txt = s.get("date", "")
     party_txt = str(s.get("party_size", ""))
     time_slot = (s.get("time_slot") or "").strip()
@@ -278,7 +355,6 @@ for i, s in enumerate(searches):
                     # Remove the search and save
                     searches.pop(i)
                     config_data["searches"] = searches
-                    # clear confirmation flag (optional; rerun happens)
                     st.session_state[f"confirm_delete_{i}"] = False
                     save_config(config_data)
             with cdel2:
@@ -360,12 +436,12 @@ for i, s in enumerate(searches):
 # ADD NEW SEARCH (top area)
 # =========================================================
 st.subheader("➕ Add New Search")
+
 add_cols = st.columns([0.5, 0.5])
 
 with add_cols[0]:
     plat_label = st.selectbox("Platform", PLATFORM_LABELS, index=0, key="new_platform_label")
     plat = PLATFORM_MAP[plat_label]
-
     default_venue = st.session_state.get("last_ot_id", "") if plat == "opentable" else st.session_state.get("last_sr_slug", "")
     n_venue = st.text_input("Venue ID/Slug (comma separated supported)", value=default_venue, key="new_venue")
     n_id = st.text_input("Search name", key="new_name")
@@ -390,7 +466,11 @@ with add_cols[1]:
         if venue_first:
             with st.spinner("Fetching times…"):
                 if plat == "opentable":
-                    times_list = fetch_opentable_times(venue_first, str(n_date), int(n_party))
+                    # Use window anchors when available to capture all times
+                    ot_hints = []
+                    if any_time and st.session_state.get("new_wstart") and st.session_state.get("new_wend"):
+                        ot_hints = [st.session_state.get("new_wstart"), st.session_state.get("new_wend"), "19:00"]
+                    times_list = fetch_opentable_times(venue_first, str(n_date), int(n_party), time_hints=ot_hints)
                 else:
                     times_list = fetch_sevenrooms_times(
                         venue_first, str(n_date), int(n_party),
@@ -400,18 +480,19 @@ with add_cols[1]:
         else:
             st.session_state["loaded_times"] = []
 
-    loaded = st.session_state.get("loaded_times", [])
-    if any_time:
-        n_window_start = st.text_input("Window start (HH:MM)", value="18:00", key="new_wstart")
-        n_window_end = st.text_input("Window end (HH:MM)", value="22:00", key="new_wend")
-        n_time_slot = ""
+loaded = st.session_state.get("loaded_times", [])
+
+if any_time:
+    n_window_start = st.text_input("Window start (HH:MM)", value="18:00", key="new_wstart")
+    n_window_end = st.text_input("Window end (HH:MM)", value="22:00", key="new_wend")
+    n_time_slot = ""
+else:
+    if loaded:
+        choice = st.selectbox("Pick a time", loaded, key="new_time_pick")
+        n_time_slot = choice.split(" ")[0]
     else:
-        if loaded:
-            choice = st.selectbox("Pick a time", loaded, key="new_time_pick")
-            n_time_slot = choice.split(" ")[0]
-        else:
-            n_time_slot = st.text_input("Exact time (HH:MM)", value="19:00", key="new_time_manual")
-        n_window_start, n_window_end = "", ""
+        n_time_slot = st.text_input("Exact time (HH:MM)", value="19:00", key="new_time_manual")
+    n_window_start, n_window_end = "", ""
 
 # Launch creation
 if st.button("🚀 Launch search", type="primary", key="launch"):
@@ -446,13 +527,14 @@ with st.expander("⚙️ Advanced", expanded=False):
         reset_state()
 
     st.divider()
-
     st.subheader("Quick ID / Slug Finder")
     st.caption("OpenTable — extracts ALL valid IDs (filters 0/null, requires 2+ digits)")
+
     ot_url = st.text_input("Paste OpenTable link", key="ot_url_adv")
     if st.button("Extract OpenTable IDs", key="btn_ot_ids_adv"):
         ids = get_ot_ids(ot_url)
         st.session_state["ot_ids_found"] = ids
+
     ids_found = st.session_state.get("ot_ids_found", [])
     if ids_found:
         st.success(f"Found {len(ids_found)} IDs: {', '.join(ids_found)}")
@@ -470,13 +552,13 @@ with st.expander("⚙️ Advanced", expanded=False):
             st.error("Couldn’t find a slug in that text.")
 
     st.divider()
-
     st.subheader("Push notification settings (ntfy)")
     nt = config_data.get("ntfy_default", {})
     server = st.text_input("Server", nt.get("server", "https://ntfy.sh"))
     topic = st.text_input("Topic", nt.get("topic", ""))
     priority = st.text_input("Priority", nt.get("priority", "urgent"))
     tags = st.text_input("Tags", nt.get("tags", "rotating_light"))
+
     c1, c2 = st.columns(2)
     with c1:
         if st.button("💾 Save push settings", key="save_push_settings"):
@@ -487,6 +569,7 @@ with st.expander("⚙️ Advanced", expanded=False):
                 "tags": tags.strip(),
             }
             save_config(config_data)
+
     with c2:
         def post_test_push(server: str, topic: str, title: str, msg: str, priority: str = "", tags: str = ""):
             if not (server and topic):
