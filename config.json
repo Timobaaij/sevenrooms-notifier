@@ -84,13 +84,13 @@
     {
       "date": "2026-01-14",
       "email_to": "",
-      "id": "Legado",
+      "id": "Legado Test",
       "notes": "",
       "notify": "push",
       "num_days": 1,
       "party_size": 2,
       "platform": "sevenrooms",
-      "salt": "1768401722.6510277",
+      "salt": "1768401854.753833",
       "time_slot": "",
       "venues": [
         "legado"
