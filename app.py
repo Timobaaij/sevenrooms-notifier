@@ -75,7 +75,8 @@ def parse_opentable_ids_from_url(text: str):
 
 def get_ot_ids(url: str):
     """Get ALL OpenTable restaurant IDs from page source (and URL).
-    Filters out null/0/1-digit; returns de-duped list."""
+    Filters out null/0/1-digit; returns de-duped list.
+    """
     if not url:
         return []
 
@@ -93,13 +94,13 @@ def get_ot_ids(url: str):
         script_blob = "\n".join(s.get_text(" ", strip=True) for s in soup.find_all("script"))
         combined = script_blob + "\n" + html
 
-        # More tolerant restaurantId extraction (numbers only)
-        raw = re.findall(r'"restaurantId"\s*:\s*(?:"?(\d+)"?)', combined, flags=re.IGNORECASE)
+        # Pull numeric restaurantId values from embedded JSON blobs/scripts
+        raw = re.findall(r"\"restaurantId\"\s*:\s*\"?(\d+)\"?", combined, flags=re.IGNORECASE)
 
         cleaned = []
         for v in raw:
-            v = str(v).strip().strip('"').lower()
-            if v in ("null", "0", ""):
+            v = str(v).strip()
+            if v in ("0", ""):
                 continue
             if not v.isdigit() or len(v) < 2:
                 continue
@@ -178,18 +179,21 @@ def fetch_sevenrooms_times(venue: str, date_yyyy_mm_dd: str, party: int, channel
             seen.add(x)
     return uniq
 
-# ---------------------------
-# OPEN TABLE (FIXED for UI)
-# ---------------------------
-def fetch_opentable_times(rid: str, date_yyyy_mm_dd: str, party: int, time_hints=None):
-    """UI helper: fetch available OpenTable times (HH:MM) for a date/party.
 
-    OpenTable availability is often anchored around the provided dateTime.
-    To avoid missing slots, we query a few anchors and merge the results.
-    """
+# -----------------------------
+# OpenTable (UPDATED for UI picker)
+# -----------------------------
+def fetch_opentable_times(rid: str, date_yyyy_mm_dd: str, party: int, time_hints=None):
+    # OpenTable availability can be served from different marketplace hosts.
+    # Also, responses are anchored around the provided dateTime.
     hints = [h for h in (time_hints or []) if h]
     if not hints:
         hints = ["19:00", "12:00", "21:00"]
+
+    hosts = [
+        "https://www.opentable.co.uk",
+        "https://www.opentable.com",
+    ]
 
     headers = {
         "User-Agent": "Mozilla/5.0",
@@ -200,76 +204,69 @@ def fetch_opentable_times(rid: str, date_yyyy_mm_dd: str, party: int, time_hints
         "X-Requested-With": "XMLHttpRequest",
     }
 
-    def _norm_hhmm(v: str) -> str:
-        m = re.search(r"\b([01]\d|2[0-3]):([0-5]\d)\b", v or "")
-        return f"{m.group(1)}:{m.group(2)}" if m else "19:00"
+    def _dt_candidates(hhmm: str):
+        m = re.search(r"\b([01]\d|2[0-3]):([0-5]\d)\b", hhmm or "")
+        hhmm = f"{m.group(1)}:{m.group(2)}" if m else "19:00"
+        base = f"{date_yyyy_mm_dd}T{hhmm}:00"
+        # Try with and without explicit UTC offset
+        return [base, base + "+00:00"]
 
-    def _dt_param(hhmm: str) -> str:
-        hhmm = _norm_hhmm(hhmm)
-        return f"{date_yyyy_mm_dd}T{hhmm}:00"
+    slots = []
 
-    def _collect_slots(j):
-        slots = []
+    def walk(x):
+        if isinstance(x, dict):
+            dt_key = None
+            for k in ("dateTime", "datetime", "date_time", "time"):
+                if k in x:
+                    dt_key = k
+                    break
 
-        def walk(x):
-            if isinstance(x, dict):
-                dt_key = None
-                for k in ("dateTime", "datetime", "date_time", "time"):
-                    if k in x:
-                        dt_key = k
-                        break
+            avail = None
+            for k in ("isAvailable", "is_available", "available"):
+                if k in x:
+                    avail = x.get(k)
+                    break
 
-                avail = None
-                for k in ("isAvailable", "is_available", "available"):
-                    if k in x:
-                        avail = x.get(k)
-                        break
+            if avail is None and "status" in x:
+                v = str(x.get("status") or "").lower()
+                if v in ("available", "open"):
+                    avail = True
 
-                if dt_key and (avail is True):
-                    slots.append(str(x.get(dt_key)))
+            if dt_key and (avail is True):
+                slots.append(str(x.get(dt_key)))
 
-                for v in x.values():
-                    walk(v)
-            elif isinstance(x, list):
-                for v in x:
-                    walk(v)
+            for v in x.values():
+                walk(v)
 
-        walk(j)
+        elif isinstance(x, list):
+            for v in x:
+                walk(v)
 
-        seen, uniq = set(), []
-        for s in slots:
-            if s not in seen:
-                uniq.append(s)
-                seen.add(s)
-        return uniq
+    for host in hosts:
+        for h in hints:
+            for dt_value in _dt_candidates(h):
+                url = host.rstrip("/") + "/api/v2/reservation/availability"
+                params = {"rid": str(rid), "partySize": int(party), "dateTime": dt_value}
+                r = requests.get(url, params=params, headers=headers, timeout=15)
+                if not r.ok:
+                    continue
+                if "json" not in (r.headers.get("Content-Type") or "").lower():
+                    continue
+                try:
+                    j = r.json()
+                except Exception:
+                    continue
+                walk(j)
 
-    iso_slots = []
-    seen_iso = set()
-
-    for h in hints:
-        params = {"rid": str(rid), "partySize": int(party), "dateTime": _dt_param(h)}
-        r = requests.get(
-            "https://www.opentable.com/api/v2/reservation/availability",
-            params=params,
-            headers=headers,
-            timeout=15,
-        )
-        if not r.ok:
-            continue
-        if "json" not in (r.headers.get("Content-Type") or "").lower():
-            continue
-        try:
-            j = r.json()
-        except Exception:
-            continue
-
-        for s in _collect_slots(j):
-            if s and s not in seen_iso:
-                iso_slots.append(s)
-                seen_iso.add(s)
+    # de-dup but preserve order
+    seen, uniq = set(), []
+    for s in slots:
+        if s not in seen:
+            uniq.append(s)
+            seen.add(s)
 
     out = []
-    for iso in iso_slots:
+    for iso in uniq:
         try:
             out.append(dt.datetime.fromisoformat(iso.replace("Z", "+00:00")).strftime("%H:%M"))
         except Exception:
@@ -277,12 +274,13 @@ def fetch_opentable_times(rid: str, date_yyyy_mm_dd: str, party: int, time_hints
             if m:
                 out.append(f"{m.group(1)}:{m.group(2)}")
 
-    seen, uniq = set(), []
+    seen2, uniq2 = set(), []
     for x in out:
-        if x not in seen:
-            uniq.append(x)
-            seen.add(x)
-    return uniq
+        if x not in seen2:
+            uniq2.append(x)
+            seen2.add(x)
+    return uniq2
+
 
 # =========================================================
 # DEFAULTS & MAPPINGS
@@ -301,7 +299,6 @@ NOTIFY_MAP = {"Push": "push", "Email": "email", "Both": "both", "None": "none"}
 # DASHBOARD HEADER
 # =========================================================
 st.title("🍽️ Reservation Dashboard")
-
 searches = config_data.get("searches", [])
 if not searches:
     st.info("No active searches yet.")
@@ -438,7 +435,6 @@ for i, s in enumerate(searches):
 st.subheader("➕ Add New Search")
 
 add_cols = st.columns([0.5, 0.5])
-
 with add_cols[0]:
     plat_label = st.selectbox("Platform", PLATFORM_LABELS, index=0, key="new_platform_label")
     plat = PLATFORM_MAP[plat_label]
@@ -466,7 +462,7 @@ with add_cols[1]:
         if venue_first:
             with st.spinner("Fetching times…"):
                 if plat == "opentable":
-                    # Use window anchors when available to capture all times
+                    # Use window anchors when available to capture all times (no UI change)
                     ot_hints = []
                     if any_time and st.session_state.get("new_wstart") and st.session_state.get("new_wend"):
                         ot_hints = [st.session_state.get("new_wstart"), st.session_state.get("new_wend"), "19:00"]
