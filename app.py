@@ -6,7 +6,7 @@ import datetime as dt
 import requests
 import re
 from github import Github
-from streamlit_calendar import calendar  # ✅ NEW: calendar component
+from streamlit_calendar import calendar  # calendar component
 
 # =========================================================
 # CONFIG
@@ -39,7 +39,6 @@ def _read_json_from_repo(path: str, default: dict):
     except Exception:
         return None, default
 
-
 def _update_file_json(path: str, message: str, data: dict):
     c = repo.get_contents(path)
     repo.update_file(
@@ -48,7 +47,6 @@ def _update_file_json(path: str, message: str, data: dict):
         json.dumps(data, indent=2, sort_keys=True),
         c.sha,
     )
-
 
 def save_config(new_data: dict):
     """Safe update of config.json, then refresh UI."""
@@ -60,7 +58,6 @@ def save_config(new_data: dict):
         st.rerun()
     except Exception as e:
         st.error(f"Save Failed: {e}")
-
 
 def reset_state():
     """Clear state.json so notifications can fire again."""
@@ -75,7 +72,6 @@ def reset_state():
         st.rerun()
     except Exception as e:
         st.error(f"Reset failed: {e}")
-
 
 # =========================================================
 # SevenRooms helpers (Slug finder + Time loader for UI)
@@ -92,7 +88,6 @@ def get_sevenrooms_slug(text: str):
     if re.fullmatch(r"[a-zA-Z0-9_\-\\]{3,}", text.strip()):
         return text.strip()
     return None
-
 
 def fetch_sevenrooms_times(
     venue: str,
@@ -158,9 +153,8 @@ def fetch_sevenrooms_times(
             seen.add(x)
     return uniq
 
-
 # =========================================================
-# MULTI-DATE CALENDAR (NEW, minimal and isolated)
+# DATE HELPERS + MULTI-DATE CALENDAR (POPOVER)
 # =========================================================
 def _to_date(value):
     """Accepts dt.date or string YYYY-MM-DD / DD-MM-YYYY. Returns dt.date or None."""
@@ -178,11 +172,9 @@ def _to_date(value):
             pass
     return None
 
-
 def _to_iso(value):
     d = _to_date(value)
     return d.isoformat() if d else None
-
 
 def _get_dates_list(search: dict):
     """Backwards compatible: read search['dates'] list if present, else use search['date'].""" 
@@ -201,13 +193,11 @@ def _get_dates_list(search: dict):
         dates = [dt.date.today().isoformat()]
     return dates
 
-
 def _dates_display(search: dict) -> str:
     """For dashboard: show multi-date list if present, else single date."""
     if isinstance(search.get("dates"), list) and search["dates"]:
         return ", ".join(search["dates"])
     return (search.get("date") or "")
-
 
 def _build_background_events(selected_dates):
     """
@@ -233,11 +223,16 @@ def _build_background_events(selected_dates):
         )
     return events
 
-
-def multi_date_calendar_picker(state_key: str, component_key: str, height: int = 420):
+def multi_date_calendar_picker(
+    state_key: str,
+    component_key: str,
+    height: int = 280,
+    button_label: str = "Select date(s)",
+):
     """
-    True multi-select calendar:
-    - click a day to toggle on/off
+    Multi-select calendar:
+    - click dates to toggle selection
+    - calendar is shown in a popover (or expander fallback)
     - stores ISO dates in st.session_state[state_key]
     """
     if state_key not in st.session_state:
@@ -252,20 +247,57 @@ def multi_date_calendar_picker(state_key: str, component_key: str, height: int =
     cleaned = sorted(set(cleaned))
     st.session_state[state_key] = cleaned
 
+    # Show a tidy summary outside the popover
+    if cleaned:
+        st.caption(f"🗓 Selected: {', '.join(cleaned)}")
+    else:
+        st.caption("🗓 Selected: —")
+
+    # FullCalendar options (height belongs HERE) 
     options = {
         "initialView": "dayGridMonth",
         "headerToolbar": {"left": "today prev,next", "center": "title", "right": ""},
         "dayMaxEvents": True,
         "selectable": True,
-        "height": height,  # ✅ IMPORTANT: set height inside options (not as calendar(height=...))
+        "height": height,
+        "fixedWeekCount": False,  # reduces empty rows for short months
     }
 
+    # Highlight selected days
     events = _build_background_events(cleaned)
 
-    # ✅ IMPORTANT: do NOT pass height=... here (causes your TypeError)
-    cal_value = calendar(events=events, options=options, key=component_key)
+    # Compact CSS (supported by streamlit-calendar) 
+    compact_css = """
+    .fc .fc-toolbar { margin-bottom: 0.25rem !important; }
+    .fc .fc-toolbar-title { font-size: 1.0rem !important; }
+    .fc .fc-button { padding: 0.15rem 0.35rem !important; font-size: 0.8rem !important; }
+    .fc .fc-daygrid-day-number { padding: 2px 4px !important; font-size: 0.85rem !important; }
+    .fc .fc-daygrid-day-frame { padding: 1px !important; }
+    """
 
-    # Handle click (toggle)
+    cal_value = None
+
+    # Popover (best UX) [1](https://engage.cloud.microsoft/main/threads/eyJfdHlwZSI6IlRocmVhZCIsImlkIjoiMTA5MTEwNzk2ODMzNTg3MiJ9)
+    if hasattr(st, "popover"):
+        with st.popover(button_label, type="secondary", help="Click dates to toggle. Click again to remove."):
+            cal_value = calendar(events=events, options=options, custom_css=compact_css, key=component_key)
+            cols = st.columns([0.25, 0.75])
+            with cols[0]:
+                if st.button("🧹 Clear", key=f"{state_key}_clear"):
+                    st.session_state[state_key] = []
+                    st.rerun()
+            with cols[1]:
+                st.caption("Tip: Click a date again to remove it.")
+
+    else:
+        # Fallback for older Streamlit: collapsed expander
+        with st.expander(button_label, expanded=False):
+            cal_value = calendar(events=events, options=options, custom_css=compact_css, key=component_key)
+            if st.button("🧹 Clear", key=f"{state_key}_clear"):
+                st.session_state[state_key] = []
+                st.rerun()
+
+    # Handle date clicks (toggle)
     if isinstance(cal_value, dict) and cal_value.get("callback") == "dateClick":
         clicked = (cal_value.get("dateClick") or {}).get("date")
         if clicked:
@@ -277,22 +309,7 @@ def multi_date_calendar_picker(state_key: str, component_key: str, height: int =
             st.session_state[state_key] = cleaned
             st.rerun()
 
-    # Small controls + display
-    c1, c2 = st.columns([0.18, 0.82])
-    with c1:
-        if st.button("🧹 Clear", key=f"{state_key}_clear"):
-            st.session_state[state_key] = []
-            st.rerun()
-    with c2:
-        st.caption("Click dates to toggle selection (click again to remove).")
-
-    if cleaned:
-        st.write("**Selected dates:** " + ", ".join(cleaned))
-    else:
-        st.info("No dates selected.")
-
     return cleaned
-
 
 # =========================================================
 # DEFAULTS (unchanged)
@@ -323,13 +340,13 @@ def _toggle(key: str):
     st.session_state[key] = not st.session_state.get(key, False)
 
 # =========================================================
-# DASHBOARD LIST (only date display changed to support dates[])
+# DASHBOARD LIST
 # =========================================================
 for idx, s in enumerate(searches_all):
     platform = (s.get("platform") or "sevenrooms").lower()
     is_supported = (platform == "sevenrooms")
 
-    date_txt = _dates_display(s)  # ✅ shows multi dates if present
+    date_txt = _dates_display(s)  # supports multi-date display
     party_txt = str(s.get("party_size", ""))
     time_slot = (s.get("time_slot") or "").strip()
     window_txt = f"{s.get('window_start','')}–{s.get('window_end','')}"
@@ -383,7 +400,7 @@ for idx, s in enumerate(searches_all):
                 if st.button("Cancel", key=f"btn_cancel_delete_{idx}"):
                     st.session_state[f"confirm_delete_{idx}"] = False
 
-        # Details view (unchanged except shows dates)
+        # Details view
         if st.session_state.get(f"show_details_{idx}", False):
             st.divider()
             st.write(f"**Venues**: {', '.join(s.get('venues', [])) or '—'}")
@@ -394,7 +411,7 @@ for idx, s in enumerate(searches_all):
             if notes:
                 st.write(f"**Notes**: {notes}")
 
-        # Edit form (kept as a form like your original; calendar sits above it)
+        # Edit form
         if st.session_state.get(f"show_edit_{idx}", False):
             st.divider()
             st.caption("Platform is forced to SevenRooms on save.")
@@ -404,11 +421,17 @@ for idx, s in enumerate(searches_all):
             if dates_key not in st.session_state:
                 st.session_state[dates_key] = _get_dates_list(s)
 
-            st.write("### Dates (multi-select calendar)")
-            selected_dates = multi_date_calendar_picker(dates_key, component_key=f"cal_edit_{idx}", height=420)
+            # Date picker (popover calendar)
+            selected_dates = multi_date_calendar_picker(
+                dates_key,
+                component_key=f"cal_edit_{idx}",
+                height=280,
+                button_label="Select date(s)",
+            )
 
+            # Everything else stays in the form as before
             with st.form(f"edit_form_{idx}"):
-                st.caption("Everything else remains as before. Dates saved as a list + first date for compatibility.")
+                st.caption("Everything else remains unchanged. Dates are saved as a list + first date for compatibility.")
                 e_name = st.text_input("Name", s.get("id", ""))
                 e_venues = st.text_input("Venues (slugs, comma separated)", ", ".join(s.get("venues", [])))
                 e_party = st.number_input("Party", 1, 20, value=int(s.get("party_size", 2)))
@@ -441,9 +464,8 @@ for idx, s in enumerate(searches_all):
                             "id": e_name.strip() or "Unnamed",
                             "platform": "sevenrooms",
                             "venues": [v.strip() for v in e_venues.split(",") if v.strip()],
-                            # ✅ backwards compatible + multi-date
-                            "date": dates_list[0],
-                            "dates": dates_list,
+                            "date": dates_list[0],   # backwards compatible
+                            "dates": dates_list,     # multi-date
                             "party_size": int(e_party),
                             "num_days": int(e_num_days),
                             "time_slot": e_time_slot.strip(),
@@ -462,7 +484,7 @@ for idx, s in enumerate(searches_all):
                     st.rerun()
 
 # =========================================================
-# ADD NEW SEARCH (kept same flow; only date picker replaced)
+# ADD NEW SEARCH (SevenRooms only)
 # =========================================================
 st.subheader("➕ Add New Search")
 st.caption("SevenRooms only.")
@@ -482,12 +504,17 @@ with add_cols[1]:
     st.caption("Time")
     any_time = st.checkbox("Any time in a window", value=True, key="new_any_time")
 
-# NEW: calendar multi-date picker (only change here)
-st.write("### Dates (multi-select calendar)")
+# Date picker (popover calendar)
 new_dates_key = "new_dates"
 if new_dates_key not in st.session_state:
     st.session_state[new_dates_key] = [dt.date.today().isoformat()]
-new_dates = multi_date_calendar_picker(new_dates_key, component_key="cal_new", height=420)
+
+new_dates = multi_date_calendar_picker(
+    new_dates_key,
+    component_key="cal_new",
+    height=280,
+    button_label="Select date(s)",
+)
 
 gbl = config_data.get("global", {})
 channel = gbl.get("channel", "SEVENROOMS_WIDGET")
@@ -534,9 +561,8 @@ if st.button("🚀 Launch search", type="primary", key="launch"):
         "platform": "sevenrooms",
         "venues": [v.strip() for v in n_venue.split(",") if v.strip()],
         "party_size": int(n_party),
-        # ✅ backwards compatible + multi-date
-        "date": dates_list[0],
-        "dates": dates_list,
+        "date": dates_list[0],   # backwards compatible
+        "dates": dates_list,     # multi-date
         "time_slot": n_time_slot.strip(),
         "window_start": n_window_start.strip(),
         "window_end": n_window_end.strip(),
@@ -550,7 +576,7 @@ if st.button("🚀 Launch search", type="primary", key="launch"):
     save_config(config_data)
 
 # =========================================================
-# ADVANCED (unchanged)
+# ADVANCED (collapsed)
 # =========================================================
 with st.expander("⚙️ Advanced", expanded=False):
     st.caption("Maintenance, SevenRooms slug finder, and push settings.")
