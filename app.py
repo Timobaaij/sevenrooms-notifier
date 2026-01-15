@@ -1,5 +1,4 @@
 
-# app.py
 import streamlit as st
 import json
 import time
@@ -7,7 +6,6 @@ import datetime as dt
 import requests
 import re
 from github import Github
-from streamlit_calendar import calendar
 
 # =========================================================
 # CONFIG
@@ -15,7 +13,6 @@ from streamlit_calendar import calendar
 REPO_NAME = "timobaaij/sevenrooms-notifier"
 CONFIG_FILE_PATH = "config.json"
 STATE_FILE_PATH = "state.json"
-
 st.set_page_config(page_title="Reservation Manager", page_icon="🍽️", layout="wide")
 
 # =========================================================
@@ -156,232 +153,97 @@ def fetch_sevenrooms_times(
     return uniq
 
 # =========================================================
-# DATE + MULTI-SELECT PICKER (LAZY MODAL + CLICK RELIABILITY FIX)
+# DATE HELPERS + NATIVE MULTI-DATE SELECTOR (FAST)
 # =========================================================
-_ST_FRAGMENT = getattr(st, "fragment", None) or getattr(st, "experimental_fragment", None)
-def _as_fragment(fn):
-    return _ST_FRAGMENT(fn) if _ST_FRAGMENT else fn
+def _normalize_iso_dates(values):
+    """Normalize a list of dates/strings to sorted unique YYYY-MM-DD strings."""
+    out = []
+    for v in values or []:
+        if isinstance(v, dt.date):
+            out.append(v.isoformat())
+        else:
+            s = str(v).strip()
+            if not s:
+                continue
+            # accept YYYY-MM-DD or DD-MM-YYYY
+            parsed = None
+            for fmt in ("%Y-%m-%d", "%d-%m-%Y"):
+                try:
+                    parsed = dt.datetime.strptime(s, fmt).date().isoformat()
+                    break
+                except Exception:
+                    pass
+            if parsed:
+                out.append(parsed)
+    return sorted(set(out))
 
-def _to_date(value):
-    """Accepts dt.date or string YYYY-MM-DD / DD-MM-YYYY. Returns dt.date or None."""
-    if value is None:
-        return None
-    if isinstance(value, dt.date):
-        return value
-    s = str(value).strip()
-    if not s:
-        return None
-    for fmt in ("%Y-%m-%d", "%d-%m-%Y"):
-        try:
-            return dt.datetime.strptime(s, fmt).date()
-        except Exception:
-            pass
-    return None
+def _get_dates_from_search(s: dict):
+    """Backwards compatible: use s['dates'] if present else s['date'].""" 
+    if isinstance(s.get("dates"), list) and s["dates"]:
+        dates = _normalize_iso_dates(s["dates"])
+        if dates:
+            return dates
+    if s.get("date"):
+        dates = _normalize_iso_dates([s["date"]])
+        if dates:
+            return dates
+    return [dt.date.today().isoformat()]
 
-def _to_iso(value):
-    d = _to_date(value)
-    return d.isoformat() if d else None
+def _dates_display(s: dict) -> str:
+    if isinstance(s.get("dates"), list) and s["dates"]:
+        return ", ".join(s["dates"])
+    return s.get("date", "") or ""
 
-def _get_dates_list(search: dict):
-    """Backwards compatible: read search['dates'] list if present, else use search['date'].""" 
-    dates = []
-    if isinstance(search.get("dates"), list) and search["dates"]:
-        for x in search["dates"]:
-            iso = _to_iso(x)
-            if iso:
-                dates.append(iso)
-    else:
-        iso = _to_iso(search.get("date"))
-        if iso:
-            dates.append(iso)
-    dates = sorted(set(dates))
-    if not dates:
-        dates = [dt.date.today().isoformat()]
-    return dates
-
-def _dates_display(search: dict) -> str:
-    if isinstance(search.get("dates"), list) and search["dates"]:
-        return ", ".join(search["dates"])
-    return (search.get("date") or "")
-
-def _build_background_events(selected_dates):
-    """Highlight selected days with FullCalendar background events (end is exclusive)."""
-    events = []
-    for iso in sorted(set(selected_dates or [])):
-        d = _to_date(iso)
-        if not d:
-            continue
-        end = (d + dt.timedelta(days=1)).isoformat()
-        events.append(
-            {
-                "title": "",
-                "start": d.isoformat(),
-                "end": end,
-                "allDay": True,
-                "display": "background",
-                "backgroundColor": "#4CAF5066",
-                "borderColor": "#4CAF50",
-            }
-        )
-    return events
-
-def multi_date_calendar_picker(state_key: str, component_key: str, button_label: str = "Select date(s)"):
+def native_multi_date_selector(state_key: str, label: str):
     """
-    Reliable multi-select calendar:
-      - Lazy-loads only when clicked (modal dialog when available)
-      - Fixes click interception by background highlight layer
-      - Keeps selection in st.session_state[state_key] as list of YYYY-MM-DD
+    Native, fast multi-date picker:
+      - Date picker (calendar) + Add button
+      - Selected dates shown in a multiselect (easy remove)
+      - Stores ISO strings in st.session_state[state_key]
     """
     if state_key not in st.session_state:
         st.session_state[state_key] = [dt.date.today().isoformat()]
 
-    # normalize
-    cleaned = []
-    for x in st.session_state.get(state_key, []):
-        iso = _to_iso(x)
-        if iso:
-            cleaned.append(iso)
-    cleaned = sorted(set(cleaned))
-    st.session_state[state_key] = cleaned
+    # normalize in state
+    st.session_state[state_key] = _normalize_iso_dates(st.session_state[state_key])
 
-    # summary
-    if cleaned:
-        st.caption(f"🗓 Selected: {', '.join(cleaned)}")
-    else:
-        st.caption("🗓 Selected: —")
-
-    # open flag
-    open_key = f"{state_key}__open"
-    if open_key not in st.session_state:
-        st.session_state[open_key] = False
-
-    def _open():
-        st.session_state[open_key] = True
-
-    st.button(button_label, type="secondary", on_click=_open)
-
-    def _calendar_payload(selected_dates):
-        options = {
-            "initialView": "dayGridMonth",
-            "headerToolbar": {"left": "today prev,next", "center": "title", "right": ""},
-            "dayMaxEvents": True,
-            "selectable": True,
-            "fixedWeekCount": False,
-            "height": 300,
-        }
-        events = _build_background_events(selected_dates)
-        # critical click fix: background highlights must not steal clicks
-        css = """
-        .fc .fc-toolbar { margin-bottom: 0.25rem !important; }
-        .fc .fc-toolbar-title { font-size: 1.0rem !important; }
-        .fc .fc-button { padding: 0.15rem 0.35rem !important; font-size: 0.8rem !important; }
-        .fc .fc-daygrid-day-number { padding: 2px 4px !important; font-size: 0.85rem !important; }
-        .fc .fc-daygrid-day-frame { padding: 1px !important; cursor: pointer; }
-        .fc-bg-event { pointer-events: none !important; }  /* <-- key reliability fix */
-        """
-        return options, events, css
-
-    # dialog path (best)
-    if hasattr(st, "dialog") and st.session_state.get(open_key):
-
-        @st.dialog("Select date(s)", width="small")
-        def _date_dialog():
-            @_as_fragment
-            def _render_calendar():
-                cur = st.session_state.get(state_key, [])
-                options, events, css = _calendar_payload(cur)
-
-                cal_value = calendar(
-                    events=events,
-                    options=options,
-                    custom_css=css,
-                    key=component_key,
-                )
-
-                if isinstance(cal_value, dict) and cal_value.get("callback") == "dateClick":
-                    clicked = (cal_value.get("dateClick") or {}).get("date")
-                    if clicked:
-                        clicked_iso = str(clicked)[:10]
-                        if clicked_iso in cur:
-                            cur = [d for d in cur if d != clicked_iso]
-                        else:
-                            cur = sorted(set(cur + [clicked_iso]))
-                        st.session_state[state_key] = cur
-                        st.rerun()
-
-            _render_calendar()
-
-            c1, c2, c3 = st.columns([0.33, 0.33, 0.34])
-            with c1:
-                if st.button("🧹 Clear", key=f"{state_key}_clear"):
-                    st.session_state[state_key] = []
-                    st.rerun()
-            with c2:
-                if st.button("✅ Done", type="primary", key=f"{state_key}_done"):
-                    st.session_state[open_key] = False
-                    st.rerun()
-            with c3:
-                st.caption("Click dates to toggle")
-
-        _date_dialog()
-
-    # popover fallback
-    elif hasattr(st, "popover") and st.session_state.get(open_key):
-        with st.popover("Select date(s)", type="secondary"):
+    # UI
+    st.markdown(f"**{label}**")
+    cols = st.columns([0.38, 0.16, 0.16, 0.30])
+    with cols[0]:
+        pick = st.date_input("Pick a date", key=f"{state_key}_pick")
+    with cols[1]:
+        if st.button("Add", key=f"{state_key}_add"):
             cur = st.session_state.get(state_key, [])
-            options, events, css = _calendar_payload(cur)
-            cal_value = calendar(events=events, options=options, custom_css=css, key=component_key)
+            cur = _normalize_iso_dates(cur + [pick])
+            st.session_state[state_key] = cur
+            st.rerun()
+    with cols[2]:
+        if st.button("Clear", key=f"{state_key}_clear"):
+            st.session_state[state_key] = []
+            st.rerun()
+    with cols[3]:
+        st.caption("Tip: remove by unselecting below")
 
-            if isinstance(cal_value, dict) and cal_value.get("callback") == "dateClick":
-                clicked = (cal_value.get("dateClick") or {}).get("date")
-                if clicked:
-                    clicked_iso = str(clicked)[:10]
-                    if clicked_iso in cur:
-                        cur = [d for d in cur if d != clicked_iso]
-                    else:
-                        cur = sorted(set(cur + [clicked_iso]))
-                    st.session_state[state_key] = cur
-                    st.rerun()
+    cur = st.session_state.get(state_key, [])
+    if not cur:
+        st.info("No dates selected.")
+        return []
 
-            c1, c2 = st.columns(2)
-            with c1:
-                if st.button("🧹 Clear", key=f"{state_key}_clear_pop"):
-                    st.session_state[state_key] = []
-                    st.rerun()
-            with c2:
-                if st.button("✅ Done", type="primary", key=f"{state_key}_done_pop"):
-                    st.session_state[open_key] = False
-                    st.rerun()
+    # Removal is native and reliable: unselect removes
+    chosen = st.multiselect(
+        "Selected dates (unselect to remove)",
+        options=cur,
+        default=cur,
+        key=f"{state_key}_chosen",
+    )
+    chosen = _normalize_iso_dates(chosen)
+    if chosen != cur:
+        st.session_state[state_key] = chosen
+        st.rerun()
 
-    # expander fallback
-    elif st.session_state.get(open_key):
-        with st.expander("Select date(s)", expanded=True):
-            cur = st.session_state.get(state_key, [])
-            options, events, css = _calendar_payload(cur)
-            cal_value = calendar(events=events, options=options, custom_css=css, key=component_key)
-
-            if isinstance(cal_value, dict) and cal_value.get("callback") == "dateClick":
-                clicked = (cal_value.get("dateClick") or {}).get("date")
-                if clicked:
-                    clicked_iso = str(clicked)[:10]
-                    if clicked_iso in cur:
-                        cur = [d for d in cur if d != clicked_iso]
-                    else:
-                        cur = sorted(set(cur + [clicked_iso]))
-                    st.session_state[state_key] = cur
-                    st.rerun()
-
-            c1, c2 = st.columns(2)
-            with c1:
-                if st.button("🧹 Clear", key=f"{state_key}_clear_exp"):
-                    st.session_state[state_key] = []
-                    st.rerun()
-            with c2:
-                if st.button("✅ Done", type="primary", key=f"{state_key}_done_exp"):
-                    st.session_state[open_key] = False
-                    st.rerun()
-
-    return st.session_state.get(state_key, [])
+    st.caption(f"Selected: {', '.join(chosen)}")
+    return chosen
 
 # =========================================================
 # DEFAULTS
@@ -395,7 +257,6 @@ config_data.setdefault(
     {"server": "https://ntfy.sh", "topic": "", "priority": "urgent", "tags": "rotating_light"},
 )
 config_data.setdefault("searches", [])
-
 NOTIFY_LABELS = ["Push", "Email", "Both", "None"]
 NOTIFY_MAP = {"Push": "push", "Email": "email", "Both": "both", "None": "none"}
 
@@ -431,11 +292,7 @@ for idx, s in enumerate(searches_all):
 
         with header_cols[0]:
             title = s.get("id", "Unnamed")
-            st.markdown(
-                f"**📍 {title} (SevenRooms)**"
-                if is_supported
-                else f"**📍 {title} (Unsupported platform entry)**"
-            )
+            st.markdown(f"**📍 {title} (SevenRooms)**" if is_supported else f"**📍 {title} (Unsupported platform entry)**")
             st.caption(f"🗓 {date_txt} · 👥 {party_txt} · ⏱ {time_txt} · 🔔 {notify_txt}")
             if not is_supported:
                 st.warning(
@@ -458,10 +315,7 @@ for idx, s in enumerate(searches_all):
         # Delete confirmation
         if st.session_state.get(f"confirm_delete_{idx}", False):
             st.divider()
-            st.warning(
-                f"Delete **{s.get('id','Unnamed')}**? This removes the entry from `config.json`.",
-                icon="⚠️",
-            )
+            st.warning(f"Delete **{s.get('id','Unnamed')}**? This removes the entry from `config.json`.", icon="⚠️")
             c1, c2 = st.columns(2)
             with c1:
                 if st.button("✅ Confirm delete", type="primary", key=f"btn_confirm_delete_{idx}"):
@@ -484,30 +338,26 @@ for idx, s in enumerate(searches_all):
             if notes:
                 st.write(f"**Notes**: {notes}")
 
-        # Edit form
+        # Edit view
         if st.session_state.get(f"show_edit_{idx}", False):
             st.divider()
             st.caption("Platform is forced to SevenRooms on save.")
 
-            # seed dates state once
+            # Initialize dates state once per search
             dates_key = f"edit_dates_{idx}"
             if dates_key not in st.session_state:
-                st.session_state[dates_key] = _get_dates_list(s)
+                st.session_state[dates_key] = _get_dates_from_search(s)
 
-            # date picker button (lazy modal)
-            selected_dates = multi_date_calendar_picker(
-                dates_key,
-                component_key=f"cal_edit_{idx}",
-                button_label="Select date(s)",
-            )
+            # ✅ Native fast multi-date selector
+            selected_dates = native_multi_date_selector(dates_key, "Dates")
 
+            # The rest remains in the form
             with st.form(f"edit_form_{idx}"):
+                st.caption("Everything else unchanged. Dates saved as `dates` plus `date` = first.")
                 e_name = st.text_input("Name", s.get("id", ""))
                 e_venues = st.text_input("Venues (slugs, comma separated)", ", ".join(s.get("venues", [])))
-
                 e_party = st.number_input("Party", 1, 20, value=int(s.get("party_size", 2)))
                 e_num_days = st.number_input("Num Days", 1, 7, value=int(s.get("num_days", 1)))
-
                 e_time_slot = st.text_input("Exact time (HH:MM) — leave blank for window", s.get("time_slot", ""))
                 e_window_start = st.text_input("Window start (HH:MM)", s.get("window_start", "18:00"))
                 e_window_end = st.text_input("Window end (HH:MM)", s.get("window_end", "22:00"))
@@ -526,7 +376,7 @@ for idx, s in enumerate(searches_all):
                 cancelled = bcols[1].form_submit_button("Cancel")
 
                 if submitted:
-                    dates_list = sorted(set(selected_dates or []))
+                    dates_list = _normalize_iso_dates(selected_dates)
                     if not dates_list:
                         dates_list = [dt.date.today().isoformat()]
 
@@ -535,8 +385,8 @@ for idx, s in enumerate(searches_all):
                             "id": e_name.strip() or "Unnamed",
                             "platform": "sevenrooms",
                             "venues": [v.strip() for v in e_venues.split(",") if v.strip()],
-                            "date": dates_list[0],    # backwards compatible
-                            "dates": dates_list,      # multi-date
+                            "date": dates_list[0],   # first date for compatibility
+                            "dates": dates_list,     # multi-date list
                             "party_size": int(e_party),
                             "num_days": int(e_num_days),
                             "time_slot": e_time_slot.strip(),
@@ -555,7 +405,7 @@ for idx, s in enumerate(searches_all):
                     st.rerun()
 
 # =========================================================
-# ADD NEW SEARCH (SevenRooms only)
+# ADD NEW SEARCH
 # =========================================================
 st.subheader("➕ Add New Search")
 st.caption("SevenRooms only.")
@@ -575,16 +425,12 @@ with add_cols[1]:
     st.caption("Time")
     any_time = st.checkbox("Any time in a window", value=True, key="new_any_time")
 
-# date picker (lazy modal)
-new_dates_key = "new_dates"
+# ✅ Native multi-date for NEW search
+new_dates_key = "new_dates_list"
 if new_dates_key not in st.session_state:
     st.session_state[new_dates_key] = [dt.date.today().isoformat()]
 
-new_dates = multi_date_calendar_picker(
-    new_dates_key,
-    component_key="cal_new",
-    button_label="Select date(s)",
-)
+new_dates = native_multi_date_selector(new_dates_key, "Dates")
 
 gbl = config_data.get("global", {})
 channel = gbl.get("channel", "SEVENROOMS_WIDGET")
@@ -622,7 +468,7 @@ else:
     n_window_start, n_window_end = "", ""
 
 if st.button("🚀 Launch search", type="primary", key="launch"):
-    dates_list = sorted(set(new_dates or []))
+    dates_list = _normalize_iso_dates(new_dates)
     if not dates_list:
         dates_list = [dt.date.today().isoformat()]
 
@@ -631,8 +477,8 @@ if st.button("🚀 Launch search", type="primary", key="launch"):
         "platform": "sevenrooms",
         "venues": [v.strip() for v in n_venue.split(",") if v.strip()],
         "party_size": int(n_party),
-        "date": dates_list[0],   # backwards compatible
-        "dates": dates_list,     # multi-date
+        "date": dates_list[0],
+        "dates": dates_list,
         "time_slot": n_time_slot.strip(),
         "window_start": n_window_start.strip(),
         "window_end": n_window_end.strip(),
@@ -650,7 +496,6 @@ if st.button("🚀 Launch search", type="primary", key="launch"):
 # =========================================================
 with st.expander("⚙️ Advanced", expanded=False):
     st.caption("Maintenance, SevenRooms slug finder, and push settings.")
-
     st.subheader("Maintenance")
     _, state_data = _read_json_from_repo(STATE_FILE_PATH, {"notified": []})
     st.caption(f"Current dedupe cache entries: {len(state_data.get('notified', []) or [])}")
@@ -678,7 +523,6 @@ with st.expander("⚙️ Advanced", expanded=False):
     tags = st.text_input("Tags", nt.get("tags", "rotating_light"))
 
     c1, c2 = st.columns(2)
-
     with c1:
         if st.button("💾 Save push settings", key="save_push_settings"):
             config_data["ntfy_default"] = {
