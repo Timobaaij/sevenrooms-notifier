@@ -1,4 +1,3 @@
-
 import os
 import json
 import time
@@ -78,10 +77,19 @@ def in_window(hhmm: str, start_hhmm: str, end_hhmm: str) -> bool:
 # ----------------------------
 # SevenRooms availability fetch
 # ----------------------------
-def fetch_sevenrooms_availability(venue: str, date_yyyy_mm_dd: str, party: int, channel: str, num_days: int, lang: str):
+def fetch_sevenrooms_availability(
+    venue: str,
+    date_yyyy_mm_dd: str,
+    party: int,
+    channel: str,
+    num_days: int,
+    lang: str,
+):
     """
-    Uses the same endpoint pattern your Streamlit UI uses for time loading,
-    but returns raw time objects to decide availability + requestability.
+    Returns time objects with:
+      - hhmm
+      - is_available
+      - is_requestable  (kept for parity; NOT used to alert)
     """
     try:
         d_sr = dt.datetime.strptime(date_yyyy_mm_dd, "%Y-%m-%d").strftime("%m-%d-%Y")
@@ -118,6 +126,7 @@ def fetch_sevenrooms_availability(venue: str, date_yyyy_mm_dd: str, party: int, 
             for t in block.get("times", []) or []:
                 if not isinstance(t, dict):
                     continue
+
                 iso = t.get("time_iso") or t.get("date_time") or t.get("time")
                 if not iso:
                     continue
@@ -132,14 +141,16 @@ def fetch_sevenrooms_availability(venue: str, date_yyyy_mm_dd: str, party: int, 
                 if not hhmm:
                     continue
 
-                out.append({
-                    "hhmm": hhmm,
-                    "is_available": bool(t.get("is_available")),
-                    "is_requestable": bool(t.get("is_requestable")),
-                    "raw": t
-                })
+                out.append(
+                    {
+                        "hhmm": hhmm,
+                        "is_available": bool(t.get("is_available")),
+                        "is_requestable": bool(t.get("is_requestable")),
+                        "raw": t,
+                    }
+                )
 
-    # unique by hhmm+flags
+    # unique by hhmm + flags
     seen = set()
     uniq = []
     for item in out:
@@ -153,7 +164,13 @@ def fetch_sevenrooms_availability(venue: str, date_yyyy_mm_dd: str, party: int, 
 # ----------------------------
 # Telegram notification
 # ----------------------------
-def send_telegram(bot_token: str, chat_id: str, text: str, parse_mode: str = "HTML", disable_web_page_preview: bool = True) -> (bool, str):
+def send_telegram(
+    bot_token: str,
+    chat_id: str,
+    text: str,
+    parse_mode: str = "HTML",
+    disable_web_page_preview: bool = True,
+) -> (bool, str):
     if not bot_token or not chat_id:
         return False, "Missing TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID"
 
@@ -162,7 +179,7 @@ def send_telegram(bot_token: str, chat_id: str, text: str, parse_mode: str = "HT
         "chat_id": chat_id,
         "text": text,
         "parse_mode": parse_mode,
-        "disable_web_page_preview": disable_web_page_preview
+        "disable_web_page_preview": disable_web_page_preview,
     }
 
     try:
@@ -230,7 +247,6 @@ def main():
         return
 
     notified_set = set(state.get("notified") or [])
-
     fired_any = False
 
     for s in searches:
@@ -259,16 +275,15 @@ def main():
                     party=party,
                     channel=channel,
                     num_days=num_days,
-                    lang=lang
+                    lang=lang,
                 )
 
                 for t in times:
                     hhmm = t["hhmm"]
                     is_avail = t["is_available"]
-                    is_req = t["is_requestable"]
 
-                    # Only trigger on actual availability OR requestable
-                    if not (is_avail or is_req):
+                    # Like before: ONLY alert on real availability
+                    if not is_avail:
                         continue
 
                     # Filter by exact time or window
@@ -282,23 +297,21 @@ def main():
                             except Exception:
                                 ok_time = False
                         else:
-                            # if no time criteria at all, accept any
                             ok_time = True
 
                     if not ok_time:
                         continue
 
-                    # Dedupe key
-                    key = f"{search_id}|{venue}|{date_iso}|{hhmm}|party={party}|avail={int(is_avail)}|req={int(is_req)}"
+                    # Dedupe key (availability only)
+                    key = f"{search_id}|{venue}|{date_iso}|{hhmm}|party={party}|avail=1"
                     if key in notified_set:
                         continue
 
                     fired_any = True
                     notified_set.add(key)
 
-                    status = "✅ AVAILABLE" if is_avail else "🟠 REQUESTABLE"
                     msg = (
-                        f"<b>{status}</b>\n"
+                        f"<b>✅ AVAILABLE</b>\n"
                         f"<b>{search_id}</b>\n"
                         f"Venue: <code>{venue}</code>\n"
                         f"Date: <code>{date_iso}</code>\n"
@@ -313,25 +326,28 @@ def main():
                             chat_id=tg_chat,
                             text=msg,
                             parse_mode=tg_parse,
-                            disable_web_page_preview=tg_no_preview
+                            disable_web_page_preview=tg_no_preview,
                         )
                         print(f"Telegram: {ok} ({info})")
 
-                    # Email
+                    # Email (unchanged)
                     if notify in ("email", "both") and email_to:
                         subj = f"Reservation slot found: {search_id} {date_iso} {hhmm}"
-                        body = f"{status}\n{search_id}\nVenue: {venue}\nDate: {date_iso}\nTime: {hhmm}\nParty: {party}\n"
+                        body = (
+                            f"✅ AVAILABLE\n{search_id}\nVenue: {venue}\nDate: {date_iso}\n"
+                            f"Time: {hhmm}\nParty: {party}\n"
+                        )
                         ok, info = send_email(email_to, subj, body)
                         print(f"Email: {ok} ({info})")
 
                 time.sleep(delay_between_venues_sec)
 
-    # Persist state (trim to keep file small)
+    # Persist state
     state["notified"] = list(notified_set)[-2000:]
     save_json(STATE_FILE_PATH, state)
 
     if not fired_any:
-        print("No matching availability found.")
+        print("No matching AVAILABLE slots found.")
 
 
 if __name__ == "__main__":
