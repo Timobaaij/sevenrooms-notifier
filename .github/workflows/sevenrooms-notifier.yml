@@ -2,14 +2,12 @@ name: SevenRooms Notifier
 
 on:
   schedule:
-    # Stagger off the top of the hour to reduce delays under GitHub load
-    - cron: "2-59/5 * * * *"
+    - cron: "*/5 * * * *"   # GitHub schedule minimum is 5 minutes
   workflow_dispatch: {}
 
 concurrency:
   group: sevenrooms-notifier
-  # Avoid cancelling an in-progress run (more reliable than cancel/restart)
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 permissions:
   contents: write   # needed to commit state.json back to the repo
@@ -27,64 +25,37 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-          cache: "pip"
 
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      # --- DEBUG STEP ---
+      # --- NEW DEBUG STEP ---
       - name: DEBUG - Check Secrets
         env:
           EMAIL_USER: ${{ secrets.EMAIL_USER }}
-          EMAIL_PASS: ${{ secrets.EMAIL_PASS }}
         run: |
           if [ -z "$EMAIL_USER" ]; then
             echo "❌ CRITICAL ERROR: EMAIL_USER is empty."
-            echo "Please go to Settings -> Secrets and variables -> Actions -> Repository secrets."
+            echo "Please go to Settings -&gt; Secrets -&gt; Actions -&gt; Repository Secrets."
             exit 1
+          else
+            echo "✅ SUCCESS: EMAIL_USER is loaded correctly. Proceeding..."
           fi
-          if [ -z "$EMAIL_PASS" ]; then
-            echo "❌ CRITICAL ERROR: EMAIL_PASS is empty."
-            echo "Please go to Settings -> Secrets and variables -> Actions -> Repository secrets."
-            exit 1
-          fi
-          echo "✅ SUCCESS: EMAIL_USER and EMAIL_PASS are present. Proceeding..."
 
-      # Run once per scheduled trigger (most reliable pattern)
-      - name: Run notifier (single run)
-        env:
+      # Option A: loop inside the job to run more often than schedule allows
+      - name: Run notifier every 60s for 5 minutes
+        env: 
+          # This passes your GitHub Secrets to the Python script
           EMAIL_USER: ${{ secrets.EMAIL_USER }}
           EMAIL_PASS: ${{ secrets.EMAIL_PASS }}
         run: |
-          echo "Run at $(date -u)"
-          python main.py
-
-      # Optional: keep scheduled workflows from being auto-disabled in public repos
-      # if there is no repo activity for 60 days. This makes at most one commit/month.
-      - name: Keepalive (commit once per month if needed)
-        run: |
-          KEEP_FILE=".keepalive"
-          NOW="$(date -u +%s)"
-          THIRTY_DAYS=$((30*24*60*60))
-
-          if [ -f "$KEEP_FILE" ]; then
-            LAST="$(cat "$KEEP_FILE" || echo 0)"
-          else
-            LAST=0
-          fi
-
-          if [ $((NOW - LAST)) -ge $THIRTY_DAYS ]; then
-            echo "$NOW" > "$KEEP_FILE"
-            git config user.name "github-actions[bot]"
-            git config user.email "github-actions[bot]@users.noreply.github.com"
-            git add "$KEEP_FILE"
-            git commit -m "Keepalive (monthly)"
-            git push
-          else
-            echo "Keepalive not needed."
-          fi
+          for i in 1 2 3 4 5; do
+            echo "Iteration $i/5 at $(date -u)"
+            python main.py
+            sleep 60
+          done
 
       - name: Commit updated state.json (if changed)
         run: |
