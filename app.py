@@ -13,6 +13,7 @@ from github import Github
 REPO_NAME = "timobaaij/sevenrooms-notifier"
 CONFIG_FILE_PATH = "config.json"
 STATE_FILE_PATH = "state.json"
+
 st.set_page_config(page_title="Reservation Manager", page_icon="🍽️", layout="wide")
 
 # =========================================================
@@ -38,7 +39,6 @@ def _read_json_from_repo(path: str, default: dict):
     except Exception:
         return None, default
 
-
 def _update_file_json(path: str, message: str, data: dict):
     c = repo.get_contents(path)
     repo.update_file(
@@ -47,7 +47,6 @@ def _update_file_json(path: str, message: str, data: dict):
         json.dumps(data, indent=2, sort_keys=True),
         c.sha,
     )
-
 
 def save_config(new_data: dict):
     """Safe update of config.json, then refresh UI."""
@@ -59,7 +58,6 @@ def save_config(new_data: dict):
         st.rerun()
     except Exception as e:
         st.error(f"Save Failed: {e}")
-
 
 def reset_state():
     """Clear state.json so notifications can fire again."""
@@ -75,14 +73,13 @@ def reset_state():
     except Exception as e:
         st.error(f"Reset failed: {e}")
 
-
 # =========================================================
 # SevenRooms helpers (Slug finder + Time loader for UI)
 # =========================================================
 def get_sevenrooms_slug(text: str):
     if not text:
         return None
-    m = re.search(r"[?&]venue=([a-zA-Z0-9_\-\\]+)", text)
+    m = re.search(r"[\?&]venue=([a-zA-Z0-9_\-\\]+)", text)
     if m:
         return m.group(1)
     m = re.search(r"/reservations/([a-zA-Z0-9_\-\\]+)", text)
@@ -91,7 +88,6 @@ def get_sevenrooms_slug(text: str):
     if re.fullmatch(r"[a-zA-Z0-9_\-\\]{3,}", text.strip()):
         return text.strip()
     return None
-
 
 def fetch_sevenrooms_times(
     venue: str,
@@ -106,11 +102,13 @@ def fetch_sevenrooms_times(
         d_sr = dt.datetime.strptime(date_yyyy_mm_dd, "%Y-%m-%d").strftime("%m-%d-%Y")
     except Exception:
         return []
+
     url = (
         "https://www.sevenrooms.com/api-yoa/availability/widget/range"
         f"?venue={venue}&party_size={party}&start_date={d_sr}&num_days={num_days}"
         f"&channel={channel}&lang={lang}"
     )
+
     try:
         r = requests.get(url, timeout=15)
     except Exception:
@@ -121,6 +119,7 @@ def fetch_sevenrooms_times(
         j = r.json()
     except Exception:
         return []
+
     out = []
     availability = (j.get("data", {}) or {}).get("availability", {}) or {}
     for _, day in availability.items():
@@ -138,6 +137,7 @@ def fetch_sevenrooms_times(
                 iso = t.get("time_iso") or t.get("date_time") or t.get("time")
                 if not iso:
                     continue
+
                 hhmm = None
                 try:
                     hhmm = dt.datetime.fromisoformat(str(iso).replace("Z", "+00:00")).strftime("%H:%M")
@@ -146,6 +146,7 @@ def fetch_sevenrooms_times(
                     hhmm = f"{m.group(1)}:{m.group(2)}" if m else None
                 if not hhmm:
                     continue
+
                 label = hhmm + (" (REQUEST)" if (is_req and not is_avail) else "")
                 out.append(label)
 
@@ -156,9 +157,8 @@ def fetch_sevenrooms_times(
             seen.add(x)
     return uniq
 
-
 # =========================================================
-# DATE HELPERS + IMPROVED NATIVE MULTI-DATE DISPLAY (CHIPS)
+# DATE HELPERS + NATIVE MULTI-DATE DISPLAY (CHIPS)
 # =========================================================
 def _normalize_iso_dates(values):
     """Normalize a list to sorted unique YYYY-MM-DD strings."""
@@ -181,9 +181,8 @@ def _normalize_iso_dates(values):
                 out.append(parsed)
     return sorted(set(out))
 
-
 def _get_dates_from_search(s: dict):
-    """Backwards compatible: use s['dates'] if present else s['date'].""" 
+    """Backwards compatible: use s['dates'] if present else s['date']."""
     if isinstance(s.get("dates"), list) and s["dates"]:
         dates = _normalize_iso_dates(s["dates"])
         if dates:
@@ -194,24 +193,21 @@ def _get_dates_from_search(s: dict):
             return dates
     return [dt.date.today().isoformat()]
 
-
 def _dates_display(s: dict) -> str:
     if isinstance(s.get("dates"), list) and s["dates"]:
         return ", ".join(s["dates"])
     return s.get("date", "") or ""
 
-
 def native_multi_date_selector(state_key: str, label: str, chips_per_row: int = 4):
     """
     Native, fast multi-date selector with chips display:
-      - picking in calendar instantly adds date
-      - selected dates shown as removable chips (✕)
-      - remove is one click, no multiselect
-      - stores ISO dates in st.session_state[state_key]
+    - picking in calendar instantly adds date
+    - selected dates shown as removable chips (✕)
+    - remove is one click, no multiselect
+    - stores ISO dates in st.session_state[state_key]
     """
     if state_key not in st.session_state:
         st.session_state[state_key] = [dt.date.today().isoformat()]
-
     st.session_state[state_key] = _normalize_iso_dates(st.session_state[state_key])
 
     picker_key = f"{state_key}__picker"
@@ -239,34 +235,30 @@ def native_multi_date_selector(state_key: str, label: str, chips_per_row: int = 
         return []
 
     st.caption("Click ✕ on a date to remove it.")
-
-    # Render chips in rows
     for start in range(0, len(cur), chips_per_row):
         row = cur[start : start + chips_per_row]
         cols = st.columns([1] * len(row))
         for col, d in zip(cols, row):
             with col:
-                # One button per date (chip-like)
-                if st.button(f"{d}  ✕", key=f"{state_key}__rm_{d}"):
+                if st.button(f"{d} ✕", key=f"{state_key}__rm__{d}"):
                     st.session_state[state_key] = [x for x in cur if x != d]
                     st.rerun()
-
     st.caption(f"Selected: {', '.join(cur)}")
     return cur
 
-
 # =========================================================
-# DEFAULTS
+# DEFAULTS (now Telegram)
 # =========================================================
 config_data.setdefault(
     "global",
     {"channel": "SEVENROOMS_WIDGET", "delay_between_venues_sec": 0.5, "lang": "en"},
 )
 config_data.setdefault(
-    "ntfy_default",
-    {"server": "https://ntfy.sh", "topic": "", "priority": "urgent", "tags": "rotating_light"},
+    "telegram_default",
+    {"bot_token": "", "chat_id": "", "parse_mode": "HTML", "disable_web_page_preview": True},
 )
 config_data.setdefault("searches", [])
+
 NOTIFY_LABELS = ["Push", "Email", "Both", "None"]
 NOTIFY_MAP = {"Push": "push", "Email": "email", "Both": "both", "None": "none"}
 
@@ -308,9 +300,11 @@ for idx, s in enumerate(searches_all):
                 else f"**📍 {title} (Unsupported platform entry)**"
             )
             st.caption(f"🗓 {date_txt} · 👥 {party_txt} · ⏱ {time_txt} · 🔔 {notify_txt}")
+
             if not is_supported:
                 st.warning(
-                    "This entry uses an unsupported platform and will be ignored by the scheduler. Edit + save to convert it to SevenRooms, or delete it.",
+                    "This entry uses an unsupported platform and will be ignored by the scheduler. "
+                    "Edit + save to convert it to SevenRooms, or delete it.",
                     icon="⚠️",
                 )
 
@@ -360,18 +354,16 @@ for idx, s in enumerate(searches_all):
             dates_key = f"edit_dates_{idx}"
             if dates_key not in st.session_state:
                 st.session_state[dates_key] = _get_dates_from_search(s)
-
             selected_dates = native_multi_date_selector(dates_key, "Dates", chips_per_row=4)
 
             with st.form(f"edit_form_{idx}"):
                 e_name = st.text_input("Name", s.get("id", ""))
-                e_venues = st.text_input("Venues (slugs, comma separated)", ", ".join(s.get("venues", [])))
+                e_venues = st.text_input("Venues (slugs, comma separated supported)", ", ".join(s.get("venues", [])))
                 e_party = st.number_input("Party", 1, 20, value=int(s.get("party_size", 2)))
                 e_num_days = st.number_input("Num Days", 1, 7, value=int(s.get("num_days", 1)))
                 e_time_slot = st.text_input("Exact time (HH:MM) — leave blank for window", s.get("time_slot", ""))
                 e_window_start = st.text_input("Window start (HH:MM)", s.get("window_start", "18:00"))
                 e_window_end = st.text_input("Window end (HH:MM)", s.get("window_end", "22:00"))
-
                 e_notify_label = st.selectbox(
                     "Notification method",
                     NOTIFY_LABELS,
@@ -419,8 +411,8 @@ for idx, s in enumerate(searches_all):
 # =========================================================
 st.subheader("➕ Add New Search")
 st.caption("SevenRooms only.")
-
 add_cols = st.columns([0.5, 0.5])
+
 with add_cols[0]:
     default_venue = st.session_state.get("last_sr_slug", "")
     n_venue = st.text_input("Venue slug(s) (comma separated supported)", value=default_venue, key="new_venue")
@@ -438,7 +430,6 @@ with add_cols[1]:
 new_dates_key = "new_dates_list"
 if new_dates_key not in st.session_state:
     st.session_state[new_dates_key] = [dt.date.today().isoformat()]
-
 new_dates = native_multi_date_selector(new_dates_key, "Dates", chips_per_row=4)
 
 gbl = config_data.get("global", {})
@@ -504,7 +495,8 @@ if st.button("🚀 Launch search", type="primary", key="launch"):
 # ADVANCED (collapsed)
 # =========================================================
 with st.expander("⚙️ Advanced", expanded=False):
-    st.caption("Maintenance, SevenRooms slug finder, and push settings.")
+    st.caption("Maintenance, SevenRooms slug finder, and Telegram push settings.")
+
     st.subheader("Maintenance")
     _, state_data = _read_json_from_repo(STATE_FILE_PATH, {"notified": []})
     st.caption(f"Current dedupe cache entries: {len(state_data.get('notified', []) or [])}")
@@ -512,6 +504,7 @@ with st.expander("⚙️ Advanced", expanded=False):
         reset_state()
 
     st.divider()
+
     st.subheader("Quick Slug Finder (SevenRooms)")
     st.caption("Paste a SevenRooms link (or type a slug).")
     sr_text = st.text_input("SevenRooms link / slug", key="sr_url_adv")
@@ -524,44 +517,50 @@ with st.expander("⚙️ Advanced", expanded=False):
             st.error("Couldn’t find a slug in that text.")
 
     st.divider()
-    st.subheader("Push notification settings (ntfy)")
-    nt = config_data.get("ntfy_default", {})
-    server = st.text_input("Server", nt.get("server", "https://ntfy.sh"))
-    topic = st.text_input("Topic", nt.get("topic", ""))
-    priority = st.text_input("Priority", nt.get("priority", "urgent"))
-    tags = st.text_input("Tags", nt.get("tags", "rotating_light"))
+
+    st.subheader("Push notification settings (Telegram)")
+    tg = config_data.get("telegram_default", {}) or {}
+
+    # Chat ID is safe-ish to store in config; token is better in Secrets
+    chat_id = st.text_input("Chat ID (recommended to save)", tg.get("chat_id", ""))
+
+    # Token: show masked; allow saving if private repo (otherwise use Secrets)
+    bot_token = st.text_input("Bot token (prefer GitHub/Streamlit secrets)", tg.get("bot_token", ""), type="password")
+    parse_mode = st.selectbox("Parse mode", ["HTML", "MarkdownV2", "Markdown", ""], index=0)
+    disable_preview = st.checkbox("Disable link previews", value=bool(tg.get("disable_web_page_preview", True)))
 
     c1, c2 = st.columns(2)
+
     with c1:
-        if st.button("💾 Save push settings", key="save_push_settings"):
-            config_data["ntfy_default"] = {
-                "server": server.strip(),
-                "topic": topic.strip(),
-                "priority": priority.strip(),
-                "tags": tags.strip(),
+        if st.button("💾 Save Telegram settings", key="save_tg_settings"):
+            config_data["telegram_default"] = {
+                "bot_token": bot_token.strip(),
+                "chat_id": chat_id.strip(),
+                "parse_mode": parse_mode.strip(),
+                "disable_web_page_preview": bool(disable_preview),
             }
             save_config(config_data)
 
     with c2:
-        def post_test_push(server: str, topic: str, title: str, msg: str, priority: str = "", tags: str = ""):
-            if not (server and topic):
-                return False, "Missing server/topic"
-            headers = {"Title": title}
-            if priority:
-                headers["Priority"] = priority
-            if tags:
-                headers["Tags"] = tags
-            url = f"{server.rstrip('/')}/{topic}"
-            r = requests.post(url, data=msg.encode("utf-8"), headers=headers, timeout=12)
-            return r.ok, f"HTTP {r.status_code}"
+        def send_test_telegram(token: str, cid: str, text: str, parse_mode: str, disable_web_page_preview: bool):
+            if not (token and cid):
+                return False, "Missing bot token/chat id"
+            url = f"https://api.telegram.org/bot{token}/sendMessage"
+            payload = {
+                "chat_id": cid,
+                "text": text,
+                "parse_mode": parse_mode or "HTML",
+                "disable_web_page_preview": disable_web_page_preview,
+            }
+            r = requests.post(url, json=payload, timeout=15)
+            return (r.ok, f"HTTP {r.status_code}")
 
-        if st.button("🧪 Send test push", key="test_push"):
-            ok, info = post_test_push(
-                server.strip(),
-                topic.strip(),
-                "Test: Reservation Manager",
-                "If you see this, push is working.",
-                priority.strip(),
-                tags.strip(),
+        if st.button("🧪 Send test Telegram", key="test_tg"):
+            ok, info = send_test_telegram(
+                bot_token.strip(),
+                chat_id.strip(),
+                "<b>Test:</b> Reservation Manager\nIf you see this, Telegram push is working.",
+                parse_mode.strip(),
+                bool(disable_preview),
             )
             st.success("Sent ✅") if ok else st.error(f"Failed: {info}")
