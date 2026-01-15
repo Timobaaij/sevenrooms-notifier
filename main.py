@@ -22,9 +22,11 @@ def load_json(path: str, default: Any) -> Any:
     except Exception:
         return default
 
+
 def save_json(path: str, obj: Any) -> None:
     with open(path, "w", encoding="utf-8") as f:
         json.dump(obj, f, indent=2)
+
 
 # =========================================================
 # TIME HELPERS
@@ -40,6 +42,7 @@ def _parse_iso(value: str) -> Optional[dt.datetime]:
         except Exception:
             return None
 
+
 def _hhmm(value: str) -> Optional[str]:
     """
     Convert ISO datetime or string with time to HH:MM.
@@ -51,11 +54,14 @@ def _hhmm(value: str) -> Optional[str]:
     d = _parse_iso(value)
     if d:
         return d.strftime("%H:%M")
+
     import re
+
     # 24-hour HH:MM
     m = re.search(r"\b([01]\d|2[0-3]):([0-5]\d)\b", value or "")
     if m:
         return f"{m.group(1)}:{m.group(2)}"
+
     # 12-hour h:MM AM/PM
     m = re.search(r"\b(\d{1,2}):([0-5]\d)\s*([AP]M)\b", (value or ""), re.I)
     if m:
@@ -63,7 +69,9 @@ def _hhmm(value: str) -> Optional[str]:
         if m.group(3).upper() == "PM":
             hh += 12
         return f"{hh:02d}:{m.group(2)}"
+
     return None
+
 
 def _parse_time(value: str) -> Optional[dt.time]:
     if not value:
@@ -72,6 +80,7 @@ def _parse_time(value: str) -> Optional[dt.time]:
         return dt.datetime.strptime(value.strip(), "%H:%M").time()
     except Exception:
         return None
+
 
 def _in_window(hhmm: str, start: str, end: str) -> bool:
     """Check if hhmm is inside [start, end], supports overnight."""
@@ -88,8 +97,9 @@ def _in_window(hhmm: str, start: str, end: str) -> bool:
         # overnight window (e.g. 22:00–01:00)
         return tt >= ts or tt <= te
 
+
 # =========================================================
-# DATE HELPERS (NEW: multi-date support)
+# DATE HELPERS (multi-date support)
 # =========================================================
 def _parse_one_date(value: str) -> Optional[str]:
     """
@@ -103,7 +113,6 @@ def _parse_one_date(value: str) -> Optional[str]:
     v = str(value).strip()
     if not v:
         return None
-    # try ISO first
     for fmt in ("%Y-%m-%d", "%d-%m-%Y"):
         try:
             d = dt.datetime.strptime(v, fmt).date()
@@ -112,15 +121,15 @@ def _parse_one_date(value: str) -> Optional[str]:
             pass
     return None
 
+
 def _get_search_dates(search: dict) -> List[str]:
     """
     Backwards compatible:
       - if 'dates' exists: list of dates
       - else use 'date'
-    Also supports comma-separated string in 'dates' just in case.
     """
-    dates_raw = search.get("dates", None)
     out: List[str] = []
+    dates_raw = search.get("dates", None)
 
     if isinstance(dates_raw, list):
         for x in dates_raw:
@@ -128,7 +137,6 @@ def _get_search_dates(search: dict) -> List[str]:
             if d:
                 out.append(d)
     elif isinstance(dates_raw, str) and dates_raw.strip():
-        # allow "2026-02-01, 08-02-2026"
         for part in dates_raw.split(","):
             d = _parse_one_date(part)
             if d:
@@ -138,12 +146,11 @@ def _get_search_dates(search: dict) -> List[str]:
         if d:
             out.append(d)
 
-    # de-dup, stable sort
-    out = sorted(set(out))
-    return out
+    return sorted(set(out))
+
 
 # =========================================================
-# NOTIFICATION SENDERS (return success)
+# NOTIFICATION SENDERS
 # =========================================================
 def send_push(
     server: str,
@@ -173,6 +180,7 @@ def send_push(
             print(f"[push] error: {e}")
         return False
 
+
 def send_email(to_email: str, subject: str, body: str, debug: bool = False) -> bool:
     user = os.environ.get("EMAIL_USER")
     pw = os.environ.get("EMAIL_PASS")
@@ -195,6 +203,7 @@ def send_email(to_email: str, subject: str, body: str, debug: bool = False) -> b
             print(f"[email] error: {e}")
         return False
 
+
 # =========================================================
 # AVAILABILITY FETCHERS (SevenRooms only)
 # =========================================================
@@ -212,6 +221,7 @@ def is_bookable_time(t: dict) -> bool:
     if t.get("is_waitlist") is True:
         return False
     return bool(t.get("time_iso") or t.get("date_time") or t.get("time"))
+
 
 def fetch_sevenrooms_slots(
     venue: str,
@@ -231,6 +241,7 @@ def fetch_sevenrooms_slots(
         d_sr = dt.datetime.strptime(date_yyyy_mm_dd, "%Y-%m-%d").strftime("%m-%d-%Y")
     except Exception:
         return []
+
     url = (
         "https://www.sevenrooms.com/api-yoa/availability/widget/range"
         f"?venue={venue}"
@@ -241,35 +252,40 @@ def fetch_sevenrooms_slots(
         f"&selected_lang_code={lang}"
         f"&halo_size_interval={halo_size_interval}"
     )
-    headers = {
-        "User-Agent": "Mozilla/5.0",
-        "Accept": "application/json,text/plain,*/*",
-    }
+
+    headers = {"User-Agent": "Mozilla/5.0", "Accept": "application/json,text/plain,*/*"}
+
     try:
         r = requests.get(url, headers=headers, timeout=25)
     except Exception as e:
         if debug:
             print(f"[sevenrooms] request error {venue}: {e}")
         return []
+
     if debug:
         print(f"[sevenrooms] {venue} HTTP {r.status_code} url={url}")
+
     if not r.ok:
         if debug:
             print(f"[sevenrooms] {venue} non-OK HTTP {r.status_code} body={r.text[:200]}")
         return []
+
     ct = (r.headers.get("Content-Type") or "").lower()
     if "json" not in ct:
         if debug:
             print(f"[sevenrooms] {venue} non-JSON content-type={ct} first200={r.text[:200]}")
         return []
+
     try:
         j = r.json()
     except Exception as e:
         if debug:
             print(f"[sevenrooms] {venue} JSON parse error: {e} first200={r.text[:200]}")
         return []
+
     avail = (j.get("data", {}) or {}).get("availability", {}) or {}
     out: List[str] = []
+
     for _, day_blocks in avail.items():
         if not isinstance(day_blocks, list):
             continue
@@ -286,7 +302,9 @@ def fetch_sevenrooms_slots(
                 iso = t.get("time_iso") or t.get("date_time") or t.get("time")
                 if iso:
                     out.append(str(iso))
+
     return out
+
 
 # =========================================================
 # MAIN SCHEDULER LOGIC
@@ -312,7 +330,7 @@ def main() -> None:
     for search in config.get("searches", []):
         sid = search.get("id") or "Unnamed"
         platform = (search.get("platform") or "sevenrooms").lower()
-        # SevenRooms only — ignore anything else safely
+
         if platform != "sevenrooms":
             if debug:
                 print(f"[{sid}] skipping unsupported platform={platform}")
@@ -322,7 +340,7 @@ def main() -> None:
         party = int(search.get("party_size") or 2)
         num_days = int(search.get("num_days") or 1)
 
-        # NEW: allow multiple single days
+        # multi-date
         dates = _get_search_dates(search)
         if not dates:
             if debug:
@@ -337,14 +355,13 @@ def main() -> None:
         email_to = search.get("email_to")
         salt = str(search.get("salt") or "")
 
-        # notifier override
         ntfy = search.get("ntfy", {}) or {}
         server = ntfy.get("server") or d_server
         topic = ntfy.get("topic") or d_topic
         priority = ntfy.get("priority") or d_priority
         tags = ntfy.get("tags") or d_tags
 
-        candidates: List[Tuple[str, str]] = []  # (fp, label)
+        candidates: List[Tuple[str, str]] = []
 
         for date in dates:
             for v in venues:
@@ -362,13 +379,13 @@ def main() -> None:
                     halo_size_interval=halo,
                     debug=debug,
                 )
+
                 if debug:
-                    print(f"[{sid}] sevenrooms venue={v} date={date} raw_slots={len(iso_slots)}")
+                    print(f"[{sid}] venue={v} date={date} raw_slots={len(iso_slots)}")
 
                 for iso in iso_slots:
                     hh = _hhmm(iso) or iso
 
-                    # time check
                     if time_slot:
                         if (_hhmm(iso) or "") != time_slot:
                             continue
@@ -379,10 +396,10 @@ def main() -> None:
                     fp = hashlib.sha256(
                         f"{sid}\n{platform}\n{v}\n{date}\n{iso}\n{salt}".encode()
                     ).hexdigest()
+
                     if fp in notified:
                         continue
 
-                    # Include date in label (NEW)
                     candidates.append((fp, f"{date} — {v} @ {hh}"))
 
                 if delay:
@@ -400,12 +417,13 @@ def main() -> None:
 
             push_ok = False
             email_ok = False
+
             if notify_mode in ("push", "both") and topic:
                 push_ok = send_push(server, topic, f"Table Alert: {sid}", msg, priority, tags, debug=debug)
+
             if notify_mode in ("email", "both") and email_to:
                 email_ok = send_email(email_to, f"Table Alert: {sid}", msg, debug=debug)
 
-            # Only mark as notified if at least one channel succeeded
             if push_ok or email_ok:
                 for fp, _ in candidates:
                     notified.add(fp)
