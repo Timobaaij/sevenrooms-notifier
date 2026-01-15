@@ -46,23 +46,6 @@
       ],
       "window_end": "16:00",
       "window_start": "13:00"
-    },
-    {
-      "date": "2026-02-14",
-      "email_to": "",
-      "id": "Caravel",
-      "notes": "",
-      "notify": "push",
-      "num_days": 1,
-      "party_size": 2,
-      "platform": "sevenrooms",
-      "salt": "1768379995.142646",
-      "time_slot": "",
-      "venues": [
-        "caravel"
-      ],
-      "window_end": "21:00",
-      "window_start": "18:00"
     }
   ]
 }
