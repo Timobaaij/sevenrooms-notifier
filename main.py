@@ -22,11 +22,9 @@ def load_json(path: str, default: Any) -> Any:
     except Exception:
         return default
 
-
 def save_json(path: str, obj: Any) -> None:
     with open(path, "w", encoding="utf-8") as f:
         json.dump(obj, f, indent=2)
-
 
 # =========================================================
 # TIME HELPERS
@@ -42,7 +40,6 @@ def _parse_iso(value: str) -> Optional[dt.datetime]:
         except Exception:
             return None
 
-
 def _hhmm(value: str) -> Optional[str]:
     """
     Convert ISO datetime or string with time to HH:MM.
@@ -54,14 +51,11 @@ def _hhmm(value: str) -> Optional[str]:
     d = _parse_iso(value)
     if d:
         return d.strftime("%H:%M")
-
     import re
-
     # 24-hour HH:MM
     m = re.search(r"\b([01]\d|2[0-3]):([0-5]\d)\b", value or "")
     if m:
         return f"{m.group(1)}:{m.group(2)}"
-
     # 12-hour h:MM AM/PM
     m = re.search(r"\b(\d{1,2}):([0-5]\d)\s*([AP]M)\b", (value or ""), re.I)
     if m:
@@ -71,7 +65,6 @@ def _hhmm(value: str) -> Optional[str]:
         return f"{hh:02d}:{m.group(2)}"
     return None
 
-
 def _parse_time(value: str) -> Optional[dt.time]:
     if not value:
         return None
@@ -79,7 +72,6 @@ def _parse_time(value: str) -> Optional[dt.time]:
         return dt.datetime.strptime(value.strip(), "%H:%M").time()
     except Exception:
         return None
-
 
 def _in_window(hhmm: str, start: str, end: str) -> bool:
     """Check if hhmm is inside [start, end], supports overnight."""
@@ -90,13 +82,65 @@ def _in_window(hhmm: str, start: str, end: str) -> bool:
     te = _parse_time(end)
     if not (tt and ts and te):
         return True
-
     if ts <= te:
         return ts <= tt <= te
     else:
         # overnight window (e.g. 22:00–01:00)
         return tt >= ts or tt <= te
 
+# =========================================================
+# DATE HELPERS (NEW: multi-date support)
+# =========================================================
+def _parse_one_date(value: str) -> Optional[str]:
+    """
+    Accepts:
+      - YYYY-MM-DD
+      - DD-MM-YYYY
+    Returns normalized YYYY-MM-DD or None.
+    """
+    if not value:
+        return None
+    v = str(value).strip()
+    if not v:
+        return None
+    # try ISO first
+    for fmt in ("%Y-%m-%d", "%d-%m-%Y"):
+        try:
+            d = dt.datetime.strptime(v, fmt).date()
+            return d.isoformat()
+        except Exception:
+            pass
+    return None
+
+def _get_search_dates(search: dict) -> List[str]:
+    """
+    Backwards compatible:
+      - if 'dates' exists: list of dates
+      - else use 'date'
+    Also supports comma-separated string in 'dates' just in case.
+    """
+    dates_raw = search.get("dates", None)
+    out: List[str] = []
+
+    if isinstance(dates_raw, list):
+        for x in dates_raw:
+            d = _parse_one_date(x)
+            if d:
+                out.append(d)
+    elif isinstance(dates_raw, str) and dates_raw.strip():
+        # allow "2026-02-01, 08-02-2026"
+        for part in dates_raw.split(","):
+            d = _parse_one_date(part)
+            if d:
+                out.append(d)
+    else:
+        d = _parse_one_date(search.get("date", ""))
+        if d:
+            out.append(d)
+
+    # de-dup, stable sort
+    out = sorted(set(out))
+    return out
 
 # =========================================================
 # NOTIFICATION SENDERS (return success)
@@ -112,13 +156,11 @@ def send_push(
 ) -> bool:
     if not (server and topic):
         return False
-
     headers = {"Title": title or "Reservation Alert"}
     if priority:
         headers["Priority"] = str(priority)
     if tags:
         headers["Tags"] = str(tags)
-
     url = f"{server.rstrip('/')}/{topic}"
     try:
         r = requests.post(url, data=message.encode("utf-8"), headers=headers, timeout=20)
@@ -131,7 +173,6 @@ def send_push(
             print(f"[push] error: {e}")
         return False
 
-
 def send_email(to_email: str, subject: str, body: str, debug: bool = False) -> bool:
     user = os.environ.get("EMAIL_USER")
     pw = os.environ.get("EMAIL_PASS")
@@ -139,13 +180,11 @@ def send_email(to_email: str, subject: str, body: str, debug: bool = False) -> b
         if debug:
             print("[email] missing EMAIL_USER/EMAIL_PASS or to_email")
         return False
-
     msg = EmailMessage()
     msg.set_content(body)
     msg["Subject"] = subject
     msg["From"] = user
     msg["To"] = to_email
-
     try:
         with smtplib.SMTP_SSL("smtp.gmail.com", 465) as s:
             s.login(user, pw)
@@ -155,7 +194,6 @@ def send_email(to_email: str, subject: str, body: str, debug: bool = False) -> b
         if debug:
             print(f"[email] error: {e}")
         return False
-
 
 # =========================================================
 # AVAILABILITY FETCHERS (SevenRooms only)
@@ -175,7 +213,6 @@ def is_bookable_time(t: dict) -> bool:
         return False
     return bool(t.get("time_iso") or t.get("date_time") or t.get("time"))
 
-
 def fetch_sevenrooms_slots(
     venue: str,
     date_yyyy_mm_dd: str,
@@ -194,7 +231,6 @@ def fetch_sevenrooms_slots(
         d_sr = dt.datetime.strptime(date_yyyy_mm_dd, "%Y-%m-%d").strftime("%m-%d-%Y")
     except Exception:
         return []
-
     url = (
         "https://www.sevenrooms.com/api-yoa/availability/widget/range"
         f"?venue={venue}"
@@ -209,38 +245,31 @@ def fetch_sevenrooms_slots(
         "User-Agent": "Mozilla/5.0",
         "Accept": "application/json,text/plain,*/*",
     }
-
     try:
         r = requests.get(url, headers=headers, timeout=25)
     except Exception as e:
         if debug:
             print(f"[sevenrooms] request error {venue}: {e}")
         return []
-
     if debug:
         print(f"[sevenrooms] {venue} HTTP {r.status_code} url={url}")
-
     if not r.ok:
         if debug:
             print(f"[sevenrooms] {venue} non-OK HTTP {r.status_code} body={r.text[:200]}")
         return []
-
     ct = (r.headers.get("Content-Type") or "").lower()
     if "json" not in ct:
         if debug:
             print(f"[sevenrooms] {venue} non-JSON content-type={ct} first200={r.text[:200]}")
         return []
-
     try:
         j = r.json()
     except Exception as e:
         if debug:
             print(f"[sevenrooms] {venue} JSON parse error: {e} first200={r.text[:200]}")
         return []
-
     avail = (j.get("data", {}) or {}).get("availability", {}) or {}
     out: List[str] = []
-
     for _, day_blocks in avail.items():
         if not isinstance(day_blocks, list):
             continue
@@ -258,7 +287,6 @@ def fetch_sevenrooms_slots(
                 if iso:
                     out.append(str(iso))
     return out
-
 
 # =========================================================
 # MAIN SCHEDULER LOGIC
@@ -284,7 +312,6 @@ def main() -> None:
     for search in config.get("searches", []):
         sid = search.get("id") or "Unnamed"
         platform = (search.get("platform") or "sevenrooms").lower()
-
         # SevenRooms only — ignore anything else safely
         if platform != "sevenrooms":
             if debug:
@@ -292,9 +319,15 @@ def main() -> None:
             continue
 
         venues = search.get("venues") or []
-        date = search.get("date")
         party = int(search.get("party_size") or 2)
         num_days = int(search.get("num_days") or 1)
+
+        # NEW: allow multiple single days
+        dates = _get_search_dates(search)
+        if not dates:
+            if debug:
+                print(f"[{sid}] no valid date(s) found; skipping")
+            continue
 
         time_slot = (search.get("time_slot") or "").strip()
         window_start = (search.get("window_start") or "").strip()
@@ -313,50 +346,50 @@ def main() -> None:
 
         candidates: List[Tuple[str, str]] = []  # (fp, label)
 
-        for v in venues:
-            v = str(v).strip()
-            if not v:
-                continue
-
-            iso_slots = fetch_sevenrooms_slots(
-                v,
-                date,
-                party,
-                channel=channel,
-                num_days=num_days,
-                lang=lang,
-                halo_size_interval=halo,
-                debug=debug,
-            )
-
-            if debug:
-                print(f"[{sid}] sevenrooms venue={v} raw_slots={len(iso_slots)}")
-
-            for iso in iso_slots:
-                hh = _hhmm(iso) or iso
-
-                # time check
-                if time_slot:
-                    if (_hhmm(iso) or "") != time_slot:
-                        continue
-                else:
-                    if not _in_window((_hhmm(iso) or ""), window_start, window_end):
-                        continue
-
-                fp = hashlib.sha256(
-                    f"{sid}\n{platform}\n{v}\n{iso}\n{salt}".encode()
-                ).hexdigest()
-
-                if fp in notified:
+        for date in dates:
+            for v in venues:
+                v = str(v).strip()
+                if not v:
                     continue
 
-                candidates.append((fp, f"{v} @ {hh}"))
+                iso_slots = fetch_sevenrooms_slots(
+                    v,
+                    date,
+                    party,
+                    channel=channel,
+                    num_days=num_days,
+                    lang=lang,
+                    halo_size_interval=halo,
+                    debug=debug,
+                )
+                if debug:
+                    print(f"[{sid}] sevenrooms venue={v} date={date} raw_slots={len(iso_slots)}")
 
-            if delay:
-                time.sleep(delay)
+                for iso in iso_slots:
+                    hh = _hhmm(iso) or iso
+
+                    # time check
+                    if time_slot:
+                        if (_hhmm(iso) or "") != time_slot:
+                            continue
+                    else:
+                        if not _in_window((_hhmm(iso) or ""), window_start, window_end):
+                            continue
+
+                    fp = hashlib.sha256(
+                        f"{sid}\n{platform}\n{v}\n{date}\n{iso}\n{salt}".encode()
+                    ).hexdigest()
+                    if fp in notified:
+                        continue
+
+                    # Include date in label (NEW)
+                    candidates.append((fp, f"{date} — {v} @ {hh}"))
+
+                if delay:
+                    time.sleep(delay)
 
         if candidates and notify_mode != "none":
-            summary = [f"Date: {date}", f"Party: {party}"]
+            summary = [f"Dates: {', '.join(dates)}", f"Party: {party}"]
             if time_slot:
                 summary.append(f"Time: {time_slot}")
             else:
@@ -367,10 +400,8 @@ def main() -> None:
 
             push_ok = False
             email_ok = False
-
             if notify_mode in ("push", "both") and topic:
                 push_ok = send_push(server, topic, f"Table Alert: {sid}", msg, priority, tags, debug=debug)
-
             if notify_mode in ("email", "both") and email_to:
                 email_ok = send_email(email_to, f"Table Alert: {sid}", msg, debug=debug)
 
