@@ -5,3 +5,4 @@
 requests==2.32.3
 streamlit
 PyGithub
+streamlit-calendar==1.4.0
