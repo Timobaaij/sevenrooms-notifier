@@ -38,6 +38,7 @@ def _read_json_from_repo(path: str, default: dict):
     except Exception:
         return None, default
 
+
 def _update_file_json(path: str, message: str, data: dict):
     c = repo.get_contents(path)
     repo.update_file(
@@ -46,6 +47,7 @@ def _update_file_json(path: str, message: str, data: dict):
         json.dumps(data, indent=2, sort_keys=True),
         c.sha,
     )
+
 
 def save_config(new_data: dict):
     """Safe update of config.json, then refresh UI."""
@@ -57,6 +59,7 @@ def save_config(new_data: dict):
         st.rerun()
     except Exception as e:
         st.error(f"Save Failed: {e}")
+
 
 def reset_state():
     """Clear state.json so notifications can fire again."""
@@ -71,6 +74,7 @@ def reset_state():
         st.rerun()
     except Exception as e:
         st.error(f"Reset failed: {e}")
+
 
 # =========================================================
 # SevenRooms helpers (Slug finder + Time loader for UI)
@@ -87,6 +91,7 @@ def get_sevenrooms_slug(text: str):
     if re.fullmatch(r"[a-zA-Z0-9_\-\\]{3,}", text.strip()):
         return text.strip()
     return None
+
 
 def fetch_sevenrooms_times(
     venue: str,
@@ -144,7 +149,6 @@ def fetch_sevenrooms_times(
                 label = hhmm + (" (REQUEST)" if (is_req and not is_avail) else "")
                 out.append(label)
 
-    # de-dup preserve order
     seen, uniq = set(), []
     for x in out:
         if x not in seen:
@@ -152,11 +156,12 @@ def fetch_sevenrooms_times(
             seen.add(x)
     return uniq
 
+
 # =========================================================
-# DATE HELPERS + NATIVE INSTANT-ADD MULTI-DATE SELECTOR
+# DATE HELPERS + IMPROVED NATIVE MULTI-DATE DISPLAY (CHIPS)
 # =========================================================
 def _normalize_iso_dates(values):
-    """Normalize a list of dates/strings to sorted unique YYYY-MM-DD strings."""
+    """Normalize a list to sorted unique YYYY-MM-DD strings."""
     out = []
     for v in values or []:
         if isinstance(v, dt.date):
@@ -176,6 +181,7 @@ def _normalize_iso_dates(values):
                 out.append(parsed)
     return sorted(set(out))
 
+
 def _get_dates_from_search(s: dict):
     """Backwards compatible: use s['dates'] if present else s['date'].""" 
     if isinstance(s.get("dates"), list) and s["dates"]:
@@ -188,29 +194,27 @@ def _get_dates_from_search(s: dict):
             return dates
     return [dt.date.today().isoformat()]
 
+
 def _dates_display(s: dict) -> str:
     if isinstance(s.get("dates"), list) and s["dates"]:
         return ", ".join(s["dates"])
     return s.get("date", "") or ""
 
-def native_multi_date_selector(state_key: str, label: str):
+
+def native_multi_date_selector(state_key: str, label: str, chips_per_row: int = 4):
     """
-    Native, fast multi-date selector:
-      - selecting a date in the calendar immediately adds it to Selected dates
-      - remove by unselecting in the multiselect
-      - stores ISO strings in st.session_state[state_key]
+    Native, fast multi-date selector with chips display:
+      - picking in calendar instantly adds date
+      - selected dates shown as removable chips (✕)
+      - remove is one click, no multiselect
+      - stores ISO dates in st.session_state[state_key]
     """
     if state_key not in st.session_state:
         st.session_state[state_key] = [dt.date.today().isoformat()]
 
     st.session_state[state_key] = _normalize_iso_dates(st.session_state[state_key])
 
-    picker_key = f"{state_key}_picker"
-    chosen_key = f"{state_key}_chosen"
-
-    # Ensure chosen state exists so the multiselect updates smoothly
-    if chosen_key not in st.session_state:
-        st.session_state[chosen_key] = list(st.session_state[state_key])
+    picker_key = f"{state_key}__picker"
 
     def _on_pick():
         picked = st.session_state.get(picker_key)
@@ -218,20 +222,15 @@ def native_multi_date_selector(state_key: str, label: str):
             iso = picked.isoformat()
             cur = _normalize_iso_dates(st.session_state.get(state_key, []))
             if iso not in cur:
-                cur = _normalize_iso_dates(cur + [iso])
-                st.session_state[state_key] = cur
-                st.session_state[chosen_key] = list(cur)
+                st.session_state[state_key] = _normalize_iso_dates(cur + [iso])
 
     st.markdown(f"**{label}**")
-
-    top = st.columns([0.65, 0.35])
+    top = st.columns([0.70, 0.30])
     with top[0]:
-        # Selecting in the calendar triggers _on_pick -> updates list immediately
         st.date_input("Select a date", key=picker_key, on_change=_on_pick)
     with top[1]:
-        if st.button("Clear all", key=f"{state_key}_clear_all"):
+        if st.button("Clear all", key=f"{state_key}__clear_all"):
             st.session_state[state_key] = []
-            st.session_state[chosen_key] = []
             st.rerun()
 
     cur = _normalize_iso_dates(st.session_state.get(state_key, []))
@@ -239,21 +238,22 @@ def native_multi_date_selector(state_key: str, label: str):
         st.info("No dates selected.")
         return []
 
-    # This now updates immediately after date selection because we set chosen_key in _on_pick
-    chosen = st.multiselect(
-        "Selected dates (unselect to remove)",
-        options=cur,
-        default=cur,
-        key=chosen_key,
-    )
-    chosen = _normalize_iso_dates(chosen)
-    if chosen != cur:
-        st.session_state[state_key] = chosen
-        st.session_state[chosen_key] = chosen
-        st.rerun()
+    st.caption("Click ✕ on a date to remove it.")
 
-    st.caption(f"Selected: {', '.join(chosen)}")
-    return chosen
+    # Render chips in rows
+    for start in range(0, len(cur), chips_per_row):
+        row = cur[start : start + chips_per_row]
+        cols = st.columns([1] * len(row))
+        for col, d in zip(cols, row):
+            with col:
+                # One button per date (chip-like)
+                if st.button(f"{d}  ✕", key=f"{state_key}__rm_{d}"):
+                    st.session_state[state_key] = [x for x in cur if x != d]
+                    st.rerun()
+
+    st.caption(f"Selected: {', '.join(cur)}")
+    return cur
+
 
 # =========================================================
 # DEFAULTS
@@ -361,7 +361,7 @@ for idx, s in enumerate(searches_all):
             if dates_key not in st.session_state:
                 st.session_state[dates_key] = _get_dates_from_search(s)
 
-            selected_dates = native_multi_date_selector(dates_key, "Dates")
+            selected_dates = native_multi_date_selector(dates_key, "Dates", chips_per_row=4)
 
             with st.form(f"edit_form_{idx}"):
                 e_name = st.text_input("Name", s.get("id", ""))
@@ -439,7 +439,7 @@ new_dates_key = "new_dates_list"
 if new_dates_key not in st.session_state:
     st.session_state[new_dates_key] = [dt.date.today().isoformat()]
 
-new_dates = native_multi_date_selector(new_dates_key, "Dates")
+new_dates = native_multi_date_selector(new_dates_key, "Dates", chips_per_row=4)
 
 gbl = config_data.get("global", {})
 channel = gbl.get("channel", "SEVENROOMS_WIDGET")
