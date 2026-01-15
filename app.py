@@ -13,7 +13,6 @@ from github import Github
 REPO_NAME = "timobaaij/sevenrooms-notifier"
 CONFIG_FILE_PATH = "config.json"
 STATE_FILE_PATH = "state.json"
-
 st.set_page_config(page_title="Reservation Manager", page_icon="🍽️", layout="wide")
 
 # =========================================================
@@ -39,7 +38,6 @@ def _read_json_from_repo(path: str, default: dict):
     except Exception:
         return None, default
 
-
 def _update_file_json(path: str, message: str, data: dict):
     c = repo.get_contents(path)
     repo.update_file(
@@ -48,7 +46,6 @@ def _update_file_json(path: str, message: str, data: dict):
         json.dumps(data, indent=2, sort_keys=True),
         c.sha,
     )
-
 
 def save_config(new_data: dict):
     """Safe update of config.json, then refresh UI."""
@@ -60,7 +57,6 @@ def save_config(new_data: dict):
         st.rerun()
     except Exception as e:
         st.error(f"Save Failed: {e}")
-
 
 def reset_state():
     """Clear state.json so notifications can fire again."""
@@ -75,6 +71,58 @@ def reset_state():
         st.rerun()
     except Exception as e:
         st.error(f"Reset failed: {e}")
+
+# =========================================================
+# NEW: DATE PARSING (multi-date support)
+# =========================================================
+def _parse_one_date_to_iso(s: str):
+    """
+    Accepts YYYY-MM-DD or DD-MM-YYYY -> returns YYYY-MM-DD or None
+    """
+    if not s:
+        return None
+    s = str(s).strip()
+    if not s:
+        return None
+    for fmt in ("%Y-%m-%d", "%d-%m-%Y"):
+        try:
+            return dt.datetime.strptime(s, fmt).date().isoformat()
+        except Exception:
+            pass
+    return None
+
+def _build_dates_list(primary_date: dt.date, extra_dates_text: str, existing_dates=None):
+    """
+    Build a de-duped sorted list of YYYY-MM-DD dates.
+    primary_date is always included.
+    extra_dates_text is comma-separated.
+    existing_dates optionally included (for edit).
+    """
+    out = []
+    if primary_date:
+        out.append(primary_date.isoformat())
+
+    if existing_dates:
+        if isinstance(existing_dates, list):
+            for x in existing_dates:
+                d = _parse_one_date_to_iso(x)
+                if d:
+                    out.append(d)
+
+    if extra_dates_text and extra_dates_text.strip():
+        for part in extra_dates_text.split(","):
+            d = _parse_one_date_to_iso(part)
+            if d:
+                out.append(d)
+
+    out = sorted(set(out))
+    return out
+
+def _dates_display(s: dict) -> str:
+    dates = s.get("dates")
+    if isinstance(dates, list) and dates:
+        return ", ".join(dates)
+    return s.get("date", "") or ""
 
 # =========================================================
 # SevenRooms helpers (Slug finder + Time loader for UI)
@@ -92,7 +140,6 @@ def get_sevenrooms_slug(text: str):
         return text.strip()
     return None
 
-
 def fetch_sevenrooms_times(
     venue: str,
     date_yyyy_mm_dd: str,
@@ -106,26 +153,21 @@ def fetch_sevenrooms_times(
         d_sr = dt.datetime.strptime(date_yyyy_mm_dd, "%Y-%m-%d").strftime("%m-%d-%Y")
     except Exception:
         return []
-
     url = (
         "https://www.sevenrooms.com/api-yoa/availability/widget/range"
         f"?venue={venue}&party_size={party}&start_date={d_sr}&num_days={num_days}"
         f"&channel={channel}&lang={lang}"
     )
-
     try:
         r = requests.get(url, timeout=15)
     except Exception:
         return []
-
     if not r.ok:
         return []
-
     try:
         j = r.json()
     except Exception:
         return []
-
     out = []
     availability = (j.get("data", {}) or {}).get("availability", {}) or {}
     for _, day in availability.items():
@@ -136,29 +178,23 @@ def fetch_sevenrooms_times(
             for t in block.get("times", []) or []:
                 if not isinstance(t, dict):
                     continue
-
                 is_avail = bool(t.get("is_available"))
                 is_req = bool(t.get("is_requestable"))
                 if not (is_avail or is_req):
                     continue
-
                 iso = t.get("time_iso") or t.get("date_time") or t.get("time")
                 if not iso:
                     continue
-
                 hhmm = None
                 try:
                     hhmm = dt.datetime.fromisoformat(str(iso).replace("Z", "+00:00")).strftime("%H:%M")
                 except Exception:
                     m = re.search(r"\b([01]\d|2[0-3]):([0-5]\d)\b", str(iso))
                     hhmm = f"{m.group(1)}:{m.group(2)}" if m else None
-
                 if not hhmm:
                     continue
-
                 label = hhmm + (" (REQUEST)" if (is_req and not is_avail) else "")
                 out.append(label)
-
     # de-dup preserve order
     seen, uniq = set(), []
     for x in out:
@@ -179,7 +215,6 @@ config_data.setdefault(
     {"server": "https://ntfy.sh", "topic": "", "priority": "urgent", "tags": "rotating_light"},
 )
 config_data.setdefault("searches", [])
-
 NOTIFY_LABELS = ["Push", "Email", "Both", "None"]
 NOTIFY_MAP = {"Push": "push", "Email": "email", "Both": "both", "None": "none"}
 
@@ -202,8 +237,7 @@ def _toggle(key: str):
 for idx, s in enumerate(searches_all):
     platform = (s.get("platform") or "sevenrooms").lower()
     is_supported = (platform == "sevenrooms")
-
-    date_txt = s.get("date", "")
+    date_txt = _dates_display(s)  # NEW: multi-date display
     party_txt = str(s.get("party_size", ""))
     time_slot = (s.get("time_slot") or "").strip()
     window_txt = f"{s.get('window_start','')}–{s.get('window_end','')}"
@@ -218,7 +252,10 @@ for idx, s in enumerate(searches_all):
             st.markdown(f"**📍 {title} (SevenRooms)**" if is_supported else f"**📍 {title} (Unsupported platform entry)**")
             st.caption(f"🗓 {date_txt} · 👥 {party_txt} · ⏱ {time_txt} · 🔔 {notify_txt}")
             if not is_supported:
-                st.warning("This entry uses an unsupported platform and will be ignored by the scheduler. Edit + save to convert it to SevenRooms, or delete it.", icon="⚠️")
+                st.warning(
+                    "This entry uses an unsupported platform and will be ignored by the scheduler. Edit + save to convert it to SevenRooms, or delete it.",
+                    icon="⚠️",
+                )
 
         with header_cols[1]:
             action_cols = st.columns(3)
@@ -251,6 +288,7 @@ for idx, s in enumerate(searches_all):
         if st.session_state.get(f"show_details_{idx}", False):
             st.divider()
             st.write(f"**Venues**: {', '.join(s.get('venues', [])) or '—'}")
+            st.write(f"**Dates**: {date_txt or '—'}")  # NEW
             st.write(f"**Num Days**: {int(s.get('num_days', 1))}")
             st.write(f"**Email**: {s.get('email_to') or '—'}")
             notes = (s.get("notes") or "").strip()
@@ -266,10 +304,26 @@ for idx, s in enumerate(searches_all):
                 e_name = st.text_input("Name", s.get("id", ""))
                 e_venues = st.text_input("Venues (slugs, comma separated)", ", ".join(s.get("venues", [])))
 
-                e_date = st.date_input(
-                    "Date",
-                    dt.datetime.strptime(s.get("date"), "%Y-%m-%d").date() if s.get("date") else dt.date.today(),
+                # date(s)
+                existing_dates = s.get("dates", None)
+                # pick a primary date (used for display and time-loader)
+                if isinstance(existing_dates, list) and existing_dates:
+                    try:
+                        primary = dt.date.fromisoformat(existing_dates[0])
+                    except Exception:
+                        primary = dt.date.today()
+                else:
+                    try:
+                        primary = dt.datetime.strptime(s.get("date"), "%Y-%m-%d").date() if s.get("date") else dt.date.today()
+                    except Exception:
+                        primary = dt.date.today()
+
+                e_date_primary = st.date_input("Primary date (used for time loader)", primary)
+                e_dates_extra = st.text_input(
+                    "Additional dates (comma separated, YYYY-MM-DD or DD-MM-YYYY)",
+                    value=", ".join(existing_dates[1:]) if isinstance(existing_dates, list) and len(existing_dates) > 1 else "",
                 )
+
                 e_party = st.number_input("Party", 1, 20, value=int(s.get("party_size", 2)))
                 e_num_days = st.number_input("Num Days", 1, 7, value=int(s.get("num_days", 1)))
 
@@ -283,7 +337,6 @@ for idx, s in enumerate(searches_all):
                     index=NOTIFY_LABELS.index((s.get("notify") or "both").title()),
                 )
                 e_notify = NOTIFY_MAP[e_notify_label]
-
                 e_email = st.text_input("Email alert to (optional)", s.get("email_to", ""))
                 e_notes = st.text_area("Notes (optional)", s.get("notes", ""), height=80)
 
@@ -294,12 +347,18 @@ for idx, s in enumerate(searches_all):
                     cancelled = st.form_submit_button("Cancel")
 
                 if submitted:
+                    dates_list = _build_dates_list(e_date_primary, e_dates_extra, existing_dates=None)
+                    if not dates_list:
+                        dates_list = [e_date_primary.isoformat()]
+
                     config_data["searches"][idx].update(
                         {
                             "id": e_name.strip() or "Unnamed",
                             "platform": "sevenrooms",
                             "venues": [v.strip() for v in e_venues.split(",") if v.strip()],
-                            "date": str(e_date),
+                            # keep backwards compatibility + new dates list
+                            "date": dates_list[0],
+                            "dates": dates_list,
                             "party_size": int(e_party),
                             "num_days": int(e_num_days),
                             "time_slot": e_time_slot.strip(),
@@ -328,7 +387,15 @@ with add_cols[0]:
     default_venue = st.session_state.get("last_sr_slug", "")
     n_venue = st.text_input("Venue slug(s) (comma separated supported)", value=default_venue, key="new_venue")
     n_id = st.text_input("Search name", key="new_name")
-    n_date = st.date_input("Date", key="new_date")
+
+    # NEW: primary date + extra dates
+    n_date = st.date_input("Primary date (used for time loader)", key="new_date")
+    n_dates_extra = st.text_input(
+        "Additional dates (comma separated, YYYY-MM-DD or DD-MM-YYYY)",
+        value="",
+        key="new_dates_extra",
+    )
+
     n_party = st.number_input("Party", 1, 20, 2, key="new_party")
     n_num_days = st.number_input("Num Days", 1, 7, 1, key="new_num_days")
 
@@ -339,7 +406,6 @@ with add_cols[1]:
 
     st.caption("Time")
     any_time = st.checkbox("Any time in a window", value=True, key="new_any_time")
-
     gbl = config_data.get("global", {})
     channel = gbl.get("channel", "SEVENROOMS_WIDGET")
     lang = gbl.get("lang", "en")
@@ -356,7 +422,7 @@ with add_cols[1]:
                     num_days=int(n_num_days),
                     lang=lang,
                 )
-                st.session_state["loaded_times"] = times_list
+            st.session_state["loaded_times"] = times_list
         else:
             st.session_state["loaded_times"] = []
 
@@ -375,12 +441,18 @@ else:
     n_window_start, n_window_end = "", ""
 
 if st.button("🚀 Launch search", type="primary", key="launch"):
+    dates_list = _build_dates_list(n_date, n_dates_extra, existing_dates=None)
+    if not dates_list:
+        dates_list = [str(n_date)]
+
     new_s = {
         "id": n_id.strip() or "Unnamed",
         "platform": "sevenrooms",
         "venues": [v.strip() for v in n_venue.split(",") if v.strip()],
         "party_size": int(n_party),
-        "date": str(n_date),
+        # backwards compatible + multi-date
+        "date": dates_list[0],
+        "dates": dates_list,
         "time_slot": n_time_slot.strip(),
         "window_start": n_window_start.strip(),
         "window_end": n_window_end.strip(),
@@ -406,7 +478,6 @@ with st.expander("⚙️ Advanced", expanded=False):
         reset_state()
 
     st.divider()
-
     st.subheader("Quick Slug Finder (SevenRooms)")
     st.caption("Paste a SevenRooms link (or type a slug).")
     sr_text = st.text_input("SevenRooms link / slug", key="sr_url_adv")
@@ -419,7 +490,6 @@ with st.expander("⚙️ Advanced", expanded=False):
             st.error("Couldn’t find a slug in that text.")
 
     st.divider()
-
     st.subheader("Push notification settings (ntfy)")
     nt = config_data.get("ntfy_default", {})
     server = st.text_input("Server", nt.get("server", "https://ntfy.sh"))
