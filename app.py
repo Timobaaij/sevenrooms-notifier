@@ -153,7 +153,7 @@ def fetch_sevenrooms_times(
     return uniq
 
 # =========================================================
-# DATE HELPERS + NATIVE MULTI-DATE SELECTOR (FAST)
+# DATE HELPERS + NATIVE INSTANT-ADD MULTI-DATE SELECTOR
 # =========================================================
 def _normalize_iso_dates(values):
     """Normalize a list of dates/strings to sorted unique YYYY-MM-DD strings."""
@@ -165,7 +165,6 @@ def _normalize_iso_dates(values):
             s = str(v).strip()
             if not s:
                 continue
-            # accept YYYY-MM-DD or DD-MM-YYYY
             parsed = None
             for fmt in ("%Y-%m-%d", "%d-%m-%Y"):
                 try:
@@ -196,50 +195,61 @@ def _dates_display(s: dict) -> str:
 
 def native_multi_date_selector(state_key: str, label: str):
     """
-    Native, fast multi-date picker:
-      - Date picker (calendar) + Add button
-      - Selected dates shown in a multiselect (easy remove)
-      - Stores ISO strings in st.session_state[state_key]
+    Native, fast multi-date selector:
+      - selecting a date in the calendar immediately adds it to Selected dates
+      - remove by unselecting in the multiselect
+      - stores ISO strings in st.session_state[state_key]
     """
     if state_key not in st.session_state:
         st.session_state[state_key] = [dt.date.today().isoformat()]
 
-    # normalize in state
     st.session_state[state_key] = _normalize_iso_dates(st.session_state[state_key])
 
-    # UI
-    st.markdown(f"**{label}**")
-    cols = st.columns([0.38, 0.16, 0.16, 0.30])
-    with cols[0]:
-        pick = st.date_input("Pick a date", key=f"{state_key}_pick")
-    with cols[1]:
-        if st.button("Add", key=f"{state_key}_add"):
-            cur = st.session_state.get(state_key, [])
-            cur = _normalize_iso_dates(cur + [pick])
-            st.session_state[state_key] = cur
-            st.rerun()
-    with cols[2]:
-        if st.button("Clear", key=f"{state_key}_clear"):
-            st.session_state[state_key] = []
-            st.rerun()
-    with cols[3]:
-        st.caption("Tip: remove by unselecting below")
+    picker_key = f"{state_key}_picker"
+    chosen_key = f"{state_key}_chosen"
 
-    cur = st.session_state.get(state_key, [])
+    # Ensure chosen state exists so the multiselect updates smoothly
+    if chosen_key not in st.session_state:
+        st.session_state[chosen_key] = list(st.session_state[state_key])
+
+    def _on_pick():
+        picked = st.session_state.get(picker_key)
+        if isinstance(picked, dt.date):
+            iso = picked.isoformat()
+            cur = _normalize_iso_dates(st.session_state.get(state_key, []))
+            if iso not in cur:
+                cur = _normalize_iso_dates(cur + [iso])
+                st.session_state[state_key] = cur
+                st.session_state[chosen_key] = list(cur)
+
+    st.markdown(f"**{label}**")
+
+    top = st.columns([0.65, 0.35])
+    with top[0]:
+        # Selecting in the calendar triggers _on_pick -> updates list immediately
+        st.date_input("Select a date", key=picker_key, on_change=_on_pick)
+    with top[1]:
+        if st.button("Clear all", key=f"{state_key}_clear_all"):
+            st.session_state[state_key] = []
+            st.session_state[chosen_key] = []
+            st.rerun()
+
+    cur = _normalize_iso_dates(st.session_state.get(state_key, []))
     if not cur:
         st.info("No dates selected.")
         return []
 
-    # Removal is native and reliable: unselect removes
+    # This now updates immediately after date selection because we set chosen_key in _on_pick
     chosen = st.multiselect(
         "Selected dates (unselect to remove)",
         options=cur,
         default=cur,
-        key=f"{state_key}_chosen",
+        key=chosen_key,
     )
     chosen = _normalize_iso_dates(chosen)
     if chosen != cur:
         st.session_state[state_key] = chosen
+        st.session_state[chosen_key] = chosen
         st.rerun()
 
     st.caption(f"Selected: {', '.join(chosen)}")
@@ -292,7 +302,11 @@ for idx, s in enumerate(searches_all):
 
         with header_cols[0]:
             title = s.get("id", "Unnamed")
-            st.markdown(f"**📍 {title} (SevenRooms)**" if is_supported else f"**📍 {title} (Unsupported platform entry)**")
+            st.markdown(
+                f"**📍 {title} (SevenRooms)**"
+                if is_supported
+                else f"**📍 {title} (Unsupported platform entry)**"
+            )
             st.caption(f"🗓 {date_txt} · 👥 {party_txt} · ⏱ {time_txt} · 🔔 {notify_txt}")
             if not is_supported:
                 st.warning(
@@ -343,17 +357,13 @@ for idx, s in enumerate(searches_all):
             st.divider()
             st.caption("Platform is forced to SevenRooms on save.")
 
-            # Initialize dates state once per search
             dates_key = f"edit_dates_{idx}"
             if dates_key not in st.session_state:
                 st.session_state[dates_key] = _get_dates_from_search(s)
 
-            # ✅ Native fast multi-date selector
             selected_dates = native_multi_date_selector(dates_key, "Dates")
 
-            # The rest remains in the form
             with st.form(f"edit_form_{idx}"):
-                st.caption("Everything else unchanged. Dates saved as `dates` plus `date` = first.")
                 e_name = st.text_input("Name", s.get("id", ""))
                 e_venues = st.text_input("Venues (slugs, comma separated)", ", ".join(s.get("venues", [])))
                 e_party = st.number_input("Party", 1, 20, value=int(s.get("party_size", 2)))
@@ -385,8 +395,8 @@ for idx, s in enumerate(searches_all):
                             "id": e_name.strip() or "Unnamed",
                             "platform": "sevenrooms",
                             "venues": [v.strip() for v in e_venues.split(",") if v.strip()],
-                            "date": dates_list[0],   # first date for compatibility
-                            "dates": dates_list,     # multi-date list
+                            "date": dates_list[0],
+                            "dates": dates_list,
                             "party_size": int(e_party),
                             "num_days": int(e_num_days),
                             "time_slot": e_time_slot.strip(),
@@ -425,7 +435,6 @@ with add_cols[1]:
     st.caption("Time")
     any_time = st.checkbox("Any time in a window", value=True, key="new_any_time")
 
-# ✅ Native multi-date for NEW search
 new_dates_key = "new_dates_list"
 if new_dates_key not in st.session_state:
     st.session_state[new_dates_key] = [dt.date.today().isoformat()]
