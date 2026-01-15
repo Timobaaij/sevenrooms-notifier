@@ -1,5 +1,5 @@
-name: SevenRooms Notifier
 
+name: SevenRooms Notifier
 on:
   schedule:
     - cron: "*/5 * * * *"   # GitHub schedule minimum is 5 minutes
@@ -10,7 +10,7 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
-  contents: write   # needed to commit state.json back to the repo
+  contents: write  # needed to commit state.json back to the repo
 
 jobs:
   run:
@@ -31,14 +31,14 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      # --- NEW DEBUG STEP ---
+      # --- DEBUG STEP (kept from your file) ---
       - name: DEBUG - Check Secrets
         env:
           EMAIL_USER: ${{ secrets.EMAIL_USER }}
         run: |
           if [ -z "$EMAIL_USER" ]; then
             echo "❌ CRITICAL ERROR: EMAIL_USER is empty."
-            echo "Please go to Settings -&gt; Secrets -&gt; Actions -&gt; Repository Secrets."
+            echo "Please go to Settings -> Secrets -> Actions -> Repository Secrets."
             exit 1
           else
             echo "✅ SUCCESS: EMAIL_USER is loaded correctly. Proceeding..."
@@ -46,10 +46,13 @@ jobs:
 
       # Option A: loop inside the job to run more often than schedule allows
       - name: Run notifier every 60s for 5 minutes
-        env: 
-          # This passes your GitHub Secrets to the Python script
+        env:
           EMAIL_USER: ${{ secrets.EMAIL_USER }}
           EMAIL_PASS: ${{ secrets.EMAIL_PASS }}
+
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+
         run: |
           for i in 1 2 3 4 5; do
             echo "Iteration $i/5 at $(date -u)"
