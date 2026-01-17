@@ -5,25 +5,7 @@
     "halo_size_interval": 64,
     "lang": "en"
   },
-  "searches": [
-    {
-      "date": "2026-01-25",
-      "email_to": "",
-      "id": "Watermans Arms",
-      "image_url": "",
-      "notes": "",
-      "num_days": 1,
-      "party_size": 2,
-      "platform": "sevenrooms",
-      "salt": "1768327302.7428772",
-      "time_slot": "",
-      "venues": [
-        "thewatermansarms"
-      ],
-      "window_end": "16:00",
-      "window_start": "13:00"
-    }
-  ],
+  "searches": [],
   "telegram_default": {
     "bot_token": "",
     "chat_id": "",
