@@ -5,7 +5,28 @@
     "halo_size_interval": 64,
     "lang": "en"
   },
-  "searches": [],
+  "searches": [
+    {
+      "date": "2026-01-18",
+      "dates": [
+        "2026-01-18"
+      ],
+      "email_to": "bfxfnhvuie@pomail.net",
+      "id": "Rambutan",
+      "notes": "",
+      "notify": "email",
+      "num_days": 1,
+      "party_size": 2,
+      "platform": "sevenrooms",
+      "salt": "1768714514.7061975",
+      "time_slot": "",
+      "venues": [
+        "rambutan"
+      ],
+      "window_end": "22:00",
+      "window_start": "15:00"
+    }
+  ],
   "telegram_default": {
     "bot_token": "",
     "chat_id": "",
