@@ -5,7 +5,28 @@
     "halo_size_interval": 64,
     "lang": "en"
   },
-  "searches": [],
+  "searches": [
+    {
+      "date": "2026-02-08",
+      "dates": [
+        "2026-02-08"
+      ],
+      "email_to": "bfxfnhvuie@pomail.net",
+      "id": "Watermans",
+      "notes": "",
+      "notify": "both",
+      "num_days": 1,
+      "party_size": 2,
+      "platform": "sevenrooms",
+      "salt": "1769112233.0884194",
+      "time_slot": "",
+      "venues": [
+        "thewatermansarms"
+      ],
+      "window_end": "15:00",
+      "window_start": "13:30"
+    }
+  ],
   "telegram_default": {
     "bot_token": "",
     "chat_id": "",
