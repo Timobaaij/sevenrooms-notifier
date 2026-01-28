@@ -47,6 +47,26 @@
       ],
       "window_end": "14:00",
       "window_start": "12:30"
+    },
+    {
+      "date": "2026-01-28",
+      "dates": [
+        "2026-01-28"
+      ],
+      "email_to": "bfxfnhvuie@pomail.net",
+      "id": "Rambutan",
+      "notes": "",
+      "notify": "both",
+      "num_days": 7,
+      "party_size": 2,
+      "platform": "sevenrooms",
+      "salt": "1769625853.9901109",
+      "time_slot": "",
+      "venues": [
+        "rambutan"
+      ],
+      "window_end": "22:00",
+      "window_start": "18:00"
     }
   ],
   "telegram_default": {
