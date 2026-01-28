@@ -27,6 +27,26 @@
       ],
       "window_end": "15:00",
       "window_start": "13:00"
+    },
+    {
+      "date": "2026-03-29",
+      "dates": [
+        "2026-03-29"
+      ],
+      "email_to": "toby_96@btinternet.com",
+      "id": "Tamil Prince",
+      "notes": "",
+      "notify": "email",
+      "num_days": 1,
+      "party_size": 6,
+      "platform": "sevenrooms",
+      "salt": "1769625754.5932715",
+      "time_slot": "",
+      "venues": [
+        "thetamilprince"
+      ],
+      "window_end": "14:00",
+      "window_start": "12:30"
     }
   ],
   "telegram_default": {
