@@ -60,13 +60,13 @@
       "num_days": 1,
       "party_size": 2,
       "platform": "sevenrooms",
-      "salt": "1770020868.7614634",
+      "salt": "1770020944.7416492",
       "time_slot": "",
       "venues": [
         "goodbyehorses"
       ],
-      "window_end": "20:30",
-      "window_start": "18:00"
+      "window_end": "21:30",
+      "window_start": "18:30"
     }
   ],
   "telegram_default": {
