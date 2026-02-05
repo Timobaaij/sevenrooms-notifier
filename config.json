@@ -47,26 +47,6 @@
       ],
       "window_end": "14:00",
       "window_start": "12:30"
-    },
-    {
-      "date": "2026-02-06",
-      "dates": [
-        "2026-02-06"
-      ],
-      "email_to": "bfxfnhvuie@pomail.net",
-      "id": "Goodbye Horses",
-      "notes": "",
-      "notify": "both",
-      "num_days": 1,
-      "party_size": 2,
-      "platform": "sevenrooms",
-      "salt": "1770020954.0165067",
-      "time_slot": "",
-      "venues": [
-        "goodbyehorses"
-      ],
-      "window_end": "21:30",
-      "window_start": "18:30"
     }
   ],
   "telegram_default": {
