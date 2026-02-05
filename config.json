@@ -36,11 +36,11 @@
       "email_to": "toby_96@btinternet.com",
       "id": "Tamil Prince",
       "notes": "",
-      "notify": "email",
+      "notify": "both",
       "num_days": 1,
       "party_size": 6,
       "platform": "sevenrooms",
-      "salt": "1769625754.5932715",
+      "salt": "1770298889.4244196",
       "time_slot": "",
       "venues": [
         "thetamilprince"
