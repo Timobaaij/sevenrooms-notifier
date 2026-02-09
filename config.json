@@ -18,10 +18,11 @@
       "num_days": 1,
       "party_size": 6,
       "platform": "sevenrooms",
-      "salt": "1770298889.4244196",
+      "salt": "1770619840.8980043",
       "time_slot": "",
       "venues": [
-        "thetamilprince"
+        "thetamilprince",
+        "thetamilcrown"
       ],
       "window_end": "14:00",
       "window_start": "12:30"
