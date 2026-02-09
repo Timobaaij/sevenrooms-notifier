@@ -66,6 +66,26 @@
       ],
       "window_end": "16:00",
       "window_start": "12:30"
+    },
+    {
+      "date": "2026-02-15",
+      "dates": [
+        "2026-02-15"
+      ],
+      "email_to": "bfxfnhvuie@pomail.net",
+      "id": "Baring",
+      "notes": "",
+      "notify": "both",
+      "num_days": 1,
+      "party_size": 2,
+      "platform": "sevenrooms",
+      "salt": "1770620078.5519245",
+      "time_slot": "",
+      "venues": [
+        "thebaring"
+      ],
+      "window_end": "16:00",
+      "window_start": "12:30"
     }
   ],
   "telegram_default": {
