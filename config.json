@@ -46,6 +46,27 @@
       ],
       "window_end": "16:00",
       "window_start": "12:30"
+    },
+    {
+      "date": "2026-02-20",
+      "dates": [
+        "2026-02-20",
+        "2026-02-21"
+      ],
+      "email_to": "",
+      "id": "Carbone",
+      "notes": "",
+      "notify": "both",
+      "num_days": 1,
+      "party_size": 4,
+      "platform": "sevenrooms",
+      "salt": "1771091698.1485782",
+      "time_slot": "",
+      "venues": [
+        "carbonelondon"
+      ],
+      "window_end": "21:00",
+      "window_start": "18:30"
     }
   ],
   "telegram_default": {
