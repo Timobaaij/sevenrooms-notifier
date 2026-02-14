@@ -46,26 +46,6 @@
       ],
       "window_end": "16:00",
       "window_start": "12:30"
-    },
-    {
-      "date": "2026-02-15",
-      "dates": [
-        "2026-02-15"
-      ],
-      "email_to": "bfxfnhvuie@pomail.net",
-      "id": "Tamil Crown - Sunday",
-      "notes": "",
-      "notify": "both",
-      "num_days": 1,
-      "party_size": 2,
-      "platform": "sevenrooms",
-      "salt": "1770619917.3649778",
-      "time_slot": "",
-      "venues": [
-        "thetamilcrown"
-      ],
-      "window_end": "16:00",
-      "window_start": "12:30"
     }
   ],
   "telegram_default": {
