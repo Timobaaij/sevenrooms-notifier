@@ -8,6 +8,7 @@ concurrency:
   cancel-in-progress: true
 permissions:
   contents: write # needed to commit state.json back to the repo
+
 jobs:
   run:
     runs-on: ubuntu-latest
@@ -23,6 +24,7 @@ jobs:
 
       - name: Install dependencies
         run: |
+
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
@@ -31,6 +33,7 @@ jobs:
         env:
           EMAIL_USER: ${{ secrets.EMAIL_USER }}
         run: |
+
           if [ -z "$EMAIL_USER" ]; then
             echo "❌ CRITICAL ERROR: EMAIL_USER is empty."
             echo "Please go to Settings -> Secrets -> Actions -> Repository Secrets."
@@ -45,6 +48,7 @@ jobs:
           EMAIL_USER: ${{ secrets.EMAIL_USER }}
           EMAIL_PASS: ${{ secrets.EMAIL_PASS }}
         run: |
+
           for i in 1 2 3 4 5; do
             echo "Iteration $i/5 at $(date -u)"
             python main.py
@@ -53,6 +57,7 @@ jobs:
 
       - name: Commit updated state.json (if changed)
         run: |
+
           if git diff --quiet; then
             echo "No state changes."
           else
