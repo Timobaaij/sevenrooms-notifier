@@ -1,4 +1,3 @@
-
 import streamlit as st
 import json
 import time
@@ -13,7 +12,6 @@ from github import Github
 REPO_NAME = "timobaaij/sevenrooms-notifier"
 CONFIG_FILE_PATH = "config.json"
 STATE_FILE_PATH = "state.json"
-
 st.set_page_config(page_title="Reservation Manager", page_icon="🍽️", layout="wide")
 
 # =========================================================
@@ -94,7 +92,6 @@ def fetch_sevenrooms_times(
     date_yyyy_mm_dd: str,
     party: int,
     channel: str,
-    num_days: int = 1,
     lang: str = "en",
 ):
     """For the UI picker only: returns HH:MM labels including requestable slots."""
@@ -105,8 +102,8 @@ def fetch_sevenrooms_times(
 
     url = (
         "https://www.sevenrooms.com/api-yoa/availability/widget/range"
-        f"?venue={venue}&party_size={party}&start_date={d_sr}&num_days={num_days}"
-        f"&channel={channel}&lang={lang}"
+        f"?venue={venue}&party_size={party}&start_date={d_sr}"
+        f"&channel={channel}&selected_lang_code={lang}"
     )
 
     try:
@@ -137,7 +134,6 @@ def fetch_sevenrooms_times(
                 iso = t.get("time_iso") or t.get("date_time") or t.get("time")
                 if not iso:
                     continue
-
                 hhmm = None
                 try:
                     hhmm = dt.datetime.fromisoformat(str(iso).replace("Z", "+00:00")).strftime("%H:%M")
@@ -146,7 +142,6 @@ def fetch_sevenrooms_times(
                     hhmm = f"{m.group(1)}:{m.group(2)}" if m else None
                 if not hhmm:
                     continue
-
                 label = hhmm + (" (REQUEST)" if (is_req and not is_avail) else "")
                 out.append(label)
 
@@ -182,7 +177,7 @@ def _normalize_iso_dates(values):
     return sorted(set(out))
 
 def _get_dates_from_search(s: dict):
-    """Backwards compatible: use s['dates'] if present else s['date']."""
+    """Backwards compatible: use s['dates'] if present else s['date'].""" 
     if isinstance(s.get("dates"), list) and s["dates"]:
         dates = _normalize_iso_dates(s["dates"])
         if dates:
@@ -208,8 +203,8 @@ def native_multi_date_selector(state_key: str, label: str, chips_per_row: int = 
     """
     if state_key not in st.session_state:
         st.session_state[state_key] = [dt.date.today().isoformat()]
-    st.session_state[state_key] = _normalize_iso_dates(st.session_state[state_key])
 
+    st.session_state[state_key] = _normalize_iso_dates(st.session_state[state_key])
     picker_key = f"{state_key}__picker"
 
     def _on_pick():
@@ -243,19 +238,16 @@ def native_multi_date_selector(state_key: str, label: str, chips_per_row: int = 
                 if st.button(f"{d} ✕", key=f"{state_key}__rm__{d}"):
                     st.session_state[state_key] = [x for x in cur if x != d]
                     st.rerun()
+
     st.caption(f"Selected: {', '.join(cur)}")
     return cur
 
 # =========================================================
-# DEFAULTS (now Telegram)
+# DEFAULTS
 # =========================================================
 config_data.setdefault(
     "global",
     {"channel": "SEVENROOMS_WIDGET", "delay_between_venues_sec": 0.5, "lang": "en"},
-)
-config_data.setdefault(
-    "telegram_default",
-    {"bot_token": "", "chat_id": "", "parse_mode": "HTML", "disable_web_page_preview": True},
 )
 config_data.setdefault("searches", [])
 
@@ -281,7 +273,6 @@ def _toggle(key: str):
 for idx, s in enumerate(searches_all):
     platform = (s.get("platform") or "sevenrooms").lower()
     is_supported = (platform == "sevenrooms")
-
     date_txt = _dates_display(s)
     party_txt = str(s.get("party_size", ""))
     time_slot = (s.get("time_slot") or "").strip()
@@ -340,7 +331,6 @@ for idx, s in enumerate(searches_all):
             st.divider()
             st.write(f"**Venues**: {', '.join(s.get('venues', [])) or '—'}")
             st.write(f"**Dates**: {date_txt or '—'}")
-            st.write(f"**Num Days**: {int(s.get('num_days', 1))}")
             st.write(f"**Email**: {s.get('email_to') or '—'}")
             notes = (s.get("notes") or "").strip()
             if notes:
@@ -360,7 +350,6 @@ for idx, s in enumerate(searches_all):
                 e_name = st.text_input("Name", s.get("id", ""))
                 e_venues = st.text_input("Venues (slugs, comma separated supported)", ", ".join(s.get("venues", [])))
                 e_party = st.number_input("Party", 1, 20, value=int(s.get("party_size", 2)))
-                e_num_days = st.number_input("Num Days", 1, 7, value=int(s.get("num_days", 1)))
                 e_time_slot = st.text_input("Exact time (HH:MM) — leave blank for window", s.get("time_slot", ""))
                 e_window_start = st.text_input("Window start (HH:MM)", s.get("window_start", "18:00"))
                 e_window_end = st.text_input("Window end (HH:MM)", s.get("window_end", "22:00"))
@@ -390,7 +379,6 @@ for idx, s in enumerate(searches_all):
                             "date": dates_list[0],
                             "dates": dates_list,
                             "party_size": int(e_party),
-                            "num_days": int(e_num_days),
                             "time_slot": e_time_slot.strip(),
                             "window_start": e_window_start.strip(),
                             "window_end": e_window_end.strip(),
@@ -411,15 +399,13 @@ for idx, s in enumerate(searches_all):
 # =========================================================
 st.subheader("➕ Add New Search")
 st.caption("SevenRooms only.")
-add_cols = st.columns([0.5, 0.5])
 
+add_cols = st.columns([0.5, 0.5])
 with add_cols[0]:
     default_venue = st.session_state.get("last_sr_slug", "")
     n_venue = st.text_input("Venue slug(s) (comma separated supported)", value=default_venue, key="new_venue")
     n_id = st.text_input("Search name", key="new_name")
     n_party = st.number_input("Party", 1, 20, 2, key="new_party")
-    n_num_days = st.number_input("Num Days", 1, 7, 1, key="new_num_days")
-
 with add_cols[1]:
     n_notify_label = st.selectbox("Notification method", NOTIFY_LABELS, index=2, key="new_notify_label")
     n_notify = NOTIFY_MAP[n_notify_label]
@@ -446,7 +432,6 @@ if st.button("🔄 Load available times", key="load_times"):
                 str(date_for_times),
                 int(n_party),
                 channel=channel,
-                num_days=int(n_num_days),
                 lang=lang,
             )
         st.session_state["loaded_times"] = times_list
@@ -482,7 +467,6 @@ if st.button("🚀 Launch search", type="primary", key="launch"):
         "time_slot": n_time_slot.strip(),
         "window_start": n_window_start.strip(),
         "window_end": n_window_end.strip(),
-        "num_days": int(n_num_days),
         "notify": n_notify,
         "email_to": n_email.strip(),
         "notes": "",
@@ -495,8 +479,7 @@ if st.button("🚀 Launch search", type="primary", key="launch"):
 # ADVANCED (collapsed)
 # =========================================================
 with st.expander("⚙️ Advanced", expanded=False):
-    st.caption("Maintenance, SevenRooms slug finder, and Telegram push settings.")
-
+    st.caption("Maintenance, SevenRooms slug finder, and Push settings.")
     st.subheader("Maintenance")
     _, state_data = _read_json_from_repo(STATE_FILE_PATH, {"notified": []})
     st.caption(f"Current dedupe cache entries: {len(state_data.get('notified', []) or [])}")
@@ -504,7 +487,6 @@ with st.expander("⚙️ Advanced", expanded=False):
         reset_state()
 
     st.divider()
-
     st.subheader("Quick Slug Finder (SevenRooms)")
     st.caption("Paste a SevenRooms link (or type a slug).")
     sr_text = st.text_input("SevenRooms link / slug", key="sr_url_adv")
@@ -517,50 +499,9 @@ with st.expander("⚙️ Advanced", expanded=False):
             st.error("Couldn’t find a slug in that text.")
 
     st.divider()
-
-    st.subheader("Push notification settings (Telegram)")
-    tg = config_data.get("telegram_default", {}) or {}
-
-    # Chat ID is safe-ish to store in config; token is better in Secrets
-    chat_id = st.text_input("Chat ID (recommended to save)", tg.get("chat_id", ""))
-
-    # Token: show masked; allow saving if private repo (otherwise use Secrets)
-    bot_token = st.text_input("Bot token (prefer GitHub/Streamlit secrets)", tg.get("bot_token", ""), type="password")
-    parse_mode = st.selectbox("Parse mode", ["HTML", "MarkdownV2", "Markdown", ""], index=0)
-    disable_preview = st.checkbox("Disable link previews", value=bool(tg.get("disable_web_page_preview", True)))
-
-    c1, c2 = st.columns(2)
-
-    with c1:
-        if st.button("💾 Save Telegram settings", key="save_tg_settings"):
-            config_data["telegram_default"] = {
-                "bot_token": bot_token.strip(),
-                "chat_id": chat_id.strip(),
-                "parse_mode": parse_mode.strip(),
-                "disable_web_page_preview": bool(disable_preview),
-            }
-            save_config(config_data)
-
-    with c2:
-        def send_test_telegram(token: str, cid: str, text: str, parse_mode: str, disable_web_page_preview: bool):
-            if not (token and cid):
-                return False, "Missing bot token/chat id"
-            url = f"https://api.telegram.org/bot{token}/sendMessage"
-            payload = {
-                "chat_id": cid,
-                "text": text,
-                "parse_mode": parse_mode or "HTML",
-                "disable_web_page_preview": disable_web_page_preview,
-            }
-            r = requests.post(url, json=payload, timeout=15)
-            return (r.ok, f"HTTP {r.status_code}")
-
-        if st.button("🧪 Send test Telegram", key="test_tg"):
-            ok, info = send_test_telegram(
-                bot_token.strip(),
-                chat_id.strip(),
-                "<b>Test:</b> Reservation Manager\nIf you see this, Telegram push is working.",
-                parse_mode.strip(),
-                bool(disable_preview),
-            )
-            st.success("Sent ✅") if ok else st.error(f"Failed: {info}")
+    st.subheader("Push notification settings")
+    st.info(
+        "Push notifications are sent via email to your Pushover email gateway:\n\n"
+        "📩 bfxfnhvuie@pomail.net\n\n"
+        "This uses the same SMTP credentials as Email alerts (EMAIL_USER/EMAIL_PASS)."
+    )
