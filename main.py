@@ -11,9 +11,6 @@ import smtplib
 from email.message import EmailMessage
 from typing import Any, List, Optional, Tuple
 
-# Push is implemented as an email to your Pushover email gateway
-PUSH_EMAIL_TO = "bfxfnhvuie@pomail.net"
-
 # =========================================================
 # JSON HELPERS
 # =========================================================
@@ -149,7 +146,7 @@ def _get_search_dates(search: dict) -> List[str]:
 
 
 # =========================================================
-# NOTIFICATION SENDERS (Email only; Push is email to Pushover gateway)
+# NOTIFICATION SENDERS
 # =========================================================
 def send_email(to_email: str, subject: str, body: str, debug: bool = False) -> bool:
     user = os.environ.get("EMAIL_USER")
@@ -158,13 +155,11 @@ def send_email(to_email: str, subject: str, body: str, debug: bool = False) -> b
         if debug:
             print("[email] missing EMAIL_USER/EMAIL_PASS or to_email")
         return False
-
     msg = EmailMessage()
     msg.set_content(body)
     msg["Subject"] = subject
     msg["From"] = user
     msg["To"] = to_email
-
     try:
         with smtplib.SMTP_SSL("smtp.gmail.com", 465) as s:
             s.login(user, pw)
@@ -200,16 +195,14 @@ def fetch_sevenrooms_slots(
     date_yyyy_mm_dd: str,
     party: int,
     channel: str,
+    num_days: int = 1,
     lang: str = "en",
     halo_size_interval: int = 64,
     debug: bool = False,
-) -> List[Tuple[str, str]]:
+) -> List[str]:
     """
-    Returns list of tuples: (slot_date_YYYY_MM_DD, slot_iso_string)
-
-    NOTE:
-    - num_days has been removed entirely.
-    - We still read the API response by date key so labels/dedupe remain correct.
+    Returns list of actual *bookable* slots (NOT requestable).
+    Hardened against schema differences + non-JSON responses.
     """
     try:
         d_sr = dt.datetime.strptime(date_yyyy_mm_dd, "%Y-%m-%d").strftime("%m-%d-%Y")
@@ -221,6 +214,7 @@ def fetch_sevenrooms_slots(
         f"?venue={venue}"
         f"&party_size={party}"
         f"&start_date={d_sr}"
+        f"&num_days={num_days}"
         f"&channel={channel}"
         f"&selected_lang_code={lang}"
         f"&halo_size_interval={halo_size_interval}"
@@ -256,34 +250,23 @@ def fetch_sevenrooms_slots(
         return []
 
     avail = (j.get("data", {}) or {}).get("availability", {}) or {}
-    out: List[Tuple[str, str]] = []
-
-    for day_key, day_blocks in avail.items():
-        # day_key is typically "MM-DD-YYYY"
-        try:
-            slot_day = dt.datetime.strptime(str(day_key), "%m-%d-%Y").date().isoformat()
-        except Exception:
-            slot_day = date_yyyy_mm_dd
-
+    out: List[str] = []
+    for _, day_blocks in avail.items():
         if not isinstance(day_blocks, list):
             continue
-
         for block in day_blocks:
             if not isinstance(block, dict):
                 continue
             if block.get("is_closed") is True:
                 continue
-
             for t in block.get("times", []) or []:
                 if not isinstance(t, dict):
                     continue
                 if not is_bookable_time(t):
                     continue
-
                 iso = t.get("time_iso") or t.get("date_time") or t.get("time")
                 if iso:
-                    out.append((slot_day, str(iso)))
-
+                    out.append(str(iso))
     return out
 
 
@@ -302,6 +285,8 @@ def main() -> None:
     halo = int(global_cfg.get("halo_size_interval", 64))
     debug = bool(global_cfg.get("debug", False))
 
+    pushover_email = "bfxfnhvuie@pomail.net"
+
     for search in config.get("searches", []):
         sid = search.get("id") or "Unnamed"
         platform = (search.get("platform") or "sevenrooms").lower()
@@ -312,6 +297,7 @@ def main() -> None:
 
         venues = search.get("venues") or []
         party = int(search.get("party_size") or 2)
+        num_days = int(search.get("num_days") or 1)
 
         # multi-date
         dates = _get_search_dates(search)
@@ -323,9 +309,8 @@ def main() -> None:
         time_slot = (search.get("time_slot") or "").strip()
         window_start = (search.get("window_start") or "").strip()
         window_end = (search.get("window_end") or "").strip()
-
         notify_mode = (search.get("notify") or "both").lower()
-        email_to = (search.get("email_to") or "").strip()
+        email_to = search.get("email_to")
         salt = str(search.get("salt") or "")
 
         candidates: List[Tuple[str, str]] = []
@@ -336,22 +321,22 @@ def main() -> None:
                 if not v:
                     continue
 
-                slot_rows = fetch_sevenrooms_slots(
+                iso_slots = fetch_sevenrooms_slots(
                     v,
                     date,
                     party,
                     channel=channel,
+                    num_days=num_days,
                     lang=lang,
                     halo_size_interval=halo,
                     debug=debug,
                 )
 
                 if debug:
-                    print(f"[{sid}] venue={v} date={date} raw_slots={len(slot_rows)}")
+                    print(f"[{sid}] venue={v} date={date} raw_slots={len(iso_slots)}")
 
-                for slot_day, iso in slot_rows:
+                for iso in iso_slots:
                     hh = _hhmm(iso) or iso
-
                     if time_slot:
                         if (_hhmm(iso) or "") != time_slot:
                             continue
@@ -360,13 +345,13 @@ def main() -> None:
                             continue
 
                     fp = hashlib.sha256(
-                        f"{sid}\n{platform}\n{v}\n{slot_day}\n{iso}\n{salt}".encode()
+                        f"{sid}\n{platform}\n{v}\n{date}\n{iso}\n{salt}".encode()
                     ).hexdigest()
 
                     if fp in notified:
                         continue
 
-                    candidates.append((fp, f"{slot_day} — {v} @ {hh}"))
+                    candidates.append((fp, f"{date} — {v} @ {hh}"))
 
                 if delay:
                     time.sleep(delay)
@@ -384,20 +369,12 @@ def main() -> None:
             push_ok = False
             email_ok = False
 
-            # Push = email to Pushover gateway
             if notify_mode in ("push", "both"):
-                push_ok = send_email(
-                    PUSH_EMAIL_TO,
-                    f"Table Alert: {sid}",
-                    msg,
-                    debug=debug
-                )
+                push_ok = send_email(pushover_email, f"Table Alert: {sid}", msg, debug=debug)
 
-            # Email = email to per-search email_to
             if notify_mode in ("email", "both") and email_to:
                 email_ok = send_email(email_to, f"Table Alert: {sid}", msg, debug=debug)
 
-            # Only mark notified if at least one delivery succeeded
             if push_ok or email_ok:
                 for fp, _ in candidates:
                     notified.add(fp)
