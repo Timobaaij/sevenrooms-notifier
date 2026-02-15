@@ -65,6 +65,28 @@
       ],
       "window_end": "21:00",
       "window_start": "18:30"
+    },
+    {
+      "date": "2026-02-15",
+      "dates": [
+        "2026-02-15",
+        "2026-02-16",
+        "2026-02-17",
+        "2026-02-18"
+      ],
+      "email_to": "",
+      "id": "Rambutan Test",
+      "notes": "",
+      "notify": "push",
+      "party_size": 2,
+      "platform": "sevenrooms",
+      "salt": "1771152949.0435312",
+      "time_slot": "",
+      "venues": [
+        "rambutan"
+      ],
+      "window_end": "22:00",
+      "window_start": "15:00"
     }
   ]
 }
