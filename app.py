@@ -37,6 +37,7 @@ def _read_json_from_repo(path: str, default: dict):
     except Exception:
         return None, default
 
+
 def _update_file_json(path: str, message: str, data: dict):
     c = repo.get_contents(path)
     repo.update_file(
@@ -45,6 +46,7 @@ def _update_file_json(path: str, message: str, data: dict):
         json.dumps(data, indent=2, sort_keys=True),
         c.sha,
     )
+
 
 def save_config(new_data: dict):
     """Safe update of config.json, then refresh UI."""
@@ -56,6 +58,7 @@ def save_config(new_data: dict):
         st.rerun()
     except Exception as e:
         st.error(f"Save Failed: {e}")
+
 
 def reset_state():
     """Clear state.json so notifications can fire again."""
@@ -70,6 +73,7 @@ def reset_state():
         st.rerun()
     except Exception as e:
         st.error(f"Reset failed: {e}")
+
 
 # =========================================================
 # SevenRooms helpers (Slug finder + Time loader for UI)
@@ -87,11 +91,13 @@ def get_sevenrooms_slug(text: str):
         return text.strip()
     return None
 
+
 def fetch_sevenrooms_times(
     venue: str,
     date_yyyy_mm_dd: str,
     party: int,
     channel: str,
+    num_days: int = 1,
     lang: str = "en",
 ):
     """For the UI picker only: returns HH:MM labels including requestable slots."""
@@ -102,10 +108,9 @@ def fetch_sevenrooms_times(
 
     url = (
         "https://www.sevenrooms.com/api-yoa/availability/widget/range"
-        f"?venue={venue}&party_size={party}&start_date={d_sr}"
-        f"&channel={channel}&selected_lang_code={lang}"
+        f"?venue={venue}&party_size={party}&start_date={d_sr}&num_days={num_days}"
+        f"&channel={channel}&lang={lang}"
     )
-
     try:
         r = requests.get(url, timeout=15)
     except Exception:
@@ -152,6 +157,7 @@ def fetch_sevenrooms_times(
             seen.add(x)
     return uniq
 
+
 # =========================================================
 # DATE HELPERS + NATIVE MULTI-DATE DISPLAY (CHIPS)
 # =========================================================
@@ -176,8 +182,9 @@ def _normalize_iso_dates(values):
                 out.append(parsed)
     return sorted(set(out))
 
+
 def _get_dates_from_search(s: dict):
-    """Backwards compatible: use s['dates'] if present else s['date'].""" 
+    """Backwards compatible: use s['dates'] if present else s['date']."""
     if isinstance(s.get("dates"), list) and s["dates"]:
         dates = _normalize_iso_dates(s["dates"])
         if dates:
@@ -188,10 +195,12 @@ def _get_dates_from_search(s: dict):
             return dates
     return [dt.date.today().isoformat()]
 
+
 def _dates_display(s: dict) -> str:
     if isinstance(s.get("dates"), list) and s["dates"]:
         return ", ".join(s["dates"])
     return s.get("date", "") or ""
+
 
 def native_multi_date_selector(state_key: str, label: str, chips_per_row: int = 4):
     """
@@ -203,8 +212,8 @@ def native_multi_date_selector(state_key: str, label: str, chips_per_row: int = 
     """
     if state_key not in st.session_state:
         st.session_state[state_key] = [dt.date.today().isoformat()]
-
     st.session_state[state_key] = _normalize_iso_dates(st.session_state[state_key])
+
     picker_key = f"{state_key}__picker"
 
     def _on_pick():
@@ -242,6 +251,7 @@ def native_multi_date_selector(state_key: str, label: str, chips_per_row: int = 
     st.caption(f"Selected: {', '.join(cur)}")
     return cur
 
+
 # =========================================================
 # DEFAULTS
 # =========================================================
@@ -250,7 +260,6 @@ config_data.setdefault(
     {"channel": "SEVENROOMS_WIDGET", "delay_between_venues_sec": 0.5, "lang": "en"},
 )
 config_data.setdefault("searches", [])
-
 NOTIFY_LABELS = ["Push", "Email", "Both", "None"]
 NOTIFY_MAP = {"Push": "push", "Email": "email", "Both": "both", "None": "none"}
 
@@ -264,8 +273,10 @@ searches_all = config_data.get("searches", []) or []
 if not searches_all:
     st.info("No active searches yet.")
 
+
 def _toggle(key: str):
     st.session_state[key] = not st.session_state.get(key, False)
+
 
 # =========================================================
 # DASHBOARD LIST
@@ -291,7 +302,6 @@ for idx, s in enumerate(searches_all):
                 else f"**📍 {title} (Unsupported platform entry)**"
             )
             st.caption(f"🗓 {date_txt} · 👥 {party_txt} · ⏱ {time_txt} · 🔔 {notify_txt}")
-
             if not is_supported:
                 st.warning(
                     "This entry uses an unsupported platform and will be ignored by the scheduler. "
@@ -331,6 +341,7 @@ for idx, s in enumerate(searches_all):
             st.divider()
             st.write(f"**Venues**: {', '.join(s.get('venues', [])) or '—'}")
             st.write(f"**Dates**: {date_txt or '—'}")
+            st.write(f"**Num Days**: {int(s.get('num_days', 1))}")
             st.write(f"**Email**: {s.get('email_to') or '—'}")
             notes = (s.get("notes") or "").strip()
             if notes:
@@ -350,6 +361,7 @@ for idx, s in enumerate(searches_all):
                 e_name = st.text_input("Name", s.get("id", ""))
                 e_venues = st.text_input("Venues (slugs, comma separated supported)", ", ".join(s.get("venues", [])))
                 e_party = st.number_input("Party", 1, 20, value=int(s.get("party_size", 2)))
+                e_num_days = st.number_input("Num Days", 1, 7, value=int(s.get("num_days", 1)))
                 e_time_slot = st.text_input("Exact time (HH:MM) — leave blank for window", s.get("time_slot", ""))
                 e_window_start = st.text_input("Window start (HH:MM)", s.get("window_start", "18:00"))
                 e_window_end = st.text_input("Window end (HH:MM)", s.get("window_end", "22:00"))
@@ -370,7 +382,6 @@ for idx, s in enumerate(searches_all):
                     dates_list = _normalize_iso_dates(selected_dates)
                     if not dates_list:
                         dates_list = [dt.date.today().isoformat()]
-
                     config_data["searches"][idx].update(
                         {
                             "id": e_name.strip() or "Unnamed",
@@ -379,6 +390,7 @@ for idx, s in enumerate(searches_all):
                             "date": dates_list[0],
                             "dates": dates_list,
                             "party_size": int(e_party),
+                            "num_days": int(e_num_days),
                             "time_slot": e_time_slot.strip(),
                             "window_start": e_window_start.strip(),
                             "window_end": e_window_end.strip(),
@@ -406,6 +418,8 @@ with add_cols[0]:
     n_venue = st.text_input("Venue slug(s) (comma separated supported)", value=default_venue, key="new_venue")
     n_id = st.text_input("Search name", key="new_name")
     n_party = st.number_input("Party", 1, 20, 2, key="new_party")
+    n_num_days = st.number_input("Num Days", 1, 7, 1, key="new_num_days")
+
 with add_cols[1]:
     n_notify_label = st.selectbox("Notification method", NOTIFY_LABELS, index=2, key="new_notify_label")
     n_notify = NOTIFY_MAP[n_notify_label]
@@ -432,6 +446,7 @@ if st.button("🔄 Load available times", key="load_times"):
                 str(date_for_times),
                 int(n_party),
                 channel=channel,
+                num_days=int(n_num_days),
                 lang=lang,
             )
         st.session_state["loaded_times"] = times_list
@@ -456,7 +471,6 @@ if st.button("🚀 Launch search", type="primary", key="launch"):
     dates_list = _normalize_iso_dates(new_dates)
     if not dates_list:
         dates_list = [dt.date.today().isoformat()]
-
     new_s = {
         "id": n_id.strip() or "Unnamed",
         "platform": "sevenrooms",
@@ -467,6 +481,7 @@ if st.button("🚀 Launch search", type="primary", key="launch"):
         "time_slot": n_time_slot.strip(),
         "window_start": n_window_start.strip(),
         "window_end": n_window_end.strip(),
+        "num_days": int(n_num_days),
         "notify": n_notify,
         "email_to": n_email.strip(),
         "notes": "",
@@ -479,7 +494,7 @@ if st.button("🚀 Launch search", type="primary", key="launch"):
 # ADVANCED (collapsed)
 # =========================================================
 with st.expander("⚙️ Advanced", expanded=False):
-    st.caption("Maintenance, SevenRooms slug finder, and Push settings.")
+    st.caption("Maintenance and SevenRooms slug finder.")
     st.subheader("Maintenance")
     _, state_data = _read_json_from_repo(STATE_FILE_PATH, {"notified": []})
     st.caption(f"Current dedupe cache entries: {len(state_data.get('notified', []) or [])}")
@@ -499,9 +514,5 @@ with st.expander("⚙️ Advanced", expanded=False):
             st.error("Couldn’t find a slug in that text.")
 
     st.divider()
-    st.subheader("Push notification settings")
-    st.info(
-        "Push notifications are sent via email to your Pushover email gateway:\n\n"
-        "📩 bfxfnhvuie@pomail.net\n\n"
-        "This uses the same SMTP credentials as Email alerts (EMAIL_USER/EMAIL_PASS)."
-    )
+    st.subheader("Push notification settings (Pushover Email)")
+    st.caption("Push notifications are sent to: bfxfnhvuie@pomail.net")
