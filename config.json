@@ -15,7 +15,6 @@
       "id": "Tamil Prince",
       "notes": "",
       "notify": "both",
-      "num_days": 1,
       "party_size": 6,
       "platform": "sevenrooms",
       "salt": "1770619840.8980043",
@@ -34,13 +33,12 @@
         "2026-02-21"
       ],
       "email_to": "",
-      "id": "Carbone-4",
+      "id": "Carbone",
       "notes": "",
       "notify": "both",
-      "num_days": 1,
       "party_size": 4,
       "platform": "sevenrooms",
-      "salt": "1771152539.2863843",
+      "salt": "1771091698.1485782",
       "time_slot": "",
       "venues": [
         "carbonelondon"
@@ -58,7 +56,6 @@
       "id": "Carbone-2",
       "notes": "",
       "notify": "both",
-      "num_days": 1,
       "party_size": 2,
       "platform": "sevenrooms",
       "salt": "1771091815.483015",
@@ -69,11 +66,5 @@
       "window_end": "21:00",
       "window_start": "18:30"
     }
-  ],
-  "telegram_default": {
-    "bot_token": "",
-    "chat_id": "",
-    "disable_web_page_preview": true,
-    "parse_mode": "HTML"
-  }
+  ]
 }
