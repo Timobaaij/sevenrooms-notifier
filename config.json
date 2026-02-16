@@ -26,6 +26,26 @@
       ],
       "window_end": "14:00",
       "window_start": "12:30"
+    },
+    {
+      "date": "2026-02-19",
+      "dates": [
+        "2026-02-19"
+      ],
+      "email_to": "",
+      "id": "Berenjak",
+      "notes": "",
+      "notify": "both",
+      "num_days": 1,
+      "party_size": 2,
+      "platform": "sevenrooms",
+      "salt": "1771274924.674288",
+      "time_slot": "",
+      "venues": [
+        "berenjakborough"
+      ],
+      "window_end": "20:30",
+      "window_start": "19:00"
     }
   ]
 }
