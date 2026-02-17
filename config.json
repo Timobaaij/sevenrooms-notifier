@@ -46,6 +46,26 @@
       ],
       "window_end": "20:30",
       "window_start": "19:00"
+    },
+    {
+      "date": "2026-02-27",
+      "dates": [
+        "2026-02-27"
+      ],
+      "email_to": "",
+      "id": "Carbone Flop",
+      "notes": "",
+      "notify": "both",
+      "num_days": 1,
+      "party_size": 2,
+      "platform": "sevenrooms",
+      "salt": "1771317960.8677642",
+      "time_slot": "",
+      "venues": [
+        "carbonelondon"
+      ],
+      "window_end": "22:00",
+      "window_start": "19:00"
     }
   ]
 }
