@@ -45,6 +45,26 @@
       ],
       "window_end": "22:00",
       "window_start": "18:00"
+    },
+    {
+      "date": "2026-03-13",
+      "dates": [
+        "2026-03-13"
+      ],
+      "email_to": "",
+      "id": "Campania",
+      "notes": "",
+      "notify": "both",
+      "num_days": 1,
+      "party_size": 2,
+      "platform": "sevenrooms",
+      "salt": "1773345838.5890276",
+      "time_slot": "",
+      "venues": [
+        "campania"
+      ],
+      "window_end": "22:00",
+      "window_start": "18:30"
     }
   ]
 }
