@@ -26,6 +26,26 @@
       ],
       "window_end": "14:00",
       "window_start": "12:30"
+    },
+    {
+      "date": "2026-03-13",
+      "dates": [
+        "2026-03-13"
+      ],
+      "email_to": "",
+      "id": "Knave",
+      "notes": "",
+      "notify": "both",
+      "num_days": 1,
+      "party_size": 2,
+      "platform": "sevenrooms",
+      "salt": "1773344081.462235",
+      "time_slot": "",
+      "venues": [
+        "theknaveofclubs"
+      ],
+      "window_end": "22:00",
+      "window_start": "18:00"
     }
   ]
 }
