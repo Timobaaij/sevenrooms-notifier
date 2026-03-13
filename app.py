@@ -121,18 +121,27 @@ def fetch_opentable_times(slug: str, date_yyyy_mm_dd: str, party: int):
     from bs4 import BeautifulSoup
     url = f"https://www.opentable.co.uk/r/{slug}?covers={party}&dateTime={date_yyyy_mm_dd}T19:00:00"
     headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
         "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
-        "Accept-Language": "en-GB,en;q=0.5",
+        "Accept-Language": "en-GB,en;q=0.9",
     }
-    try: r = c_requests.get(url, headers=headers, impersonate="chrome110", timeout=25)
+    
+    try:
+        r = c_requests.get(url, headers=headers, impersonate="chrome120", timeout=25)
     except Exception: return []
 
     out = []
-    for match in re.finditer(r'"time"\s*:\s*"([^"]+)"[^{}]*?"isAvailable"\s*:\s*true', r.text):
-        out.append(match.group(1))
+    html = r.text
+
+    blocks = re.findall(r'\{[^{}]*\}', html)
+    for b in blocks:
+        b_clean = b.replace(" ", "").replace("\\\"", "\"")
+        if '"isAvailable":true' in b_clean and '"time":' in b_clean:
+            m = re.search(r'"time"\s*:\s*"([^"]+)"', b)
+            if m:
+                out.append(m.group(1))
+
     if not out:
-        soup = BeautifulSoup(r.text, "html.parser")
+        soup = BeautifulSoup(html, "html.parser")
         buttons = soup.find_all("a", href=re.compile(r"/book/|/restref/"))
         for b in buttons:
             txt = b.get_text(strip=True)
