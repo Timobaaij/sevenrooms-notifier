@@ -37,7 +37,6 @@ def _read_json_from_repo(path: str, default: dict):
     except Exception:
         return None, default
 
-
 def _update_file_json(path: str, message: str, data: dict):
     c = repo.get_contents(path)
     repo.update_file(
@@ -47,9 +46,7 @@ def _update_file_json(path: str, message: str, data: dict):
         c.sha,
     )
 
-
 def save_config(new_data: dict):
-    """Safe update of config.json, then refresh UI."""
     try:
         _update_file_json(CONFIG_FILE_PATH, "Update via Web App", new_data)
         st.toast("✅ Saved!", icon="💾")
@@ -59,9 +56,7 @@ def save_config(new_data: dict):
     except Exception as e:
         st.error(f"Save Failed: {e}")
 
-
 def reset_state():
-    """Clear state.json so notifications can fire again."""
     try:
         _update_file_json(
             STATE_FILE_PATH,
@@ -73,7 +68,6 @@ def reset_state():
         st.rerun()
     except Exception as e:
         st.error(f"Reset failed: {e}")
-
 
 # =========================================================
 # SevenRooms helpers (Slug finder + Time loader for UI)
@@ -91,7 +85,6 @@ def get_sevenrooms_slug(text: str):
         return text.strip()
     return None
 
-
 def fetch_sevenrooms_times(
     venue: str,
     date_yyyy_mm_dd: str,
@@ -100,7 +93,6 @@ def fetch_sevenrooms_times(
     num_days: int = 1,
     lang: str = "en",
 ):
-    """For the UI picker only: returns HH:MM labels including requestable slots."""
     try:
         d_sr = dt.datetime.strptime(date_yyyy_mm_dd, "%Y-%m-%d").strftime("%m-%d-%Y")
     except Exception:
@@ -132,10 +124,21 @@ def fetch_sevenrooms_times(
             for t in block.get("times", []) or []:
                 if not isinstance(t, dict):
                     continue
-                is_avail = t.get("is_available") is True
+                
                 is_req = t.get("is_requestable") is True
+                is_wait = t.get("is_waitlist") is True
+                
+                if is_wait:
+                    continue
+                
+                if "is_available" in t:
+                    is_avail = t.get("is_available") is True
+                else:
+                    is_avail = bool(t.get("access_persistent_id"))
+
                 if not (is_avail or is_req):
                     continue
+                
                 iso = t.get("time_iso") or t.get("date_time") or t.get("time")
                 if not iso:
                     continue
@@ -157,12 +160,10 @@ def fetch_sevenrooms_times(
             seen.add(x)
     return uniq
 
-
 # =========================================================
 # DATE HELPERS + NATIVE MULTI-DATE DISPLAY (CHIPS)
 # =========================================================
 def _normalize_iso_dates(values):
-    """Normalize a list to sorted unique YYYY-MM-DD strings."""
     out = []
     for v in values or []:
         if isinstance(v, dt.date):
@@ -182,9 +183,7 @@ def _normalize_iso_dates(values):
                 out.append(parsed)
     return sorted(set(out))
 
-
 def _get_dates_from_search(s: dict):
-    """Backwards compatible: use s['dates'] if present else s['date']."""
     if isinstance(s.get("dates"), list) and s["dates"]:
         dates = _normalize_iso_dates(s["dates"])
         if dates:
@@ -195,21 +194,12 @@ def _get_dates_from_search(s: dict):
             return dates
     return [dt.date.today().isoformat()]
 
-
 def _dates_display(s: dict) -> str:
     if isinstance(s.get("dates"), list) and s["dates"]:
         return ", ".join(s["dates"])
     return s.get("date", "") or ""
 
-
 def native_multi_date_selector(state_key: str, label: str, chips_per_row: int = 4):
-    """
-    Native, fast multi-date selector with chips display:
-    - picking in calendar instantly adds date
-    - selected dates shown as removable chips (✕)
-    - remove is one click, no multiselect
-    - stores ISO dates in st.session_state[state_key]
-    """
     if state_key not in st.session_state:
         st.session_state[state_key] = [dt.date.today().isoformat()]
     st.session_state[state_key] = _normalize_iso_dates(st.session_state[state_key])
@@ -251,7 +241,6 @@ def native_multi_date_selector(state_key: str, label: str, chips_per_row: int = 
     st.caption(f"Selected: {', '.join(cur)}")
     return cur
 
-
 # =========================================================
 # DEFAULTS
 # =========================================================
@@ -273,10 +262,8 @@ searches_all = config_data.get("searches", []) or []
 if not searches_all:
     st.info("No active searches yet.")
 
-
 def _toggle(key: str):
     st.session_state[key] = not st.session_state.get(key, False)
-
 
 # =========================================================
 # DASHBOARD LIST
@@ -321,7 +308,6 @@ for idx, s in enumerate(searches_all):
                 if st.button("🗑️ Delete", key=f"btn_delete_{idx}"):
                     st.session_state[f"confirm_delete_{idx}"] = True
 
-        # Delete confirmation
         if st.session_state.get(f"confirm_delete_{idx}", False):
             st.divider()
             st.warning(f"Delete **{s.get('id','Unnamed')}**? This removes the entry from `config.json`.", icon="⚠️")
@@ -336,7 +322,6 @@ for idx, s in enumerate(searches_all):
                 if st.button("Cancel", key=f"btn_cancel_delete_{idx}"):
                     st.session_state[f"confirm_delete_{idx}"] = False
 
-        # Details view
         if st.session_state.get(f"show_details_{idx}", False):
             st.divider()
             st.write(f"**Venues**: {', '.join(s.get('venues', [])) or '—'}")
@@ -347,7 +332,6 @@ for idx, s in enumerate(searches_all):
             if notes:
                 st.write(f"**Notes**: {notes}")
 
-        # Edit view
         if st.session_state.get(f"show_edit_{idx}", False):
             st.divider()
             st.caption("Platform is forced to SevenRooms on save.")
