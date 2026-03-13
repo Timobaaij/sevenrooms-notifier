@@ -65,6 +65,25 @@
       ],
       "window_end": "22:00",
       "window_start": "18:30"
+    },
+    {
+      "date": "2026-03-13",
+      "dates": [
+        "2026-03-13"
+      ],
+      "email_to": "",
+      "id": "Ivy test",
+      "notify": "both",
+      "num_days": 1,
+      "party_size": 2,
+      "platform": "opentable",
+      "salt": "1773414670.8844116",
+      "time_slot": "",
+      "venues": [
+        "the-ivy-asia-saint-pauls-london"
+      ],
+      "window_end": "22:00",
+      "window_start": "16:00"
     }
   ]
 }
