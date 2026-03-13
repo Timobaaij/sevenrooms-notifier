@@ -21,11 +21,9 @@ def load_json(path: str, default: Any) -> Any:
     except Exception:
         return default
 
-
 def save_json(path: str, obj: Any) -> None:
     with open(path, "w", encoding="utf-8") as f:
         json.dump(obj, f, indent=2)
-
 
 # =========================================================
 # TIME HELPERS
@@ -41,27 +39,16 @@ def _parse_iso(value: str) -> Optional[dt.datetime]:
         except Exception:
             return None
 
-
 def _hhmm(value: str) -> Optional[str]:
-    """
-    Convert ISO datetime or string with time to HH:MM.
-    Supports:
-    - ISO strings: 2026-01-14T18:00:00Z
-    - 24h: 18:00
-    - 12h: 9:45 PM
-    """
     d = _parse_iso(value)
     if d:
         return d.strftime("%H:%M")
 
     import re
-
-    # 24-hour HH:MM
     m = re.search(r"\b([01]\d|2[0-3]):([0-5]\d)\b", value or "")
     if m:
         return f"{m.group(1)}:{m.group(2)}"
 
-    # 12-hour h:MM AM/PM
     m = re.search(r"\b(\d{1,2}):([0-5]\d)\s*([AP]M)\b", (value or ""), re.I)
     if m:
         hh = int(m.group(1)) % 12
@@ -69,7 +56,6 @@ def _hhmm(value: str) -> Optional[str]:
             hh += 12
         return f"{hh:02d}:{m.group(2)}"
     return None
-
 
 def _parse_time(value: str) -> Optional[dt.time]:
     if not value:
@@ -79,9 +65,7 @@ def _parse_time(value: str) -> Optional[dt.time]:
     except Exception:
         return None
 
-
 def _in_window(hhmm: str, start: str, end: str) -> bool:
-    """Check if hhmm is inside [start, end], supports overnight."""
     if not (hhmm and start and end):
         return True
     tt = _parse_time(hhmm)
@@ -92,20 +76,12 @@ def _in_window(hhmm: str, start: str, end: str) -> bool:
     if ts <= te:
         return ts <= tt <= te
     else:
-        # overnight window (e.g. 22:00–01:00)
         return tt >= ts or tt <= te
-
 
 # =========================================================
 # DATE HELPERS (multi-date support)
 # =========================================================
 def _parse_one_date(value: str) -> Optional[str]:
-    """
-    Accepts:
-    - YYYY-MM-DD
-    - DD-MM-YYYY
-    Returns normalized YYYY-MM-DD or None.
-    """
     if not value:
         return None
     v = str(value).strip()
@@ -119,13 +95,7 @@ def _parse_one_date(value: str) -> Optional[str]:
             pass
     return None
 
-
 def _get_search_dates(search: dict) -> List[str]:
-    """
-    Backwards compatible:
-    - if 'dates' exists: list of dates
-    - else use 'date'
-    """
     out: List[str] = []
     dates_raw = search.get("dates", None)
     if isinstance(dates_raw, list):
@@ -143,7 +113,6 @@ def _get_search_dates(search: dict) -> List[str]:
         if d:
             out.append(d)
     return sorted(set(out))
-
 
 # =========================================================
 # NOTIFICATION SENDERS
@@ -170,25 +139,20 @@ def send_email(to_email: str, subject: str, body: str, debug: bool = False) -> b
             print(f"[email] error: {e}")
         return False
 
-
 # =========================================================
 # AVAILABILITY FETCHERS (SevenRooms only)
 # =========================================================
 def is_bookable_time(t: dict) -> bool:
-    """
-    Robust bookability:
-    - If is_available is present: must be True
-    - Else: exclude requestable/waitlist
-    - Default to False if no explicit availability is confirmed.
-    """
-    if "is_available" in t:
-        return t.get("is_available") is True
     if t.get("is_requestable") is True:
         return False
     if t.get("is_waitlist") is True:
         return False
-    return False
 
+    if "is_available" in t:
+        return t.get("is_available") is True
+
+    # Fallback: a legitimate bookable slot contains a booking token ID
+    return bool(t.get("access_persistent_id"))
 
 def fetch_sevenrooms_slots(
     venue: str,
@@ -200,10 +164,6 @@ def fetch_sevenrooms_slots(
     halo_size_interval: int = 64,
     debug: bool = False,
 ) -> List[str]:
-    """
-    Returns list of actual *bookable* slots (NOT requestable).
-    Hardened against schema differences + non-JSON responses.
-    """
     try:
         d_sr = dt.datetime.strptime(date_yyyy_mm_dd, "%Y-%m-%d").strftime("%m-%d-%Y")
     except Exception:
@@ -269,7 +229,6 @@ def fetch_sevenrooms_slots(
                     out.append(str(iso))
     return out
 
-
 # =========================================================
 # MAIN SCHEDULER LOGIC
 # =========================================================
@@ -299,7 +258,6 @@ def main() -> None:
         party = int(search.get("party_size") or 2)
         num_days = int(search.get("num_days") or 1)
 
-        # multi-date
         dates = _get_search_dates(search)
         if not dates:
             if debug:
@@ -383,7 +341,6 @@ def main() -> None:
                     print(f"[notify] FAILED (not marking notified) sid={sid}")
 
     save_json("state.json", {"notified": list(notified)[-2000:]})
-
 
 if __name__ == "__main__":
     main()
