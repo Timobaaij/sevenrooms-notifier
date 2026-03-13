@@ -132,8 +132,8 @@ def fetch_sevenrooms_times(
             for t in block.get("times", []) or []:
                 if not isinstance(t, dict):
                     continue
-                is_avail = bool(t.get("is_available"))
-                is_req = bool(t.get("is_requestable"))
+                is_avail = t.get("is_available") is True
+                is_req = t.get("is_requestable") is True
                 if not (is_avail or is_req):
                     continue
                 iso = t.get("time_iso") or t.get("date_time") or t.get("time")
