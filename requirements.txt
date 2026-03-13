@@ -6,3 +6,5 @@ requests==2.32.3
 streamlit
 PyGithub
 streamlit-calendar==1.4.0
+curl_cffi==0.7.4
+beautifulsoup4==4.12.3
