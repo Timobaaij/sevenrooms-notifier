@@ -179,7 +179,7 @@ def is_bookable_time(t: dict) -> bool:
     Robust bookability:
     - If is_available is present: must be True
     - Else: exclude requestable/waitlist
-    - Requires some time field
+    - Default to False if no explicit availability is confirmed.
     """
     if "is_available" in t:
         return t.get("is_available") is True
@@ -187,7 +187,7 @@ def is_bookable_time(t: dict) -> bool:
         return False
     if t.get("is_waitlist") is True:
         return False
-    return bool(t.get("time_iso") or t.get("date_time") or t.get("time"))
+    return False
 
 
 def fetch_sevenrooms_slots(
