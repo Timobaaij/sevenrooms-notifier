@@ -11,7 +11,6 @@ import re
 import smtplib
 from email.message import EmailMessage
 from typing import Any, List, Optional, Tuple
-from bs4 import BeautifulSoup
 from curl_cffi import requests as c_requests
 
 # =========================================================
@@ -124,12 +123,9 @@ def send_email(to_email: str, subject: str, body: str, debug: bool = False) -> b
 # AVAILABILITY FETCHERS
 # =========================================================
 def is_bookable_time(t: dict) -> bool:
-    if t.get("is_requestable") is True:
-        return False
-    if t.get("is_waitlist") is True:
-        return False
-    if "is_available" in t:
-        return t.get("is_available") is True
+    if t.get("is_requestable") is True: return False
+    if t.get("is_waitlist") is True: return False
+    if "is_available" in t: return t.get("is_available") is True
     return bool(t.get("access_persistent_id"))
 
 def fetch_sevenrooms_slots(
@@ -158,8 +154,7 @@ def fetch_sevenrooms_slots(
     except Exception: return []
 
     if not r.ok: return []
-    try:
-        j = r.json()
+    try: j = r.json()
     except Exception: return []
 
     avail = (j.get("data", {}) or {}).get("availability", {}) or {}
@@ -177,26 +172,34 @@ def fetch_sevenrooms_slots(
 def fetch_opentable_slots(slug: str, date_yyyy_mm_dd: str, party: int, debug: bool = False) -> List[str]:
     url = f"https://www.opentable.co.uk/r/{slug}?covers={party}&dateTime={date_yyyy_mm_dd}T19:00:00"
     headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
         "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
-        "Accept-Language": "en-GB,en;q=0.5",
+        "Accept-Language": "en-GB,en;q=0.9",
     }
     
     try:
-        r = c_requests.get(url, headers=headers, impersonate="chrome110", timeout=25)
+        r = c_requests.get(url, headers=headers, impersonate="chrome120", timeout=25)
     except Exception: return []
 
     out = []
-    for match in re.finditer(r'"time"\s*:\s*"([^"]+)"[^{}]*?"isAvailable"\s*:\s*true', r.text):
-        out.append(match.group(1))
-        
+    html = r.text
+
+    # Extract all flat JSON-like dictionary objects from the HTML
+    blocks = re.findall(r'\{[^{}]*\}', html)
+    for b in blocks:
+        # Check if this object contains a time and explicit true availability
+        b_clean = b.replace(" ", "").replace("\\\"", "\"")
+        if '"isAvailable":true' in b_clean and '"time":' in b_clean:
+            m = re.search(r'"time"\s*:\s*"([^"]+)"', b)
+            if m:
+                out.append(m.group(1))
+
     if not out:
-        soup = BeautifulSoup(r.text, "html.parser")
+        from bs4 import BeautifulSoup
+        soup = BeautifulSoup(html, "html.parser")
         buttons = soup.find_all("a", href=re.compile(r"/book/|/restref/"))
         for b in buttons:
             txt = b.get_text(strip=True)
-            if re.search(r"\d{1,2}:\d{2}", txt):
-                out.append(txt)
+            if re.search(r"\d{1,2}:\d{2}", txt): out.append(txt)
 
     normalized = []
     for x in out:
@@ -239,8 +242,7 @@ def main() -> None:
         sid = search.get("id") or "Unnamed"
         platform = (search.get("platform") or "sevenrooms").lower()
         
-        if platform not in ["sevenrooms", "opentable"]:
-            continue
+        if platform not in ["sevenrooms", "opentable"]: continue
 
         venues = search.get("venues") or []
         party = int(search.get("party_size") or 2)
