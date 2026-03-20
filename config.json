@@ -24,6 +24,25 @@
       ],
       "window_end": "15:00",
       "window_start": "13:00"
+    },
+    {
+      "date": "2026-03-22",
+      "dates": [
+        "2026-03-22"
+      ],
+      "email_to": "",
+      "id": "Kerfield",
+      "notify": "both",
+      "num_days": 1,
+      "party_size": 2,
+      "platform": "sevenrooms",
+      "salt": "1774027031.6083755",
+      "time_slot": "",
+      "venues": [
+        "thekerfieldarms"
+      ],
+      "window_end": "15:00",
+      "window_start": "13:00"
     }
   ]
 }
