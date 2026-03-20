@@ -62,6 +62,25 @@
       ],
       "window_end": "15:00",
       "window_start": "13:00"
+    },
+    {
+      "date": "2026-03-22",
+      "dates": [
+        "2026-03-22"
+      ],
+      "email_to": "",
+      "id": "Canton",
+      "notify": "both",
+      "num_days": 1,
+      "party_size": 2,
+      "platform": "sevenrooms",
+      "salt": "1774031499.5023062",
+      "time_slot": "",
+      "venues": [
+        "cantonarms"
+      ],
+      "window_end": "15:00",
+      "window_start": "13:00"
     }
   ]
 }
