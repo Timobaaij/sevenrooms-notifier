@@ -5,5 +5,25 @@
     "halo_size_interval": 64,
     "lang": "en"
   },
-  "searches": []
+  "searches": [
+    {
+      "date": "2026-03-22",
+      "dates": [
+        "2026-03-22"
+      ],
+      "email_to": "",
+      "id": "Watermans",
+      "notify": "both",
+      "num_days": 1,
+      "party_size": 2,
+      "platform": "sevenrooms",
+      "salt": "1774026889.18446",
+      "time_slot": "",
+      "venues": [
+        "thewatermansarms"
+      ],
+      "window_end": "15:00",
+      "window_start": "13:00"
+    }
+  ]
 }
