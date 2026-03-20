@@ -81,26 +81,6 @@
       ],
       "window_end": "15:00",
       "window_start": "13:00"
-    },
-    {
-      "date": "2026-03-22",
-      "dates": [
-        "2026-03-22",
-        "2026-03-23"
-      ],
-      "email_to": "",
-      "id": "Ram test",
-      "notify": "both",
-      "num_days": 1,
-      "party_size": 2,
-      "platform": "sevenrooms",
-      "salt": "1774031537.0413208",
-      "time_slot": "",
-      "venues": [
-        "rambutan"
-      ],
-      "window_end": "22:00",
-      "window_start": "13:00"
     }
   ]
 }
