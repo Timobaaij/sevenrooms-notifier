@@ -43,25 +43,6 @@
       ],
       "window_end": "15:00",
       "window_start": "13:00"
-    },
-    {
-      "date": "2026-03-22",
-      "dates": [
-        "2026-03-22"
-      ],
-      "email_to": "",
-      "id": "Crown",
-      "notify": "both",
-      "num_days": 1,
-      "party_size": 2,
-      "platform": "sevenrooms",
-      "salt": "1774027265.3749979",
-      "time_slot": "",
-      "venues": [
-        "thetamilcrown"
-      ],
-      "window_end": "15:00",
-      "window_start": "13:00"
     }
   ]
 }
