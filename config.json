@@ -5,25 +5,5 @@
     "halo_size_interval": 64,
     "lang": "en"
   },
-  "searches": [
-    {
-      "date": "2026-04-26",
-      "dates": [
-        "2026-04-26"
-      ],
-      "email_to": "",
-      "id": "Tamil Crown",
-      "notify": "both",
-      "num_days": 1,
-      "party_size": 4,
-      "platform": "sevenrooms",
-      "salt": "1775939968.5316732",
-      "time_slot": "",
-      "venues": [
-        "thetamilcrown"
-      ],
-      "window_end": "15:00",
-      "window_start": "13:00"
-    }
-  ]
+  "searches": []
 }
