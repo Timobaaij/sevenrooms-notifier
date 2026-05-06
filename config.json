@@ -5,25 +5,5 @@
     "halo_size_interval": 64,
     "lang": "en"
   },
-  "searches": [
-    {
-      "date": "2026-04-27",
-      "dates": [
-        "2026-04-27"
-      ],
-      "email_to": "",
-      "id": "Hart",
-      "notify": "both",
-      "num_days": 1,
-      "party_size": 2,
-      "platform": "sevenrooms",
-      "salt": "1777271913.0573459",
-      "time_slot": "",
-      "venues": [
-        "thehartuk"
-      ],
-      "window_end": "20:30",
-      "window_start": "18:30"
-    }
-  ]
+  "searches": []
 }
