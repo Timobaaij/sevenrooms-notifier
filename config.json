@@ -5,5 +5,25 @@
     "halo_size_interval": 64,
     "lang": "en"
   },
-  "searches": []
+  "searches": [
+    {
+      "date": "2026-05-08",
+      "dates": [
+        "2026-05-08"
+      ],
+      "email_to": "",
+      "id": "Ruths Friday",
+      "notify": "both",
+      "num_days": 1,
+      "party_size": 2,
+      "platform": "sevenrooms",
+      "salt": "1778096397.2011864",
+      "time_slot": "",
+      "venues": [
+        "ruths"
+      ],
+      "window_end": "22:00",
+      "window_start": "18:00"
+    }
+  ]
 }
