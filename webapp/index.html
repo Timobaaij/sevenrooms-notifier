@@ -212,18 +212,25 @@
       <div class="field"><label>Party</label>
         <div class="stepper"><button id="pminus" aria-label="Fewer">–</button><span class="n" id="pnum">2</span><button id="pplus" aria-label="More">+</button></div>
       </div>
-      <div class="field" style="flex:1.4"><label>Time</label>
-        <div class="segmented" id="timeSeg">
-          <button class="seg active" data-v="window">Any in window</button>
-          <button class="seg" data-v="exact">Exact</button>
-        </div>
+      <div class="field"><label>Days to scan</label>
+        <div class="stepper"><button id="dminus" aria-label="Fewer">–</button><span class="n" id="dnum">1</span><button id="dplus" aria-label="More">+</button></div>
+      </div>
+    </div>
+    <div class="field"><label>Time</label>
+      <div class="segmented" id="timeSeg">
+        <button class="seg active" data-v="window">Any in window</button>
+        <button class="seg" data-v="exact">Exact</button>
       </div>
     </div>
     <div class="tworow" id="windowRow">
       <div class="field"><label for="f-ws">From</label><input class="input mono" id="f-ws" value="19:00" /></div>
       <div class="field"><label for="f-we">Until</label><input class="input mono" id="f-we" value="21:30" /></div>
     </div>
-    <div class="field" id="exactRow" style="display:none"><label for="f-exact">Exact time</label><input class="input mono" id="f-exact" value="19:00" /></div>
+    <div id="exactRow" style="display:none">
+      <div class="field"><label for="f-exact">Exact time</label><input class="input mono" id="f-exact" value="19:00" /></div>
+      <button class="btn btn--ghost btn--block" id="loadTimes" style="height:44px;margin-bottom:8px">Load available times</button>
+      <div class="chipwrap" id="timeChips"></div>
+    </div>
 
     <div class="field"><label>Dates</label>
       <div class="addchip"><input class="input" type="date" id="f-date" /><button class="btn btn--ghost" id="addDate" style="height:50px;padding:0 18px">Add</button></div>
@@ -235,7 +242,11 @@
         <button class="seg active" data-v="push">Push</button>
         <button class="seg" data-v="email">Email</button>
         <button class="seg" data-v="both">Both</button>
+        <button class="seg" data-v="none">None</button>
       </div>
+    </div>
+    <div class="field"><label for="f-email">Email alert to (optional)</label>
+      <input class="input" id="f-email" type="email" inputmode="email" placeholder="you@example.com" />
     </div>
 
     <button class="btn btn--gold btn--block" id="saveBtn">Start watching</button>
@@ -347,8 +358,9 @@
       var timeLabel = s.time_slot ? s.time_slot : ((s.window_start||"?")+" – "+(s.window_end||"?"));
       var timeKind = s.time_slot ? "Exact" : "Window";
       var dates = getDates(s);
-      var notify = paused ? (s._prev_notify||"both") : (s.notify||"both");
-      var notifyLabel = {push:"Push", email:"Email", both:"Push + Email"}[notify] || notify;
+      var notify = paused ? (s._prev_notify||"none") : (s.notify||"both");
+      var notifyLabel = {push:"Push", email:"Email", both:"Push + Email", none:"Off"}[notify] || notify;
+      var daysPill = (+s.num_days>1) ? '<span class="pill">'+(+s.num_days)+' days</span>' : '';
       html += ''
         + '<article class="watch'+(paused?' is-paused':'')+'" data-i="'+i+'">'
         +   '<div class="watch-head">'
@@ -362,6 +374,7 @@
         +   '</div>'
         +   '<div class="watch-actions">'
         +     platPill
+        +     daysPill
         +     '<span class="pill">'+notifyLabel+'</span>'
         +     '<div style="flex:1"></div>'
         +     '<button class="linkbtn" data-edit="'+i+'">Edit</button>'
@@ -383,7 +396,18 @@
       +   '<div class="venue" style="font-size:22px">Watching '+active.length+' '+(active.length===1?'restaurant':'restaurants')+'</div>'
       +   '<p style="color:var(--muted);margin:8px 0 0;font-size:14px">'+venues+' venue'+(venues===1?'':'s')+' polled every minute. The instant a table opens, an alert lands on your phone by push &amp; email — even when this app is closed.</p>'
       + '</div>'
-      + '<p class="helper" style="text-align:center;margin-top:16px">A live in-app feed of found tables is coming in a later update. For now, alerts arrive through your existing push &amp; email.</p>';
+      + '<p class="helper" style="text-align:center;margin:16px 0 22px">A live in-app feed of found tables is coming later. For now alerts arrive through your existing push &amp; email.</p>'
+      + '<button class="btn btn--ghost btn--block" id="resetAlerts">Reset alert history</button>'
+      + '<p class="helper" style="text-align:center;margin-top:8px">Lets tables you were already alerted about notify again.</p>';
+    var rb = document.getElementById("resetAlerts");
+    if (rb) rb.onclick = resetAlerts;
+  }
+
+  function resetAlerts(){
+    if(!window.confirm("Reset alert history? Tables you've already been notified about can alert again.")) return;
+    if(!STATE.config.global || typeof STATE.config.global !== "object") STATE.config.global = {};
+    STATE.config.global.reset_nonce = String(Date.now());
+    saveConfig("Alert history reset");
   }
 
   // ---- Tabs ----
@@ -431,10 +455,57 @@
     var v = $("#f-date").value; if(v && sheetDates.indexOf(v)<0){ sheetDates.push(v); sheetDates.sort(); renderDateChips(); }
   });
 
-  var party = 2;
+  var party = 2, numDays = 1;
   function setParty(n){ party = Math.max(1, Math.min(20, n)); $("#pnum").textContent = party; }
+  function setDays(n){ numDays = Math.max(1, Math.min(7, n)); $("#dnum").textContent = numDays; }
   $("#pplus").onclick = function(){ setParty(party+1); };
   $("#pminus").onclick = function(){ setParty(party-1); };
+  $("#dplus").onclick = function(){ setDays(numDays+1); };
+  $("#dminus").onclick = function(){ setDays(numDays-1); };
+
+  // Slug auto-extract: turn a pasted SevenRooms/OpenTable URL into its slug.
+  function extractSlug(text, platform){
+    text = (text||"").trim(); if(!text) return text;
+    var m;
+    if (platform === "opentable"){
+      m = text.match(/\/r\/([a-zA-Z0-9_\-]+)/); if(m) return m[1];
+    } else {
+      m = text.match(/[?&]venue=([a-zA-Z0-9_\-]+)/); if(m) return m[1];
+      m = text.match(/\/reservations\/([a-zA-Z0-9_\-]+)/); if(m) return m[1];
+    }
+    return text;
+  }
+  $("#f-venues").addEventListener("blur", function(){
+    var plat = segGet("platSeg") || "sevenrooms";
+    var cleaned = this.value.split(",").map(function(v){ return extractSlug(v, plat); }).filter(Boolean);
+    if (cleaned.length) this.value = cleaned.join(", ");
+  });
+
+  // Load available times for the first venue + first date (exact-time mode).
+  $("#loadTimes").addEventListener("click", function(){
+    var plat = segGet("platSeg") || "sevenrooms";
+    var venue = extractSlug(($("#f-venues").value.split(",")[0]||"").trim(), plat);
+    var date = sheetDates[0] || $("#f-date").value;
+    if(!venue){ toast("Add a venue slug first", true); return; }
+    if(!date){ toast("Pick a date first", true); return; }
+    var btn = this; btn.textContent = "Loading…"; btn.disabled = true;
+    var headers = {}; if (STATE.key) headers["x-access-key"] = STATE.key;
+    fetch("api/times?platform="+encodeURIComponent(plat)+"&venue="+encodeURIComponent(venue)+"&date="+encodeURIComponent(date)+"&party="+party, { headers: headers })
+      .then(function(r){ return r.json(); })
+      .then(function(res){
+        var times = (res && res.times) || [];
+        if(!times.length){ $("#timeChips").innerHTML = '<span class="helper">No open times found — enter one manually above.</span>'; return; }
+        $("#timeChips").innerHTML = times.map(function(t){ var hhmm=t.split(" ")[0]; return '<span class="rmchip" data-t="'+hhmm+'">'+esc(t)+'</span>'; }).join("");
+      })
+      .catch(function(){ $("#timeChips").innerHTML = '<span class="helper">Couldn\'t load times — enter one manually above.</span>'; })
+      .finally(function(){ btn.textContent = "Load available times"; btn.disabled = false; });
+  });
+  $("#timeChips").addEventListener("click", function(e){
+    var c = e.target.closest(".rmchip"); if(!c || !c.dataset.t) return;
+    $("#f-exact").value = c.dataset.t;
+    document.querySelectorAll("#timeChips .rmchip").forEach(function(x){ x.style.borderColor=""; x.style.color=""; });
+    c.style.borderColor = "var(--gold)"; c.style.color = "var(--gold-bright)";
+  });
 
   document.querySelectorAll(".segmented").forEach(function(seg){
     seg.addEventListener("click", function(e){
@@ -462,9 +533,9 @@
     $("#f-name").value = s ? (s.id||"") : "";
     $("#f-venues").value = s ? ((s.venues||[]).join(", ")) : "";
     setParty(s ? (parseInt(s.party_size,10)||2) : 2);
-    var effNotify = s ? ((s.notify||"both")==="none" ? (s._prev_notify||"both") : (s.notify||"both")) : "push";
-    if (effNotify==="none") effNotify="both";
-    segSet("notifySeg", effNotify);
+    setDays(s ? (parseInt(s.num_days,10)||1) : 1);
+    $("#f-email").value = s ? (s.email_to||"") : "";
+    segSet("notifySeg", s ? (s.notify||"push") : "push");
 
     var exact = s ? !!(s.time_slot) : false;
     segSet("timeSeg", exact ? "exact" : "window");
@@ -473,6 +544,7 @@
     $("#f-ws").value = (s && s.window_start) || "19:00";
     $("#f-we").value = (s && s.window_end) || "21:30";
     $("#f-exact").value = (s && s.time_slot) || "19:00";
+    $("#timeChips").innerHTML = "";
 
     sheetDates = s ? getDates(s).slice() : [];
     renderDateChips();
@@ -485,33 +557,29 @@
   $("#refreshBtn").onclick = function(){ this.classList.add("spin"); var b=this; loadConfig(); setTimeout(function(){ b.classList.remove("spin"); }, 700); };
 
   $("#saveBtn").onclick = function(){
+    var plat = segGet("platSeg") || "sevenrooms";
     var name = $("#f-name").value.trim();
-    var venues = $("#f-venues").value.split(",").map(function(v){return v.trim();}).filter(Boolean);
+    var venues = $("#f-venues").value.split(",").map(function(v){return extractSlug(v, plat);}).filter(Boolean);
     if (!venues.length){ toast("Add at least one venue slug", true); return; }
     var exact = segGet("timeSeg") === "exact";
     var dates = sheetDates.slice(); if(!dates.length){ toast("Add at least one date", true); return; }
     var rec = {
       id: name || "Untitled",
-      platform: segGet("platSeg") || "sevenrooms",
+      platform: plat,
       venues: venues,
       party_size: party,
       date: dates[0],
       dates: dates,
-      num_days: 1,
+      num_days: numDays,
       time_slot: exact ? ($("#f-exact").value.trim()) : "",
       window_start: exact ? "" : ($("#f-ws").value.trim()),
       window_end: exact ? "" : ($("#f-we").value.trim()),
       notify: segGet("notifySeg") || "push",
-      email_to: "",
+      email_to: $("#f-email").value.trim(),
       salt: String(Date.now())
     };
-    if (STATE.editIndex !== null){
-      var old = STATE.config.searches[STATE.editIndex] || {};
-      rec.email_to = old.email_to || "";
-      STATE.config.searches[STATE.editIndex] = rec;
-    } else {
-      STATE.config.searches.push(rec);
-    }
+    if (STATE.editIndex !== null){ STATE.config.searches[STATE.editIndex] = rec; }
+    else { STATE.config.searches.push(rec); }
     var btn = this; btn.disabled = true;
     saveConfig(STATE.editIndex!==null ? "Changes saved" : "Now watching "+rec.id)
       .then(function(){ closeSheet(); })
