@@ -4,6 +4,14 @@ name = "sevenrooms-notifier"
 main = "worker.js"
 compatibility_date = "2026-01-01"
 
+# Non-secret settings live here so `wrangler deploy` keeps them instead of
+# wiping dashboard-added vars. The SECRETS — GITHUB_TOKEN and ACCESS_KEY —
+# stay in the dashboard (Settings → Variables and Secrets); deploys preserve
+# those. Do NOT put secrets in this file (it's committed to the repo).
+[vars]
+GH_REPO = "timobaaij/sevenrooms-notifier"
+GH_BRANCH = "main"
+
 # Serve the PWA's static files, and expose them to the Worker as env.ASSETS.
 [assets]
 directory = "."
