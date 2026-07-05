@@ -1,0 +1,6 @@
+# Files that should NOT be served to the public as static assets.
+worker.js
+wrangler.toml
+.assetsignore
+README.md
+functions/

@@ -1,0 +1,10 @@
+# Cloudflare Worker config for the Maître PWA.
+# Deploy from this directory (set the project's Root directory to "webapp").
+name = "sevenrooms-notifier"
+main = "worker.js"
+compatibility_date = "2026-01-01"
+
+# Serve the PWA's static files, and expose them to the Worker as env.ASSETS.
+[assets]
+directory = "."
+binding = "ASSETS"

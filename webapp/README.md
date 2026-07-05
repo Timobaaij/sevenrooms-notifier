@@ -17,7 +17,11 @@ Phone (PWA)  ──HTTPS──▶  Cloudflare Pages  ──token──▶  GitHu
 
 ---
 
-## Deploy to Cloudflare Pages (free, automatic HTTPS)
+## Deploy to Cloudflare (free, automatic HTTPS)
+
+This deploys as a **Cloudflare Worker with static assets**. `wrangler.toml` and
+`worker.js` in this folder pin the config, so Cloudflare won't try to auto-guess
+a framework (that guess is what produced the `npx hugo` build error).
 
 ### 1. Create a GitHub token
 At <https://github.com/settings/tokens?type=beta> → **Generate new token** →
@@ -26,42 +30,44 @@ At <https://github.com/settings/tokens?type=beta> → **Generate new token** →
 
 Copy the token (starts with `github_pat_…`).
 
-### 2. Create the Pages project
-1. Sign in at <https://dash.cloudflare.com> (free; you can log in with GitHub).
-2. **Workers & Pages → Create → Pages → Connect to Git**, and pick the
-   `sevenrooms-notifier` repo.
-3. Set up builds and deployments:
-   | Setting | Value |
-   |---|---|
-   | Production branch | `main` |
-   | Framework preset | **None** |
-   | Build command | *(leave empty)* |
-   | Build output directory | *(leave empty / `/`)* |
-   | **Root directory (advanced)** | `webapp` |
+### 2. Connect the repo
+Sign in at <https://dash.cloudflare.com> → **Workers & Pages → Create → Import a
+repository** → pick `sevenrooms-notifier`.
 
-   > The **Root directory = `webapp`** is what makes the app files and the
-   > `functions/` proxy resolve correctly. With it set, `functions/api/config.js`
-   > is served at `/api/config`.
-
-4. **Save and Deploy.**
-
-### 3. Set environment variables
-In the new project → **Settings → Environment variables → Production** → add:
-
-| Name | Value |
+### 3. Build settings — the important bit
+| Setting | Value |
 |---|---|
-| `GITHUB_TOKEN` | the token from step 1 (mark as **Secret**) |
-| `GH_REPO` | `timobaaij/sevenrooms-notifier` |
-| `GH_BRANCH` | `main` |
-| `ACCESS_KEY` | a passphrase you choose (recommended — gates the app) |
+| **Root directory** | **`webapp`**  ← critical: where `wrangler.toml` lives |
+| Build command | *(leave empty)* |
+| Deploy command | `npx wrangler deploy` *(the default)* |
+| Production branch | `main` |
 
-Then **Deployments → Retry deployment** so the variables take effect.
+> **Already created it and the build failed with `npx hugo`?** Open the project
+> → **Settings → Build** → set **Root directory = `webapp`**, clear any build
+> command, save, then **Retry deployment**. With `wrangler.toml` present it will
+> stop guessing Hugo and deploy the app.
 
-### 4. Open & install on your phone
-1. Visit your `https://<project>.pages.dev` URL.
+### 4. Set variables & secrets
+Project → **Settings → Variables and Secrets** → add:
+
+| Name | Type | Value |
+|---|---|---|
+| `GITHUB_TOKEN` | Secret | the token from step 1 |
+| `GH_REPO` | Text | `timobaaij/sevenrooms-notifier` |
+| `GH_BRANCH` | Text | `main` |
+| `ACCESS_KEY` | Secret | a passphrase you choose (gates the app) |
+
+Then **redeploy** so they take effect.
+
+### 5. Open & install on your phone
+1. Visit your `https://<name>.workers.dev` URL.
 2. If you set `ACCESS_KEY`, the app asks for it once and remembers it.
 3. **iPhone:** Share → **Add to Home Screen**. **Android:** the browser offers
    **Install app**. It now opens fullscreen with its own icon — like a native app.
+
+*(Prefer Cloudflare **Pages** instead? This also works there: create a Pages
+project, Root directory `webapp`, no build command — the `functions/` folder is
+picked up automatically and `wrangler.toml`/`worker.js` are ignored.)*
 
 ---
 
