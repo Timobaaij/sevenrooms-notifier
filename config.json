@@ -44,6 +44,25 @@
       "notify": "push",
       "email_to": "",
       "salt": "1783251844017"
+    },
+    {
+      "id": "Soma",
+      "platform": "sevenrooms",
+      "venues": [
+        "somasoho"
+      ],
+      "party_size": 2,
+      "date": "2026-07-16",
+      "dates": [
+        "2026-07-16"
+      ],
+      "num_days": 1,
+      "time_slot": "",
+      "window_start": "20:00",
+      "window_end": "22:30",
+      "notify": "push",
+      "email_to": "",
+      "salt": "1783285541578"
     }
   ]
 }
