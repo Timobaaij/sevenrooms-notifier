@@ -225,8 +225,13 @@ def fetch_opentable_slots(slug: str, date_yyyy_mm_dd: str, party: int, debug: bo
 # MAIN SCHEDULER LOGIC
 # =========================================================
 def main() -> None:
-    config = load_json("config.json", {"searches": []})
-    state = load_json("state.json", {"notified": []})
+    # Paths are configurable so the watcher can run anywhere (e.g. a VM with
+    # state kept outside the git checkout). Defaults preserve existing behaviour.
+    config_path = os.environ.get("CONFIG_PATH", "config.json")
+    state_path = os.environ.get("STATE_PATH", "state.json")
+
+    config = load_json(config_path, {"searches": []})
+    state = load_json(state_path, {"notified": []})
     notified = set(state.get("notified", []))
 
     global_cfg = config.get("global", {}) or {}
@@ -236,7 +241,8 @@ def main() -> None:
     delay = float(global_cfg.get("delay_between_venues_sec", 0.5))
     debug = bool(global_cfg.get("debug", False))
 
-    pushover_email = "bfxfnhvuie@pomail.net"
+    # Contact targets come from the environment so nothing personal is hardcoded.
+    pushover_email = os.environ.get("PUSHOVER_EMAIL", "").strip() or "bfxfnhvuie@pomail.net"
 
     for search in config.get("searches", []):
         sid = search.get("id") or "Unnamed"
@@ -255,7 +261,7 @@ def main() -> None:
         window_start = (search.get("window_start") or "").strip()
         window_end = (search.get("window_end") or "").strip()
         notify_mode = (search.get("notify") or "both").lower()
-        email_to = search.get("email_to")
+        email_to = (search.get("email_to") or os.environ.get("EMAIL_TO", "")).strip()
         salt = str(search.get("salt") or "")
 
         candidates: List[Tuple[str, str]] = []
@@ -299,7 +305,7 @@ def main() -> None:
             push_ok = False
             email_ok = False
 
-            if notify_mode in ("push", "both"):
+            if notify_mode in ("push", "both") and pushover_email:
                 push_ok = send_email(pushover_email, f"Table Alert: {sid}", msg, debug=debug)
 
             if notify_mode in ("email", "both") and email_to:
@@ -308,7 +314,7 @@ def main() -> None:
             if push_ok or email_ok:
                 for fp, _ in candidates: notified.add(fp)
 
-    save_json("state.json", {"notified": list(notified)[-2000:]})
+    save_json(state_path, {"notified": list(notified)[-2000:]})
 
 if __name__ == "__main__":
     main()
