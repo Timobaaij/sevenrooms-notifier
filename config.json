@@ -25,6 +25,25 @@
       "notify": "push",
       "email_to": "",
       "salt": "1783244947422"
+    },
+    {
+      "id": "Yasmin",
+      "platform": "sevenrooms",
+      "venues": [
+        "yasmin"
+      ],
+      "party_size": 2,
+      "date": "2026-07-16",
+      "dates": [
+        "2026-07-16"
+      ],
+      "num_days": 1,
+      "time_slot": "",
+      "window_start": "19:00",
+      "window_end": "21:30",
+      "notify": "push",
+      "email_to": "",
+      "salt": "1783251844017"
     }
   ]
 }
