@@ -1,6 +1,10 @@
-/* Maître service worker — caches the app shell so it installs & opens offline.
-   The /api/config proxy is always fetched live (never cached). */
-const CACHE = "maitre-v1";
+/* Maître service worker.
+ * - The app page is fetched NETWORK-FIRST, so a Cloudflare redeploy shows up on
+ *   your phone immediately when online (cache is only the offline fallback).
+ * - Static assets are cache-first with a background refresh.
+ * - The /api/* proxy is never cached.
+ */
+const CACHE = "maitre-v2";
 const SHELL = [
   "./",
   "index.html",
@@ -25,23 +29,41 @@ self.addEventListener("activate", (e) => {
 });
 
 self.addEventListener("fetch", (e) => {
-  const url = new URL(e.request.url);
-  // Never intercept the API — always go to the network so data is fresh.
-  if (url.pathname.endsWith("/api/config")) return;
-  if (e.request.method !== "GET") return;
+  const req = e.request;
+  const url = new URL(req.url);
 
-  // Cache-first for the shell, with a background refresh.
+  // Never intercept the API — always live.
+  if (url.pathname.endsWith("/api/config") || url.pathname.endsWith("/api/times")) return;
+  if (req.method !== "GET") return;
+
+  const isPage = req.mode === "navigate" || (req.headers.get("accept") || "").includes("text/html");
+
+  if (isPage) {
+    // Network-first: newest deploy wins; cache is the offline fallback.
+    e.respondWith(
+      fetch(req)
+        .then((resp) => {
+          const copy = resp.clone();
+          caches.open(CACHE).then((c) => c.put("index.html", copy));
+          return resp;
+        })
+        .catch(() => caches.match(req).then((r) => r || caches.match("index.html")))
+    );
+    return;
+  }
+
+  // Static assets: cache-first with a quiet background refresh.
   e.respondWith(
-    caches.match(e.request).then((cached) => {
-      const network = fetch(e.request)
+    caches.match(req).then((cached) => {
+      const network = fetch(req)
         .then((resp) => {
           if (resp && resp.status === 200 && resp.type === "basic") {
             const copy = resp.clone();
-            caches.open(CACHE).then((c) => c.put(e.request, copy));
+            caches.open(CACHE).then((c) => c.put(req, copy));
           }
           return resp;
         })
-        .catch(() => cached || caches.match("index.html"));
+        .catch(() => cached);
       return cached || network;
     })
   );
