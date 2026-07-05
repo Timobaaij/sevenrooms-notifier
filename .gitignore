@@ -1,0 +1,11 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Local state (the VM keeps its own; never commit runtime state)
+.maitre/
+
+# OS / editor cruft
+.DS_Store
