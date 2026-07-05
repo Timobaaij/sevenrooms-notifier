@@ -24,6 +24,25 @@
       "notify": "both",
       "email_to": "",
       "salt": "1783243194915"
+    },
+    {
+      "id": "X",
+      "platform": "sevenrooms",
+      "venues": [
+        "X"
+      ],
+      "party_size": 2,
+      "date": "2026-07-08",
+      "dates": [
+        "2026-07-08"
+      ],
+      "num_days": 1,
+      "time_slot": "",
+      "window_start": "19:00",
+      "window_end": "21:30",
+      "notify": "push",
+      "email_to": "",
+      "salt": "1783244431115"
     }
   ]
 }
