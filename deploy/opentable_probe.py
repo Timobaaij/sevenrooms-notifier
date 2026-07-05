@@ -26,6 +26,12 @@ except Exception as e:
 
 html, low = r.text, r.text.lower()
 print(f"HTTP {r.status_code}   {len(html)} bytes")
+print("final URL       :", getattr(r, "url", "?"))
+print("content-type    :", r.headers.get("content-type"))
+print("server          :", r.headers.get("server"))
+_redir = re.search(r'http-equiv=["\']refresh|window\.location|location\.href|location\.replace', html, re.I)
+if _redir:
+    print("client redirect :", _redir.group(0), "(page bounces via JS/meta)")
 
 blockers = [b for b in ["access denied", "pardon our interruption", "captcha", "datadome",
             "perimeterx", "px-captcha", "unusual traffic", "are you a human",
@@ -44,6 +50,12 @@ print("times the scraper finds :", sorted(set(times)) or "NONE")
 
 apis = sorted(set(re.findall(r'/dapi/[A-Za-z0-9/_-]+', html)))[:12]
 print("OpenTable API paths seen:", apis or "none in HTML (availability is fetched client-side)")
+
+if len(html) < 8000:
+    print("\n----- RAW BODY (response was small — showing it in full) -----")
+    print(html)
+    print("----- END RAW BODY -----")
+
 print("\nVerdict:")
 if blockers:
     print("  -> IP appears BOT-BLOCKED. Scraping won't work from this host.")
