@@ -1,0 +1,489 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Deploy your table-watcher on Oracle Cloud — step by step</title>
+<style>
+  :root{
+    color-scheme: dark;
+    --bg:#0a1020; --bg2:#0c1424;
+    --panel:#111c34; --panel2:#16233f;
+    --ink:#eaeef7; --ink-soft:#bac5da; --muted:#8593ad; --faint:#5f6b86;
+    --gold:#e4c47c; --gold-bright:#f4db9a; --gold-deep:#c9a24e;
+    --line:rgba(228,196,124,.18); --line-soft:rgba(255,255,255,.08);
+    --code-bg:#070d1a; --code-ink:#dfe6f2;
+    --tip:#74d3ab; --warn:#e6b45f; --danger:#e88a8a;
+    --serif:"New York",ui-serif,Georgia,"Hoefler Text","Times New Roman",serif;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;
+    --mono:ui-monospace,"SF Mono","Cascadia Code","Roboto Mono",Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0; background:
+      radial-gradient(1200px 600px at 50% -10%, #10203f 0%, transparent 55%),
+      var(--bg);
+    color:var(--ink); font-family:var(--sans);
+    font-size:17px; line-height:1.7; -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:840px; margin:0 auto; padding:48px 22px 96px}
+  a{color:var(--gold); text-decoration:none; border-bottom:1px solid var(--line)}
+  a:hover{color:var(--gold-bright)}
+
+  /* Header */
+  .eyebrow{font-size:12px; font-weight:700; letter-spacing:.22em; text-transform:uppercase; color:var(--gold-deep); margin:0 0 14px}
+  h1{font-family:var(--serif); font-weight:500; font-size:clamp(30px,6vw,46px); line-height:1.05; letter-spacing:-.01em; color:#f6f1e6; margin:0 0 14px; text-wrap:balance}
+  .lede{color:var(--ink-soft); font-size:19px; margin:0 0 24px; max-width:64ch}
+  .metabar{display:flex; flex-wrap:wrap; gap:10px; margin:0 0 30px}
+  .chip{display:inline-flex; align-items:center; gap:7px; height:32px; padding:0 13px; border-radius:999px; font-size:13px; font-weight:600; color:var(--ink-soft); background:rgba(255,255,255,.04); border:1px solid var(--line-soft)}
+  .chip b{color:var(--gold)}
+  .brand{display:flex; align-items:center; gap:10px; margin-bottom:30px}
+  .diamond{width:10px; height:10px; transform:rotate(45deg); background:linear-gradient(135deg,var(--gold-bright),var(--gold-deep)); box-shadow:0 0 12px rgba(228,196,124,.4)}
+  .brand span{font-family:var(--serif); text-transform:uppercase; letter-spacing:.18em; color:#f6f1e6; font-size:17px}
+
+  /* Callouts */
+  .call{border-radius:14px; padding:15px 17px; margin:22px 0; border:1px solid var(--line-soft); background:var(--panel); font-size:15.5px; line-height:1.62}
+  .call p{margin:0}
+  .call .tag{display:block; font-weight:700; font-size:12px; letter-spacing:.08em; text-transform:uppercase; margin-bottom:5px}
+  .call.tip{border-left:none; background:linear-gradient(120deg,rgba(116,211,171,.10),var(--panel))}
+  .call.tip .tag{color:var(--tip)}
+  .call.warn{background:linear-gradient(120deg,rgba(230,180,95,.12),var(--panel))}
+  .call.warn .tag{color:var(--warn)}
+  .call.danger{background:linear-gradient(120deg,rgba(232,138,138,.12),var(--panel))}
+  .call.danger .tag{color:var(--danger)}
+  .call.note .tag{color:var(--gold-deep)}
+
+  /* TOC */
+  .toc{background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:20px 24px; margin:30px 0 44px}
+  .toc h2{font-size:12px; letter-spacing:.16em; text-transform:uppercase; color:var(--gold-deep); margin:0 0 12px; font-family:var(--sans); font-weight:700}
+  .toc ol{margin:0; padding-left:22px; columns:2; column-gap:34px}
+  .toc li{margin:6px 0; break-inside:avoid}
+  .toc a{color:var(--ink-soft); border:none}
+  .toc a:hover{color:var(--gold)}
+
+  /* Sections */
+  section{margin:0 0 12px; padding:28px 0 4px; border-top:1px solid var(--line-soft)}
+  section:first-of-type{border-top:none}
+  .part{font-size:12px; font-weight:700; letter-spacing:.2em; text-transform:uppercase; color:var(--gold-deep); margin:0 0 6px}
+  h2.title{font-family:var(--serif); font-weight:500; font-size:clamp(23px,4.5vw,30px); color:#f6f1e6; margin:0 0 6px; letter-spacing:-.005em}
+  section > p{color:var(--ink-soft)}
+
+  /* Steps */
+  ol.steps{list-style:none; counter-reset:step; margin:22px 0 0; padding:0}
+  ol.steps > li{counter-increment:step; position:relative; padding:0 0 22px 52px; margin:0}
+  ol.steps > li::before{
+    content:counter(step); position:absolute; left:0; top:-2px;
+    width:34px; height:34px; border-radius:50%;
+    display:grid; place-items:center;
+    font-family:var(--mono); font-size:15px; font-weight:600; color:#241a05;
+    background:linear-gradient(140deg,var(--gold-bright),var(--gold-deep));
+    box-shadow:0 3px 10px rgba(185,143,66,.3);
+  }
+  ol.steps > li::after{
+    content:""; position:absolute; left:16.5px; top:36px; bottom:2px; width:1px;
+    background:var(--line-soft);
+  }
+  ol.steps > li:last-child::after{display:none}
+  ol.steps > li > .h{font-weight:650; color:var(--ink); display:block; margin:6px 0 2px; font-size:17px}
+  ol.steps p{margin:6px 0}
+  ol.steps ul{margin:8px 0; padding-left:20px}
+  ol.steps ul li{margin:5px 0; color:var(--ink-soft)}
+
+  /* Field pills — for “set this field to that value” */
+  .fields{margin:12px 0; border:1px solid var(--line-soft); border-radius:12px; overflow:hidden}
+  .fields .row{display:flex; gap:12px; padding:11px 15px; border-top:1px solid var(--line-soft); font-size:15px}
+  .fields .row:first-child{border-top:none}
+  .fields .k{flex:0 0 42%; color:var(--muted)}
+  .fields .v{flex:1; color:var(--ink)}
+  .fields .v b{color:var(--gold-bright); font-weight:600}
+  kbd{font-family:var(--mono); font-size:.85em; background:rgba(255,255,255,.07); border:1px solid var(--line-soft); border-bottom-width:2px; border-radius:6px; padding:1px 6px; color:var(--ink)}
+  .ui{color:var(--gold-bright); font-weight:600}
+
+  /* Code */
+  .cmd{position:relative; margin:14px 0}
+  .cmd pre{margin:0; background:var(--code-bg); border:1px solid var(--line-soft); border-radius:12px; padding:15px 16px; overflow-x:auto}
+  .cmd code{font-family:var(--mono); font-size:14px; color:var(--code-ink); line-height:1.6; white-space:pre}
+  .cmd .copy{position:absolute; top:9px; right:9px; height:28px; padding:0 11px; border-radius:8px; border:1px solid var(--line); background:rgba(228,196,124,.08); color:var(--gold); font:600 12px var(--sans); cursor:pointer; transition:background .15s,color .15s}
+  .cmd .copy:hover{background:var(--gold); color:#241a05}
+  .cmd .copy.done{background:var(--tip); color:#062018; border-color:transparent}
+  code.inline{font-family:var(--mono); font-size:.86em; background:rgba(255,255,255,.06); border:1px solid var(--line-soft); border-radius:6px; padding:1px 6px; color:var(--gold-bright); white-space:nowrap}
+
+  /* Details / troubleshooting */
+  details{border:1px solid var(--line-soft); border-radius:12px; padding:2px 18px; margin:12px 0; background:var(--panel)}
+  details[open]{background:var(--panel2)}
+  summary{cursor:pointer; padding:14px 0; font-weight:600; color:var(--ink); list-style:none}
+  summary::-webkit-details-marker{display:none}
+  summary::before{content:"＋"; color:var(--gold); font-family:var(--mono); margin-right:12px; font-weight:700}
+  details[open] summary::before{content:"－"}
+  details .body{padding:0 0 14px 28px}
+  details p:first-child{margin-top:0}
+
+  /* Checklist */
+  .check{list-style:none; margin:16px 0; padding:0}
+  .check li{position:relative; padding:9px 0 9px 34px; border-top:1px solid var(--line-soft); color:var(--ink-soft)}
+  .check li:first-child{border-top:none}
+  .check li::before{content:""; position:absolute; left:0; top:11px; width:19px; height:19px; border-radius:6px; border:1.5px solid var(--gold-deep)}
+  .check li::after{content:"✓"; position:absolute; left:4px; top:8px; color:var(--gold); font-size:13px; font-weight:800}
+
+  hr.grad{border:none; height:1px; background:linear-gradient(90deg,transparent,var(--line),transparent); margin:40px 0}
+  footer{color:var(--faint); font-size:13.5px; text-align:center; margin-top:20px}
+
+  @media (max-width:560px){ .toc ol{columns:1} .fields .row{flex-direction:column; gap:2px} .fields .k{flex-basis:auto} }
+
+  /* Print → ink on paper */
+  @media print{
+    body{background:#fff; color:#111; font-size:12pt}
+    .wrap{max-width:none; padding:0}
+    h1,h2.title,.brand span{color:#111}
+    .part,.eyebrow,.toc h2{color:#8a6d1f}
+    a{color:#8a6d1f}
+    .cmd .copy{display:none}
+    .cmd pre{background:#f4f4f4; border-color:#ccc}
+    .cmd code{color:#111}
+    .call{background:#f7f7f4; border-color:#ddd}
+    .toc,details{background:#f7f7f4}
+    ol.steps > li::before{background:#8a6d1f; color:#fff; box-shadow:none}
+    .metabar{display:none}
+    section{break-inside:avoid}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="brand"><span class="diamond"></span><span>Maître · Deployment</span></div>
+
+  <p class="eyebrow">Step-by-step guide</p>
+  <h1>Run your table-watcher every minute — free, on Oracle Cloud</h1>
+  <p class="lede">Every click, in order, from a blank Oracle account to a watcher that polls SevenRooms &amp; OpenTable once a minute, 24/7, and restarts itself forever. No prior server experience needed.</p>
+
+  <div class="metabar">
+    <span class="chip">⏱ <b>~20–30 min</b> total</span>
+    <span class="chip">💳 Card for ID only — <b>never billed</b></span>
+    <span class="chip">💰 Cost <b>£0 / month</b></span>
+    <span class="chip">🧠 Difficulty <b>beginner</b></span>
+  </div>
+
+  <div class="call note">
+    <span class="tag">About this guide</span>
+    <p>Written against Oracle's Console and official docs as of <b>5 July 2026</b>. Oracle occasionally renames a button or reorders a panel — where that's likely, I name the <span class="ui">landmark</span> to look for so you can adapt. Every command below is copy-ready (hover a code block → <span class="ui">Copy</span>).</p>
+  </div>
+
+  <nav class="toc">
+    <h2>What you'll do</h2>
+    <ol>
+      <li><a href="#p0">Before you start</a></li>
+      <li><a href="#p1">Create an Oracle Cloud account</a></li>
+      <li><a href="#p2">Create the free VM</a></li>
+      <li><a href="#p3">Connect over SSH</a></li>
+      <li><a href="#p4">Install the watcher</a></li>
+      <li><a href="#p5">Add your secrets</a></li>
+      <li><a href="#p6">Confirm it's running</a></li>
+      <li><a href="#p7">Housekeeping &amp; keeping it free</a></li>
+      <li><a href="#trouble">Troubleshooting</a></li>
+      <li><a href="#done">Final checklist</a></li>
+    </ol>
+  </nav>
+
+  <!-- ============ PART 0 ============ -->
+  <section id="p0">
+    <p class="part">Part 0</p>
+    <h2 class="title">Before you start</h2>
+    <p>Have these three things ready — you'll paste them in near the end:</p>
+    <ol class="steps">
+      <li><span class="h">The Gmail address that sends your alerts</span>
+        <p>The same one you use in GitHub today (e.g. <code class="inline">you@gmail.com</code>).</p></li>
+      <li><span class="h">A Gmail <em>App Password</em> (16 characters)</span>
+        <p>Not your normal password. If you don't have one yet, don't worry — <a href="#gmail">Part 5 walks you through creating it</a>.</p></li>
+      <li><span class="h">Your Pushover email-to-push address (optional)</span>
+        <p>The one your notifier already emails for push alerts. Leave blank if you only want email alerts.</p></li>
+    </ol>
+    <div class="call tip"><span class="tag">Good to know</span><p>You never touch code. You'll create a tiny Linux computer in Oracle's cloud, paste <strong>one</strong> install command, fill in a small settings file, and you're done.</p></div>
+  </section>
+
+  <!-- ============ PART 1 ============ -->
+  <section id="p1">
+    <p class="part">Part 1</p>
+    <h2 class="title">Create an Oracle Cloud account</h2>
+    <ol class="steps">
+      <li><span class="h">Go to the free-tier sign-up page</span>
+        <p>Open <a href="https://www.oracle.com/cloud/free/" target="_blank" rel="noopener">oracle.com/cloud/free</a> and click <span class="ui">Start for free</span>.</p></li>
+      <li><span class="h">Enter your country and email</span>
+        <p>Pick your real country, type your email, and click <span class="ui">Verify my email</span>. Open the email from Oracle and click the verification link.</p></li>
+      <li><span class="h">Set your password and account name</span>
+        <p>Create a password. The <span class="ui">Cloud Account Name</span> is a unique label for your tenancy (e.g. <code class="inline">timo-cloud</code>) — remember it, you'll need it to sign in.</p></li>
+      <li><span class="h">Choose your home region — carefully</span>
+        <div class="call warn"><span class="tag">Can't be changed later</span><p>Pick the region <strong>closest to you</strong> (e.g. UK South (London), Germany Central (Frankfurt), or Amsterdam). Your home region is permanent, and Always Free capacity varies by region.</p></div></li>
+      <li><span class="h">Verify by phone</span>
+        <p>Enter your mobile number and type the SMS code.</p></li>
+      <li><span class="h">Add a payment method (identity check only)</span>
+        <div class="call danger"><span class="tag">You will not be charged</span><p>Oracle asks for a card to confirm you're human. <strong>Always Free</strong> resources are free forever and never billed. You may see a temporary ~£1 authorisation hold that reverses itself. As long as you stay on the free tier, the amount owed is £0.</p></div></li>
+      <li><span class="h">Finish and wait for provisioning</span>
+        <p>Click <span class="ui">Start my free trial</span>. Setup takes a few minutes; you'll get an email when your account is ready, then land in the <strong>OCI Console</strong> at <a href="https://cloud.oracle.com" target="_blank" rel="noopener">cloud.oracle.com</a>.</p></li>
+    </ol>
+  </section>
+
+  <!-- ============ PART 2 ============ -->
+  <section id="p2">
+    <p class="part">Part 2</p>
+    <h2 class="title">Create the free VM</h2>
+    <p>You're now in the OCI Console. We'll create one small <em>Always Free</em> Ubuntu machine.</p>
+    <ol class="steps">
+      <li><span class="h">Open the instance creation page</span>
+        <p>Click the <span class="ui">≡</span> navigation menu (top-left) → <span class="ui">Compute</span> → <span class="ui">Instances</span>. Then click <span class="ui">Create instance</span>.</p></li>
+
+      <li><span class="h">Name it &amp; leave placement default</span>
+        <div class="fields">
+          <div class="row"><div class="k">Name</div><div class="v"><b>maitre-notifier</b> (anything you like)</div></div>
+          <div class="row"><div class="k">Compartment</div><div class="v">Leave as-is (your root compartment)</div></div>
+          <div class="row"><div class="k">Placement / Availability domain</div><div class="v">Leave the default</div></div>
+          <div class="row"><div class="k">Capacity type (Advanced)</div><div class="v">Leave <b>On-demand</b> (the default)</div></div>
+        </div></li>
+
+      <li><span class="h">Switch the image to Ubuntu</span>
+        <p>In the <span class="ui">Image and shape</span> section, click <span class="ui">Change image</span>. In the panel:</p>
+        <ul>
+          <li>Choose <span class="ui">Platform Images</span></li>
+          <li>Select <span class="ui">Canonical Ubuntu</span></li>
+          <li>Pick version <b>22.04</b> (24.04 is fine too)</li>
+          <li>Tick the row and click <span class="ui">Select image</span></li>
+        </ul></li>
+
+      <li><span class="h">Choose the free shape</span>
+        <p>Click <span class="ui">Change shape</span>. In the <span class="ui">Browse all shapes</span> panel:</p>
+        <ul>
+          <li>Instance type: <span class="ui">Virtual machine</span></li>
+          <li>Shape series: click <span class="ui">Specialty and previous generation</span></li>
+          <li>Select <b>VM.Standard.E2.1.Micro</b> — it carries an <span class="ui">Always Free-eligible</span> label</li>
+          <li>Click <span class="ui">Select shape</span></li>
+        </ul>
+        <div class="call tip"><span class="tag">Why this shape</span><p>E2.1.Micro (1&nbsp;GB RAM) is tiny but more than enough for a once-a-minute poll, and it's the most reliably <em>available</em> free shape. The Arm shape <code class="inline">VM.Standard.A1.Flex</code> is beefier and also free, but often returns "Out of host capacity" — try it only if you want more power (see Troubleshooting).</p></div></li>
+
+      <li><span class="h">Networking — keep the defaults, keep the public IP</span>
+        <p>Under <span class="ui">Networking</span>, let it <strong>Create a new virtual cloud network</strong>. Confirm <span class="ui">Assign a public IPv4 address</span> is set to <b>Yes</b> (it is, on a public subnet). You do <em>not</em> need to open any ports — the watcher only makes outbound connections, and SSH (port 22) is open by default.</p></li>
+
+      <li><span class="h">Create an SSH key — and SAVE the private key</span>
+        <p>In <span class="ui">Add SSH keys</span>, the simplest option is <span class="ui">Generate a key pair for me</span>. Then:</p>
+        <ul>
+          <li>Click <span class="ui">Save private key</span> — this downloads a file like <code class="inline">ssh-key-2026-07-05.key</code></li>
+          <li>Click <span class="ui">Save public key</span> too (optional backup)</li>
+        </ul>
+        <div class="call danger"><span class="tag">Do this now — no second chance</span><p>You can't re-download the private key later. Keep <code class="inline">ssh-key-2026-07-05.key</code> somewhere safe (e.g. your Downloads or a password manager). It's the only key to your server.</p></div>
+        <p>Already have your own SSH key? Choose <span class="ui">Paste public keys</span> instead and paste your <code class="inline">.pub</code>.</p></li>
+
+      <li><span class="h">Create it</span>
+        <p>Leave <span class="ui">Boot volume</span> at its defaults. Click <span class="ui">Create</span>. After ~1–2 minutes the status turns <b style="color:var(--tip)">Running</b>.</p></li>
+
+      <li><span class="h">Copy the public IP address</span>
+        <p>On the instance details page, find <span class="ui">Public IPv4 address</span> (under Instance access / Primary VNIC). Copy it — e.g. <code class="inline">140.238.x.x</code>. You'll use it next.</p></li>
+    </ol>
+  </section>
+
+  <!-- ============ PART 3 ============ -->
+  <section id="p3">
+    <p class="part">Part 3</p>
+    <h2 class="title">Connect over SSH</h2>
+    <p>Now open a terminal on your own computer and log into the server. The login name depends on the image you chose: <code class="inline">ubuntu</code> for Ubuntu, or <code class="inline">opc</code> for the Oracle Linux default.</p>
+    <div class="call note"><span class="tag">Which one am I?</span><p>If unsure, just try <code class="inline">ubuntu@…</code> first; if it's refused, use <code class="inline">opc@…</code>. The installer works on either OS.</p></div>
+
+    <ol class="steps">
+      <li><span class="h">macOS or Linux</span>
+        <p>Open <strong>Terminal</strong>. Lock down the key's permissions, then connect (swap in your key's filename and your server's IP):</p>
+        <div class="cmd"><button class="copy">Copy</button><pre><code>chmod 400 ~/Downloads/ssh-key-2026-07-05.key
+ssh -i ~/Downloads/ssh-key-2026-07-05.key ubuntu@&lt;YOUR_PUBLIC_IP&gt;</code></pre></div>
+      </li>
+      <li><span class="h">Windows</span>
+        <p>Open <strong>PowerShell</strong> or <strong>Windows Terminal</strong> (SSH is built in) and run:</p>
+        <div class="cmd"><button class="copy">Copy</button><pre><code>ssh -i C:\Users\YOU\Downloads\ssh-key-2026-07-05.key ubuntu@&lt;YOUR_PUBLIC_IP&gt;</code></pre></div>
+        <p>If Windows complains the key is too open, run this once, then retry the <code class="inline">ssh</code> command:</p>
+        <div class="cmd"><button class="copy">Copy</button><pre><code>icacls C:\Users\YOU\Downloads\ssh-key-2026-07-05.key /inheritance:r /grant:r "%USERNAME%:R"</code></pre></div>
+      </li>
+      <li><span class="h">Accept the fingerprint</span>
+        <p>The first time, it asks <em>"Are you sure you want to continue connecting?"</em> — type <kbd>yes</kbd> and press <kbd>Enter</kbd>. You're in when the prompt reads <code class="inline">ubuntu@maitre-notifier:~$</code>.</p></li>
+    </ol>
+    <div class="call warn"><span class="tag">Can't connect?</span><p>Jump to <a href="#ts-ssh">Troubleshooting → SSH</a>. Usual causes: wrong key filename, wrong IP, or you used a username other than <code class="inline">ubuntu</code>.</p></div>
+  </section>
+
+  <!-- ============ PART 4 ============ -->
+  <section id="p4">
+    <p class="part">Part 4</p>
+    <h2 class="title">Install the watcher</h2>
+    <p>Everything from here runs <strong>on the server</strong> (in that SSH window). Paste these three lines one after another:</p>
+    <div class="cmd"><button class="copy">Copy</button><pre><code>git clone -b claude/iphone-app-feasibility-788w8h https://github.com/timobaaij/sevenrooms-notifier.git
+cd sevenrooms-notifier
+bash deploy/setup.sh</code></pre></div>
+    <p>The script installs Python, its dependencies, and a background service that runs your watcher 24/7. It takes a minute or two and prints <em>"Done."</em> when finished.</p>
+
+    <div class="call note"><span class="tag">Once this is merged to your main branch</span><p>You can drop the <code class="inline">-b claude/iphone-app-feasibility-788w8h</code> flag and just clone normally.</p></div>
+
+    <details id="private-repo">
+      <summary>If your repository is private</summary>
+      <div class="body">
+        <p>A private repo needs a token to clone. Create a fine-grained token at <a href="https://github.com/settings/tokens?type=beta" target="_blank" rel="noopener">github.com/settings/tokens</a> → limited to this one repo → <strong>Contents: Read-only</strong>. Then clone with the token in the URL (it's saved so the hourly <code class="inline">git pull</code> keeps working):</p>
+        <div class="cmd"><button class="copy">Copy</button><pre><code>git clone -b claude/iphone-app-feasibility-788w8h https://YOUR_TOKEN@github.com/timobaaij/sevenrooms-notifier.git</code></pre></div>
+        <p>Everything else is identical.</p>
+      </div>
+    </details>
+  </section>
+
+  <!-- ============ PART 5 ============ -->
+  <section id="p5">
+    <p class="part">Part 5</p>
+    <h2 class="title">Add your secrets</h2>
+    <ol class="steps">
+      <li><span class="h">Open the settings file</span>
+        <div class="cmd"><button class="copy">Copy</button><pre><code>nano ~/.maitre/notifier.env</code></pre></div>
+        <p>This opens a simple text editor. Fill in your values after each <code class="inline">=</code> sign:</p>
+        <div class="fields">
+          <div class="row"><div class="k"><code class="inline">EMAIL_USER</code></div><div class="v">Your sending Gmail address</div></div>
+          <div class="row"><div class="k"><code class="inline">EMAIL_PASS</code></div><div class="v">Your 16-char Gmail App Password (below)</div></div>
+          <div class="row"><div class="k"><code class="inline">PUSHOVER_EMAIL</code></div><div class="v">Your Pushover push address (or leave blank)</div></div>
+          <div class="row"><div class="k"><code class="inline">EMAIL_TO</code></div><div class="v">Optional fallback address for email alerts</div></div>
+          <div class="row"><div class="k"><code class="inline">POLL_INTERVAL</code></div><div class="v"><b>60</b> = every minute</div></div>
+        </div></li>
+      <li><span class="h">Save and exit nano</span>
+        <p>Press <kbd>Ctrl</kbd>+<kbd>O</kbd> then <kbd>Enter</kbd> to save, then <kbd>Ctrl</kbd>+<kbd>X</kbd> to quit.</p></li>
+      <li><span class="h">Restart the watcher so it picks up your secrets</span>
+        <div class="cmd"><button class="copy">Copy</button><pre><code>sudo systemctl restart maitre-notifier</code></pre></div></li>
+    </ol>
+
+    <h3 id="gmail" style="font-family:var(--serif);font-weight:500;color:#f6f1e6;margin-top:30px">Creating a Gmail App Password</h3>
+    <ol class="steps">
+      <li><span class="h">Turn on 2-Step Verification</span>
+        <p>Go to <a href="https://myaccount.google.com/security" target="_blank" rel="noopener">myaccount.google.com/security</a> → enable <span class="ui">2-Step Verification</span> if it isn't already. (App Passwords require it.)</p></li>
+      <li><span class="h">Generate the App Password</span>
+        <p>Open <a href="https://myaccount.google.com/apppasswords" target="_blank" rel="noopener">myaccount.google.com/apppasswords</a>, name it <code class="inline">maitre</code>, and click <span class="ui">Create</span>.</p></li>
+      <li><span class="h">Copy the 16 characters</span>
+        <p>Paste them (no spaces) as your <code class="inline">EMAIL_PASS</code> value in the settings file above.</p></li>
+    </ol>
+  </section>
+
+  <!-- ============ PART 6 ============ -->
+  <section id="p6">
+    <p class="part">Part 6</p>
+    <h2 class="title">Confirm it's running</h2>
+    <p>Watch the live log:</p>
+    <div class="cmd"><button class="copy">Copy</button><pre><code>journalctl -u maitre-notifier -f</code></pre></div>
+    <p>You should see a line roughly every 60 seconds as it polls. Press <kbd>Ctrl</kbd>+<kbd>C</kbd> to stop watching the log (this does <em>not</em> stop the watcher). A quick health check any time:</p>
+    <div class="cmd"><button class="copy">Copy</button><pre><code>systemctl status maitre-notifier</code></pre></div>
+    <p>Look for <b style="color:var(--tip)">active (running)</b>. That's it — your watcher now runs every minute, forever, for free, and comes back on its own after any reboot.</p>
+    <div class="call tip"><span class="tag">Test it end-to-end</span><p>Add a search in your web dashboard for a time you know is available, wait a minute, and confirm the alert lands. Then set it back to what you actually want.</p></div>
+  </section>
+
+  <!-- ============ PART 7 ============ -->
+  <section id="p7">
+    <p class="part">Part 7</p>
+    <h2 class="title">Housekeeping &amp; keeping it free</h2>
+    <ol class="steps">
+      <li><span class="h">Turn off GitHub Actions (avoid double-polling)</span>
+        <p>In your repo on GitHub: <span class="ui">Settings</span> → <span class="ui">Actions</span> → <span class="ui">General</span> → <span class="ui">Disable actions</span>. (Or delete <code class="inline">.github/workflows/sevenrooms-notifier.yml</code>.) Your VM is the watcher now.</p></li>
+      <li><span class="h">Keep the free VM from being reclaimed</span>
+        <div class="call warn"><span class="tag">Important for Always Free</span><p>Oracle may reclaim an <em>idle</em> Always Free machine (CPU &amp; network under 20% for 7 days). A once-a-minute poll uses very little, so to be safe do <strong>one</strong> of these:</p></div>
+        <ul>
+          <li><b>Best:</b> In the Console, upgrade the account to <span class="ui">Pay As You Go</span>. This <strong>keeps everything free</strong> within the Always Free limits but exempts your instance from idle-reclamation. (You're only ever charged if you exceed free limits — this tiny VM won't.)</li>
+          <li><b>Or:</b> do nothing and simply re-run this guide if it's ever reclaimed (rare, and your searches live safely in GitHub).</li>
+        </ul></li>
+      <li><span class="h">Updating later</span>
+        <p>When the code changes, SSH in and run:</p>
+        <div class="cmd"><button class="copy">Copy</button><pre><code>cd ~/sevenrooms-notifier
+git pull
+bash deploy/setup.sh
+sudo systemctl restart maitre-notifier</code></pre></div></li>
+      <li><span class="h">Pause / resume the watcher</span>
+        <div class="cmd"><button class="copy">Copy</button><pre><code>sudo systemctl stop maitre-notifier     # pause
+sudo systemctl start maitre-notifier    # resume</code></pre></div></li>
+    </ol>
+  </section>
+
+  <!-- ============ TROUBLESHOOTING ============ -->
+  <section id="trouble">
+    <p class="part">Reference</p>
+    <h2 class="title">Troubleshooting</h2>
+
+    <details id="ts-ssh">
+      <summary>SSH won't connect / "Permission denied" / timeout</summary>
+      <div class="body">
+        <ul>
+          <li><b>Username:</b> it must be <code class="inline">ubuntu</code> for Ubuntu images (not <code class="inline">root</code> or your name).</li>
+          <li><b>Key path &amp; name:</b> confirm the filename matches what you downloaded and the path is correct.</li>
+          <li><b>Permissions (Mac/Linux):</b> run <code class="inline">chmod 400</code> on the key first.</li>
+          <li><b>Right IP:</b> re-copy the <span class="ui">Public IPv4 address</span> from the instance page.</li>
+          <li><b>Timeout:</b> in the Console open your instance → its <span class="ui">Subnet</span> → <span class="ui">Security List</span> → confirm an ingress rule allows TCP <b>22</b> from <code class="inline">0.0.0.0/0</code> (present by default).</li>
+        </ul>
+      </div>
+    </details>
+
+    <details>
+      <summary>"Out of host capacity" when creating the instance</summary>
+      <div class="body">
+        <p>This almost always happens with the Arm <code class="inline">A1.Flex</code> shape. Fixes, in order:</p>
+        <ul>
+          <li>Use <b>VM.Standard.E2.1.Micro</b> instead (Part 2, step 4) — it's rarely capacity-constrained.</li>
+          <li>If you specifically want A1: try a different <span class="ui">Availability domain</span> in the dropdown, or retry later — free Arm capacity frees up in waves.</li>
+        </ul>
+      </div>
+    </details>
+
+    <details>
+      <summary>No alerts arriving</summary>
+      <div class="body">
+        <ul>
+          <li>Check the log for errors: <code class="inline">journalctl -u maitre-notifier -n 50</code>.</li>
+          <li><b>Gmail:</b> make sure <code class="inline">EMAIL_PASS</code> is an <em>App Password</em>, not your normal password, and that you saved the file and restarted the service.</li>
+          <li>Re-open <code class="inline">nano ~/.maitre/notifier.env</code> and check for typos / stray spaces, then <code class="inline">sudo systemctl restart maitre-notifier</code>.</li>
+          <li>Confirm the search actually has availability at the requested time.</li>
+        </ul>
+      </div>
+    </details>
+
+    <details>
+      <summary>Service shows "failed" or keeps restarting</summary>
+      <div class="body">
+        <p>Read the last lines: <code class="inline">journalctl -u maitre-notifier -n 80 --no-pager</code>. If dependencies didn't install, re-run <code class="inline">bash deploy/setup.sh</code>. If Python errors mention a missing package, run <code class="inline">~/sevenrooms-notifier/.venv/bin/pip install -r ~/sevenrooms-notifier/requirements.txt</code> then restart.</p>
+      </div>
+    </details>
+
+    <details>
+      <summary>My searches on the VM don't match the web dashboard</summary>
+      <div class="body">
+        <p>The loop runs <code class="inline">git pull</code> each minute to fetch edits you make in the web app. If your repo is private and you cloned without a token, that pull can't authenticate — see <a href="#private-repo">Part 4 → private repository</a>, re-clone with a token, and re-run setup.</p>
+      </div>
+    </details>
+  </section>
+
+  <hr class="grad" />
+
+  <!-- ============ CHECKLIST ============ -->
+  <section id="done" style="border-top:none">
+    <p class="part">You're done when</p>
+    <h2 class="title">Final checklist</h2>
+    <ul class="check">
+      <li>Oracle account created; home region set close to you</li>
+      <li>Always Free <b>VM.Standard.E2.1.Micro</b> Ubuntu instance is <b>Running</b></li>
+      <li>Private key saved; you can SSH in as <code class="inline">ubuntu</code></li>
+      <li><code class="inline">bash deploy/setup.sh</code> finished with "Done."</li>
+      <li>Secrets filled into <code class="inline">~/.maitre/notifier.env</code>; service restarted</li>
+      <li><code class="inline">systemctl status</code> shows <b>active (running)</b>; log ticks every ~60s</li>
+      <li>GitHub Actions disabled; account on Pay As You Go (or you'll re-create if reclaimed)</li>
+      <li>A test alert arrived on your phone</li>
+    </ul>
+    <footer>Maître · every-minute table watcher · guide generated 5 July 2026</footer>
+  </section>
+
+</div>
+
+<script>
+  // Click-to-copy for every command block. Progressive — page works without it.
+  document.querySelectorAll('.cmd .copy').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var code = btn.parentElement.querySelector('code').innerText;
+      navigator.clipboard.writeText(code).then(function(){
+        var t = btn.textContent; btn.textContent = 'Copied'; btn.classList.add('done');
+        setTimeout(function(){ btn.textContent = t; btn.classList.remove('done'); }, 1400);
+      }).catch(function(){ btn.textContent = 'Ctrl+C'; });
+    });
+  });
+</script>
+</body>
+</html>
