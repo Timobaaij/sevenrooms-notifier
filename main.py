@@ -11,7 +11,6 @@ import re
 import smtplib
 from email.message import EmailMessage
 from typing import Any, List, Optional, Tuple
-from curl_cffi import requests as c_requests
 
 # =========================================================
 # JSON HELPERS
@@ -169,56 +168,6 @@ def fetch_sevenrooms_slots(
                 if iso: out.append(str(iso))
     return out
 
-def fetch_opentable_slots(slug: str, date_yyyy_mm_dd: str, party: int, debug: bool = False) -> List[str]:
-    url = f"https://www.opentable.co.uk/r/{slug}?covers={party}&dateTime={date_yyyy_mm_dd}T19:00:00"
-    headers = {
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
-        "Accept-Language": "en-GB,en;q=0.9",
-    }
-    
-    try:
-        r = c_requests.get(url, headers=headers, impersonate="chrome120", timeout=25)
-    except Exception: return []
-
-    out = []
-    html = r.text
-
-    # Extract all flat JSON-like dictionary objects from the HTML
-    blocks = re.findall(r'\{[^{}]*\}', html)
-    for b in blocks:
-        # Check if this object contains a time and explicit true availability
-        b_clean = b.replace(" ", "").replace("\\\"", "\"")
-        if '"isAvailable":true' in b_clean and '"time":' in b_clean:
-            m = re.search(r'"time"\s*:\s*"([^"]+)"', b)
-            if m:
-                out.append(m.group(1))
-
-    if not out:
-        from bs4 import BeautifulSoup
-        soup = BeautifulSoup(html, "html.parser")
-        buttons = soup.find_all("a", href=re.compile(r"/book/|/restref/"))
-        for b in buttons:
-            txt = b.get_text(strip=True)
-            if re.search(r"\d{1,2}:\d{2}", txt): out.append(txt)
-
-    normalized = []
-    for x in out:
-        if "T" in x:
-            normalized.append(x)
-        else:
-            m = re.search(r"\b([01]\d|2[0-3]):([0-5]\d)\b", x)
-            if m:
-                hhmm = f"{m.group(1)}:{m.group(2)}"
-                normalized.append(f"{date_yyyy_mm_dd}T{hhmm}:00")
-            else:
-                m2 = re.search(r"\b(\d{1,2}):([0-5]\d)\s*([AP]M)\b", x, re.I)
-                if m2:
-                    hh = int(m2.group(1)) % 12
-                    if m2.group(3).upper() == "PM": hh += 12
-                    hhmm = f"{hh:02d}:{m2.group(2)}"
-                    normalized.append(f"{date_yyyy_mm_dd}T{hhmm}:00")
-                
-    return list(set(normalized))
 
 
 # =========================================================
@@ -254,7 +203,7 @@ def main() -> None:
         sid = search.get("id") or "Unnamed"
         platform = (search.get("platform") or "sevenrooms").lower()
         
-        if platform not in ["sevenrooms", "opentable"]: continue
+        if platform != "sevenrooms": continue
 
         venues = search.get("venues") or []
         party = int(search.get("party_size") or 2)
@@ -277,12 +226,9 @@ def main() -> None:
                 v = str(v).strip()
                 if not v: continue
 
-                if platform == "sevenrooms":
-                    iso_slots = fetch_sevenrooms_slots(
-                        v, date, party, channel=channel, num_days=num_days, lang=lang, halo_size_interval=halo, debug=debug
-                    )
-                else:
-                    iso_slots = fetch_opentable_slots(v, date, party, debug=debug)
+                iso_slots = fetch_sevenrooms_slots(
+                    v, date, party, channel=channel, num_days=num_days, lang=lang, halo_size_interval=halo, debug=debug
+                )
 
                 for iso in iso_slots:
                     hh = _hhmm(iso) or iso

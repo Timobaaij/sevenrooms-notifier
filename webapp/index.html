@@ -75,7 +75,6 @@
   .datechip{font-family:var(--mono);font-size:11.5px;color:var(--text);padding:3px 8px;border-radius:8px;background:rgba(255,255,255,.05);border:1px solid var(--hair-soft)}
   .pill{display:inline-flex;align-items:center;gap:5px;height:25px;padding:0 10px;border-radius:var(--pill);font-size:11.5px;font-weight:600;color:var(--text);background:rgba(255,255,255,.05);border:1px solid var(--hair-soft)}
   .pill--sr{color:var(--gold-bright);border-color:var(--hair);background:rgba(228,196,124,.08)}
-  .pill--ot{color:#cbb4ea;border-color:rgba(176,148,224,.24);background:rgba(176,148,224,.09)}
   .watch-actions{display:flex;align-items:center;gap:10px;margin-top:16px}
   .toggle{position:relative;width:50px;height:30px;flex:0 0 auto;border-radius:var(--pill);cursor:pointer;background:#26314c;border:1px solid var(--hair-soft);transition:background .22s}
   .toggle .knob{position:absolute;top:2px;left:2px;width:24px;height:24px;border-radius:50%;background:#eef1f8;box-shadow:0 2px 5px rgba(0,0,0,.4);transition:transform .22s cubic-bezier(.4,1.3,.5,1)}
@@ -207,18 +206,12 @@
     </button>
     <h2 id="sheetTitle">New watch</h2>
 
-    <div class="field"><label>Platform</label>
-      <div class="segmented" id="platSeg">
-        <button class="seg active" data-v="sevenrooms">SevenRooms</button>
-        <button class="seg" data-v="opentable">OpenTable</button>
-      </div>
-    </div>
     <div class="field"><label for="f-name">Name</label>
       <input class="input" id="f-name" placeholder="e.g. Dover Street Ella" />
     </div>
     <div class="field"><label for="f-venues">Venue slug(s)</label>
       <input class="input" id="f-venues" placeholder="comma-separated, e.g. doverstreetcounter" />
-      <p class="helper">The bit after <code>?venue=</code> (SevenRooms) or <code>/r/</code> (OpenTable).</p>
+      <p class="helper">The bit after <code>?venue=</code> in the SevenRooms reservation link.</p>
     </div>
 
     <div class="tworow">
@@ -367,8 +360,7 @@
     var html = "";
     searches.forEach(function(s, i){
       var paused = (s.notify||"both") === "none";
-      var plat = (s.platform||"sevenrooms")==="opentable" ? "opentable":"sevenrooms";
-      var platPill = plat==="opentable" ? '<span class="pill pill--ot">OpenTable</span>' : '<span class="pill pill--sr">SevenRooms</span>';
+      var platPill = '<span class="pill pill--sr">SevenRooms</span>';
       var timeLabel = s.time_slot ? s.time_slot : ((s.window_start||"?")+" – "+(s.window_end||"?"));
       var timeKind = s.time_slot ? "Exact" : "Window";
       var dates = getDates(s);
@@ -477,28 +469,22 @@
   $("#dplus").onclick = function(){ setDays(numDays+1); };
   $("#dminus").onclick = function(){ setDays(numDays-1); };
 
-  // Slug auto-extract: turn a pasted SevenRooms/OpenTable URL into its slug.
-  function extractSlug(text, platform){
+  // Slug auto-extract: turn a pasted SevenRooms URL into its venue slug.
+  function extractSlug(text){
     text = (text||"").trim(); if(!text) return text;
-    var m;
-    if (platform === "opentable"){
-      m = text.match(/\/r\/([a-zA-Z0-9_\-]+)/); if(m) return m[1];
-    } else {
-      m = text.match(/[?&]venue=([a-zA-Z0-9_\-]+)/); if(m) return m[1];
-      m = text.match(/\/reservations\/([a-zA-Z0-9_\-]+)/); if(m) return m[1];
-    }
+    var m = text.match(/[?&]venue=([a-zA-Z0-9_\-]+)/); if(m) return m[1];
+    m = text.match(/\/reservations\/([a-zA-Z0-9_\-]+)/); if(m) return m[1];
     return text;
   }
   $("#f-venues").addEventListener("blur", function(){
-    var plat = segGet("platSeg") || "sevenrooms";
-    var cleaned = this.value.split(",").map(function(v){ return extractSlug(v, plat); }).filter(Boolean);
+    var cleaned = this.value.split(",").map(function(v){ return extractSlug(v); }).filter(Boolean);
     if (cleaned.length) this.value = cleaned.join(", ");
   });
 
   // Load available times for the first venue + first date (exact-time mode).
   $("#loadTimes").addEventListener("click", function(){
-    var plat = segGet("platSeg") || "sevenrooms";
-    var venue = extractSlug(($("#f-venues").value.split(",")[0]||"").trim(), plat);
+    var plat = "sevenrooms";
+    var venue = extractSlug(($("#f-venues").value.split(",")[0]||"").trim());
     var date = sheetDates[0] || $("#f-date").value;
     if(!venue){ toast("Add a venue slug first", true); return; }
     if(!date){ toast("Pick a date first", true); return; }
@@ -542,8 +528,6 @@
     $("#deleteBtn").style.display = editing ? "block" : "none";
 
     var s = editing ? STATE.config.searches[STATE.editIndex] : null;
-    var plat = s ? ((s.platform||"sevenrooms")==="opentable"?"opentable":"sevenrooms") : "sevenrooms";
-    segSet("platSeg", plat);
     $("#f-name").value = s ? (s.id||"") : "";
     $("#f-venues").value = s ? ((s.venues||[]).join(", ")) : "";
     setParty(s ? (parseInt(s.party_size,10)||2) : 2);
@@ -591,9 +575,9 @@
   $("#refreshBtn").onclick = function(){ this.classList.add("spin"); var b=this; loadConfig(); setTimeout(function(){ b.classList.remove("spin"); }, 700); };
 
   $("#saveBtn").onclick = function(){
-    var plat = segGet("platSeg") || "sevenrooms";
+    var plat = "sevenrooms";
     var name = $("#f-name").value.trim();
-    var venues = $("#f-venues").value.split(",").map(function(v){return extractSlug(v, plat);}).filter(Boolean);
+    var venues = $("#f-venues").value.split(",").map(function(v){return extractSlug(v);}).filter(Boolean);
     if (!venues.length){ toast("Add at least one venue slug", true); return; }
     var exact = segGet("timeSeg") === "exact";
     var dates = sheetDates.slice(); if(!dates.length){ toast("Add at least one date", true); return; }

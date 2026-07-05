@@ -102,5 +102,5 @@ sudo systemctl stop maitre-notifier   # pause it
 - **Turn off GitHub Actions** once this is running, so you're not polling from
   two places: in the repo, *Settings → Actions → Disable*, or delete
   `.github/workflows/sevenrooms-notifier.yml`.
-- Polling every minute is gentle, but be a good citizen — SevenRooms/OpenTable
-  see one lightweight request per venue per minute.
+- Polling every minute is gentle, but be a good citizen — SevenRooms
+  sees one lightweight request per venue per minute.
