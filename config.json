@@ -5,5 +5,25 @@
     "halo_size_interval": 64,
     "lang": "en"
   },
-  "searches": []
+  "searches": [
+    {
+      "date": "2026-07-16",
+      "dates": [
+        "2026-07-16"
+      ],
+      "email_to": "",
+      "id": "Dover Street Ella",
+      "notify": "both",
+      "num_days": 1,
+      "party_size": 2,
+      "platform": "sevenrooms",
+      "salt": "1783233413.1794336",
+      "time_slot": "",
+      "venues": [
+        "doverstreetcounter"
+      ],
+      "window_end": "20:30",
+      "window_start": "19:00"
+    }
+  ]
 }
