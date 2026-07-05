@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # ---------------------------------------------------------------------------
-# setup.sh — one-shot installer for the every-minute watcher on any Ubuntu/
-# Debian VM (Oracle Cloud Always Free, GCP e2-micro, a Pi, whatever).
+# setup.sh — one-shot installer for the every-minute watcher on any Linux VM
+# (Ubuntu/Debian or Oracle Linux/RHEL; Oracle Cloud Always Free, GCP e2-micro,
+# a Raspberry Pi, whatever). Auto-detects apt / dnf / yum.
 #
 # It: installs Python + git, creates a venv, installs deps, drops an env file
 # for your secrets, and installs a systemd service that runs the watcher loop
@@ -32,8 +33,20 @@ echo "==> State dir:   $STATE_DIR"
 echo "==> Run as user: $RUN_USER"
 
 echo "==> [1/5] Installing system packages (needs sudo)…"
-sudo apt-get update -y
-sudo apt-get install -y python3 python3-venv python3-pip git
+if command -v apt-get >/dev/null 2>&1; then
+    # Ubuntu / Debian
+    sudo apt-get update -y
+    sudo apt-get install -y python3 python3-venv python3-pip git
+elif command -v dnf >/dev/null 2>&1; then
+    # Oracle Linux / RHEL / Fedora
+    sudo dnf install -y python3 python3-pip git
+elif command -v yum >/dev/null 2>&1; then
+    # older Oracle Linux / CentOS
+    sudo yum install -y python3 python3-pip git
+else
+    echo "ERROR: no supported package manager (apt-get / dnf / yum) found." >&2
+    exit 1
+fi
 
 echo "==> [2/5] Creating Python virtualenv + installing dependencies…"
 python3 -m venv "$VENV"
