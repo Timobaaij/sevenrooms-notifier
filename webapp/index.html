@@ -115,7 +115,12 @@
   .sheet{position:fixed;left:50%;transform:translate(-50%,100%);bottom:0;width:100%;max-width:480px;z-index:31;background:linear-gradient(180deg,var(--panel-hi),var(--ground));border-top:1px solid var(--hair);border-radius:26px 26px 0 0;padding:12px 22px calc(30px + var(--safe-b));max-height:92dvh;overflow-y:auto;transition:transform .34s cubic-bezier(.32,.72,0,1);scrollbar-width:none}
   .sheet::-webkit-scrollbar{display:none}
   .sheet.open{transform:translate(-50%,0)}
-  .grabber{width:42px;height:5px;border-radius:999px;background:#33405f;margin:6px auto 16px}
+  .dragzone{margin:0 -22px 8px;padding:10px 0 12px;display:flex;justify-content:center;touch-action:none;cursor:grab}
+  .dragzone:active{cursor:grabbing}
+  .grabber{width:44px;height:5px;border-radius:999px;background:#3b496b}
+  .sheet-close{position:absolute;top:14px;right:14px;width:40px;height:40px;display:grid;place-items:center;border-radius:var(--pill);border:1px solid var(--hair-soft);background:rgba(255,255,255,.05);color:var(--muted);cursor:pointer;z-index:3}
+  .sheet-close:hover{color:var(--champagne);background:rgba(255,255,255,.09)}
+  .sheet-close:active{transform:scale(.92)}
   .sheet h2{font-family:var(--serif);font-weight:500;font-size:26px;color:var(--champagne);margin:0 0 18px;letter-spacing:-.01em}
   .field{margin-bottom:16px}
   .field>label{display:block;font-size:11.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--gold-deep);margin-bottom:8px}
@@ -191,7 +196,10 @@
   <!-- Add / edit sheet -->
   <div class="scrim" id="scrim"></div>
   <div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-label="Watch details">
-    <div class="grabber"></div>
+    <div class="dragzone" id="dragzone"><div class="grabber"></div></div>
+    <button class="sheet-close" id="closeSheetBtn" aria-label="Cancel">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+    </button>
     <h2 id="sheetTitle">New watch</h2>
 
     <div class="field"><label>Platform</label>
@@ -250,7 +258,8 @@
     </div>
 
     <button class="btn btn--gold btn--block" id="saveBtn">Start watching</button>
-    <button class="linkbtn danger" id="deleteBtn" style="display:none;width:100%;margin-top:12px;height:44px">Delete this watch</button>
+    <button class="linkbtn" id="cancelBtn" style="width:100%;margin-top:8px;height:44px">Cancel</button>
+    <button class="linkbtn danger" id="deleteBtn" style="display:none;width:100%;margin-top:2px;height:44px">Delete this watch</button>
   </div>
 
   <div class="toast" id="toast"><span class="dot"></span><span id="toastMsg"></span></div>
@@ -554,6 +563,26 @@
   function closeSheet(){ scrim.classList.remove("open"); sheet.classList.remove("open"); }
   $("#addBtn").onclick = function(){ openSheet(); };
   scrim.onclick = closeSheet;
+  $("#closeSheetBtn").onclick = closeSheet;
+  $("#cancelBtn").onclick = closeSheet;
+
+  // Swipe (or drag) the grab handle downward to dismiss the sheet.
+  (function(){
+    var dz = $("#dragzone"), startY = 0, dy = 0, dragging = false;
+    function move(y){ dy = Math.max(0, y - startY); sheet.style.transform = "translate(-50%," + dy + "px)"; }
+    function begin(y){ startY = y; dy = 0; dragging = true; sheet.style.transition = "none"; }
+    function finish(){ if(!dragging) return; dragging = false; sheet.style.transition = ""; sheet.style.transform = ""; if (dy > 110) closeSheet(); }
+    dz.addEventListener("touchstart", function(e){ begin(e.touches[0].clientY); }, {passive:true});
+    dz.addEventListener("touchmove", function(e){ if(dragging) move(e.touches[0].clientY); }, {passive:true});
+    dz.addEventListener("touchend", finish);
+    dz.addEventListener("touchcancel", finish);
+    dz.addEventListener("mousedown", function(e){
+      begin(e.clientY);
+      function mm(ev){ if(dragging) move(ev.clientY); }
+      function mu(){ document.removeEventListener("mousemove", mm); document.removeEventListener("mouseup", mu); finish(); }
+      document.addEventListener("mousemove", mm); document.addEventListener("mouseup", mu);
+    });
+  })();
   $("#refreshBtn").onclick = function(){ this.classList.add("spin"); var b=this; loadConfig(); setTimeout(function(){ b.classList.remove("spin"); }, 700); };
 
   $("#saveBtn").onclick = function(){
