@@ -631,6 +631,25 @@
     window.addEventListener("load", function(){ navigator.serviceWorker.register("sw.js").catch(function(){}); });
   }
 
+  // ---- Auto-refresh: when the app returns to the foreground, quietly check
+  // whether a newer build has been deployed and reload if so. This fixes iOS
+  // "resuming" the app on the old version. Won't reload while a form is open.
+  var _appBaseline = null, _checking = false;
+  function checkForUpdate(){
+    if (_checking) return; _checking = true;
+    fetch("index.html", { cache: "no-store", headers: { "Accept": "text/html" } })
+      .then(function(r){ return r.text(); })
+      .then(function(t){
+        if (_appBaseline === null){ _appBaseline = t; return; }
+        if (t !== _appBaseline && !(sheet && sheet.classList.contains("open"))){ location.reload(); }
+      })
+      .catch(function(){})
+      .finally(function(){ _checking = false; });
+  }
+  document.addEventListener("visibilitychange", function(){ if (document.visibilityState === "visible") checkForUpdate(); });
+  window.addEventListener("pageshow", function(){ checkForUpdate(); });
+  checkForUpdate();
+
   loadConfig();
 })();
 </script>
