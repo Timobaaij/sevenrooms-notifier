@@ -241,6 +241,12 @@ def main() -> None:
     delay = float(global_cfg.get("delay_between_venues_sec", 0.5))
     debug = bool(global_cfg.get("debug", False))
 
+    # "Reset alerts" from the web app bumps global.reset_nonce. When it changes,
+    # clear the dedupe set so previously-notified tables can alert again.
+    reset_nonce = str(global_cfg.get("reset_nonce", "") or "")
+    if reset_nonce and state.get("reset_nonce") != reset_nonce:
+        notified = set()
+
     # Contact targets come from the environment so nothing personal is hardcoded.
     pushover_email = os.environ.get("PUSHOVER_EMAIL", "").strip() or "bfxfnhvuie@pomail.net"
 
@@ -314,7 +320,7 @@ def main() -> None:
             if push_ok or email_ok:
                 for fp, _ in candidates: notified.add(fp)
 
-    save_json(state_path, {"notified": list(notified)[-2000:]})
+    save_json(state_path, {"notified": list(notified)[-2000:], "reset_nonce": reset_nonce})
 
 if __name__ == "__main__":
     main()
