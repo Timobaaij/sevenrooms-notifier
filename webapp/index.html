@@ -173,6 +173,7 @@
   .favcard .fc-open:hover{color:var(--gold-bright);background:rgba(228,196,124,.08)}
   .timewrap{display:flex;flex-wrap:wrap;gap:7px}
   .timechip{font-family:var(--mono);font-size:13px;font-variant-numeric:tabular-nums;color:#241a05;text-decoration:none;padding:6px 11px;border-radius:9px;background:linear-gradient(140deg,var(--gold-bright),var(--gold-deep));font-weight:600}
+  .timechip.more{color:var(--gold-bright);background:transparent;border:1px solid var(--hair)}
   .timechip:active{transform:scale(.96)}
   .fav-empty-names{font-size:12.5px;color:var(--faint);margin:4px 2px 0;line-height:1.5}
   .fav-progress{display:flex;align-items:center;gap:12px;padding:22px 4px;color:var(--muted);font-size:14px}
@@ -883,13 +884,17 @@
     if (!hits.length){
       html += '<div class="state" style="padding:34px 20px"><div class="emblem" style="width:44px;height:44px"></div><div class="big" style="font-size:20px">Fully booked</div><div style="max-width:32ch;margin:0 auto">None of your favourites have a table in this window. Try a wider time or another day.</div></div>';
     } else {
+      var MAX_CHIPS = 6;
       hits.forEach(function(r){
+        var url = esc(bookingUrl(r.fav.slug, date));
+        var shown = r.hits.slice(0, MAX_CHIPS), extra = r.hits.length - shown.length;
         html += '<div class="favcard">'
           + '<div class="fc-head"><span class="fc-name">'+esc(r.fav.name)+'</span>'
-          + '<a class="fc-open" href="'+esc(bookingUrl(r.fav.slug, date))+'" target="_blank" rel="noopener" aria-label="Open booking page">'
+          + '<a class="fc-open" href="'+url+'" target="_blank" rel="noopener" aria-label="Open booking page">'
           + '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17L17 7M9 7h8v8"/></svg></a></div>'
           + '<div class="timewrap">'
-          + r.hits.map(function(h){ return '<a class="timechip" href="'+esc(bookingUrl(r.fav.slug, date))+'" target="_blank" rel="noopener">'+esc(h.t)+'</a>'; }).join("")
+          + shown.map(function(h){ return '<a class="timechip" href="'+url+'" target="_blank" rel="noopener">'+esc(h.t)+'</a>'; }).join("")
+          + (extra>0 ? '<a class="timechip more" href="'+url+'" target="_blank" rel="noopener">+'+extra+'</a>' : '')
           + '</div></div>';
       });
     }
