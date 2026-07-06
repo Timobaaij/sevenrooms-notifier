@@ -83,5 +83,767 @@
       "window_end": "21:00",
       "window_start": "19:00"
     }
+  ],
+  "favourites": [
+    {
+      "name": "A. Wong",
+      "slug": "awong"
+    },
+    {
+      "name": "abc kitchens",
+      "slug": "abckitchens"
+    },
+    {
+      "name": "ACE Pizza Victoria Park",
+      "slug": "acepizzavictoriapark"
+    },
+    {
+      "name": "Acme Fire Cult",
+      "slug": "acmefirecult"
+    },
+    {
+      "name": "AGORA souvla bar",
+      "slug": "agoralondon"
+    },
+    {
+      "name": "Akara Restaurant",
+      "slug": "akara"
+    },
+    {
+      "name": "Akub Restaurant",
+      "slug": "akub"
+    },
+    {
+      "name": "ALTA Kingly Court",
+      "slug": "altarestaurant"
+    },
+    {
+      "name": "Ambassadors Clubhouse",
+      "slug": "ambassadorsclubhouse"
+    },
+    {
+      "name": "Anchor & Hope",
+      "slug": "theanchorandhope"
+    },
+    {
+      "name": "Automat",
+      "slug": "automatdining"
+    },
+    {
+      "name": "Bancone Covent Garden",
+      "slug": "banconecoventgarden"
+    },
+    {
+      "name": "Barrafina Adelaide Street",
+      "slug": "barrafinaadelaidestreet"
+    },
+    {
+      "name": "Barrafina Dean Street",
+      "slug": "barrafina"
+    },
+    {
+      "name": "Barrafina Drury Lane",
+      "slug": "barrafinadrurylane"
+    },
+    {
+      "name": "Berber & Q",
+      "slug": "berberandq"
+    },
+    {
+      "name": "Berenjak Borough",
+      "slug": "berenjakborough"
+    },
+    {
+      "name": "Berenjak Soho",
+      "slug": "berenjakjks"
+    },
+    {
+      "name": "BiBi",
+      "slug": "bibi"
+    },
+    {
+      "name": "BRAT Restaurant",
+      "slug": "bratshoreditch"
+    },
+    {
+      "name": "Brat x Climpson's Arch",
+      "slug": "bratclimpsonsarch"
+    },
+    {
+      "name": "Brawn",
+      "slug": "brawn"
+    },
+    {
+      "name": "Brigadiers",
+      "slug": "brigadiers"
+    },
+    {
+      "name": "Bubala King's Cross",
+      "slug": "bubalakingscross"
+    },
+    {
+      "name": "Bubala Soho",
+      "slug": "bubalasoho"
+    },
+    {
+      "name": "Burro",
+      "slug": "burro"
+    },
+    {
+      "name": "Café Deco",
+      "slug": "cafedeco"
+    },
+    {
+      "name": "Caia",
+      "slug": "caia"
+    },
+    {
+      "name": "Campania",
+      "slug": "campania"
+    },
+    {
+      "name": "Canal Restaurant",
+      "slug": "canalrestaurant"
+    },
+    {
+      "name": "Canteen | Notting Hill",
+      "slug": "canteen"
+    },
+    {
+      "name": "Canton Arms",
+      "slug": "cantonarms"
+    },
+    {
+      "name": "Caravel",
+      "slug": "caravel"
+    },
+    {
+      "name": "Carousel",
+      "slug": "carousellondon"
+    },
+    {
+      "name": "Casa Felicia",
+      "slug": "casafelicia"
+    },
+    {
+      "name": "Cav",
+      "slug": "cavrestaurant"
+    },
+    {
+      "name": "Chez Lui",
+      "slug": "chezlui"
+    },
+    {
+      "name": "Chez Rose",
+      "slug": "chezrose"
+    },
+    {
+      "name": "Chishuru",
+      "slug": "chishuru"
+    },
+    {
+      "name": "Darjeeling Express",
+      "slug": "darjeelingexpress"
+    },
+    {
+      "name": "Dishoom Kensington",
+      "slug": "dishoomkensington"
+    },
+    {
+      "name": "Dockley Road",
+      "slug": "dockleyroadkitchen"
+    },
+    {
+      "name": "Don't Tell Dad",
+      "slug": "donttelldad"
+    },
+    {
+      "name": "Donia",
+      "slug": "doniarestaurant"
+    },
+    {
+      "name": "Dorian Restaurant",
+      "slug": "dorianrestaurant"
+    },
+    {
+      "name": "Dove Restaurant",
+      "slug": "Dove"
+    },
+    {
+      "name": "Dover Street Counter",
+      "slug": "doverstreetcounter"
+    },
+    {
+      "name": "Duchy",
+      "slug": "duchyrestaurant"
+    },
+    {
+      "name": "Empire Empire",
+      "slug": "empireempirelondon"
+    },
+    {
+      "name": "EQUAL PARTS",
+      "slug": "equalparts"
+    },
+    {
+      "name": "Evelyn's Table",
+      "slug": "evelynstable"
+    },
+    {
+      "name": "Experimental Cocktail Club Chinatown",
+      "slug": "eccchinatown"
+    },
+    {
+      "name": "Field Notes",
+      "slug": "fieldnotes"
+    },
+    {
+      "name": "Firebird | Restaurant & Wine Bar",
+      "slug": "firebirdlondon"
+    },
+    {
+      "name": "Folde",
+      "slug": "foldevenue"
+    },
+    {
+      "name": "Fonda",
+      "slug": "fonda"
+    },
+    {
+      "name": "Gina Restaurant",
+      "slug": "gina"
+    },
+    {
+      "name": "Gold",
+      "slug": "goldnottinghill"
+    },
+    {
+      "name": "Goodbye Horses",
+      "slug": "goodbyehorses"
+    },
+    {
+      "name": "Gordon's Wine Bar",
+      "slug": "gordonswinebar"
+    },
+    {
+      "name": "Gymkhana",
+      "slug": "gymkhana"
+    },
+    {
+      "name": "Homies On Donkeys",
+      "slug": "homiesondonkeysrestaurant"
+    },
+    {
+      "name": "Ibai",
+      "slug": "ibailondon"
+    },
+    {
+      "name": "Impala",
+      "slug": "impala"
+    },
+    {
+      "name": "Jacuzzi",
+      "slug": "jacuzzi"
+    },
+    {
+      "name": "Josephine Bouchon - Chelsea",
+      "slug": "josephinebistro"
+    },
+    {
+      "name": "José",
+      "slug": "josebypizarro"
+    },
+    {
+      "name": "Julie's Restaurant",
+      "slug": "juliesrestaurant"
+    },
+    {
+      "name": "Kiln",
+      "slug": "kilnlondon"
+    },
+    {
+      "name": "Kinkally",
+      "slug": "kinkally"
+    },
+    {
+      "name": "Kolae",
+      "slug": "kolae"
+    },
+    {
+      "name": "Kricket Soho",
+      "slug": "kricketsoho"
+    },
+    {
+      "name": "Kudu",
+      "slug": "kudurestaurant"
+    },
+    {
+      "name": "La Petite Maison (LPM) London",
+      "slug": "lpmlondon"
+    },
+    {
+      "name": "Lai Rai",
+      "slug": "lairai"
+    },
+    {
+      "name": "Legado Restaurant",
+      "slug": "legado"
+    },
+    {
+      "name": "LEYDI",
+      "slug": "leydi"
+    },
+    {
+      "name": "Lucia's",
+      "slug": "Lucias"
+    },
+    {
+      "name": "Lupa",
+      "slug": "lupa"
+    },
+    {
+      "name": "Maison François",
+      "slug": "maisonfrancois"
+    },
+    {
+      "name": "Mangal 2 Restaurant",
+      "slug": "mangal2restaurant"
+    },
+    {
+      "name": "manteca",
+      "slug": "manteca"
+    },
+    {
+      "name": "Mareida",
+      "slug": "mareida"
+    },
+    {
+      "name": "Maresco",
+      "slug": "maresco"
+    },
+    {
+      "name": "Marjorie's",
+      "slug": "marjories"
+    },
+    {
+      "name": "MARTINO'S",
+      "slug": "martinoslondon"
+    },
+    {
+      "name": "Miga",
+      "slug": "migarestaurant"
+    },
+    {
+      "name": "Morchella",
+      "slug": "morchella"
+    },
+    {
+      "name": "Mountain Beak Street",
+      "slug": "mountain"
+    },
+    {
+      "name": "Netil360 Rooftop Bar - Restaurant",
+      "slug": "netil360"
+    },
+    {
+      "name": "Nightjar Shoreditch",
+      "slug": "nightjarshoreditch"
+    },
+    {
+      "name": "Noble Rot Mayfair",
+      "slug": "noblerotmayfair"
+    },
+    {
+      "name": "NT's Loft",
+      "slug": "ntsloft"
+    },
+    {
+      "name": "OMA",
+      "slug": "oma"
+    },
+    {
+      "name": "OREN",
+      "slug": "oren"
+    },
+    {
+      "name": "Osteria Angelina",
+      "slug": "osteriaangelina"
+    },
+    {
+      "name": "Osteria Basilico",
+      "slug": "osteriabasilico"
+    },
+    {
+      "name": "Osteria Vibrato",
+      "slug": "osteriavibrato"
+    },
+    {
+      "name": "Oudh 1722",
+      "slug": "oudh1722"
+    },
+    {
+      "name": "Passione Vino Exmouth Market",
+      "slug": "passionevinoclerkenwell"
+    },
+    {
+      "name": "Planque",
+      "slug": "planque"
+    },
+    {
+      "name": "Plaza Khao Gaeng",
+      "slug": "plaza"
+    },
+    {
+      "name": "Plaza Khao Gaeng Borough Yards",
+      "slug": "plazakhaogaengborough"
+    },
+    {
+      "name": "POLPO Italian Restaurant Soho",
+      "slug": "polposoho"
+    },
+    {
+      "name": "Prince Arthur, Belgravia",
+      "slug": "theprincearthurbelgravia"
+    },
+    {
+      "name": "Rabbit British Bistro",
+      "slug": "rabbitrestaurant"
+    },
+    {
+      "name": "Rambutan",
+      "slug": "rambutan"
+    },
+    {
+      "name": "Randall & Aubin",
+      "slug": "randallandaubin"
+    },
+    {
+      "name": "Ria's",
+      "slug": "riassoho"
+    },
+    {
+      "name": "Rita's",
+      "slug": "ritasbar"
+    },
+    {
+      "name": "Rochelle Canteen",
+      "slug": "rochellecanteen"
+    },
+    {
+      "name": "Roebuck",
+      "slug": "roebuckchiswick"
+    },
+    {
+      "name": "Rogues.",
+      "slug": "rogues"
+    },
+    {
+      "name": "Ruth's",
+      "slug": "ruths"
+    },
+    {
+      "name": "Sabor",
+      "slug": "saborrestaurant"
+    },
+    {
+      "name": "Senza Fondo",
+      "slug": "senzafondo"
+    },
+    {
+      "name": "Shawarma Bar",
+      "slug": "shawarmabar"
+    },
+    {
+      "name": "Singapore Garden",
+      "slug": "singaporegarden"
+    },
+    {
+      "name": "Smoking Goat Shoreditch",
+      "slug": "smokinggoat"
+    },
+    {
+      "name": "SOMA Soho",
+      "slug": "somasoho"
+    },
+    {
+      "name": "Space Talk",
+      "slug": "spacetalk"
+    },
+    {
+      "name": "Speedboat Bar",
+      "slug": "speedboat"
+    },
+    {
+      "name": "Stable Wines",
+      "slug": "stablewines"
+    },
+    {
+      "name": "STRAKER'S",
+      "slug": "strakerslondon"
+    },
+    {
+      "name": "Sune Restaurant",
+      "slug": "sune"
+    },
+    {
+      "name": "Suzi Tros 🇬🇷",
+      "slug": "suzitros"
+    },
+    {
+      "name": "Tamila Kings Cross",
+      "slug": "tamilakingscross"
+    },
+    {
+      "name": "TANGRA",
+      "slug": "tangra"
+    },
+    {
+      "name": "Tatar Bunar",
+      "slug": "tatarbunarlondon"
+    },
+    {
+      "name": "Tempo",
+      "slug": "tempo"
+    },
+    {
+      "name": "The 10 Cases",
+      "slug": "10cases"
+    },
+    {
+      "name": "The Albion",
+      "slug": "thealbionlondon"
+    },
+    {
+      "name": "The Alfred Tennyson",
+      "slug": "thealfredtennyson"
+    },
+    {
+      "name": "The Audley Public House",
+      "slug": "theaudley"
+    },
+    {
+      "name": "The Baring",
+      "slug": "thebaring"
+    },
+    {
+      "name": "The Blue Stoops",
+      "slug": "thebluestoops"
+    },
+    {
+      "name": "The Boundary",
+      "slug": "boundarylondon"
+    },
+    {
+      "name": "The Builders Arms",
+      "slug": "thebuildersarms"
+    },
+    {
+      "name": "The Cadogan Arms",
+      "slug": "thecadoganarms"
+    },
+    {
+      "name": "The Camberwell Arms",
+      "slug": "thecamberwellarms"
+    },
+    {
+      "name": "The Cavendish Pub, Marylebone",
+      "slug": "thecavendishmarylebone"
+    },
+    {
+      "name": "The Coach Makers Arms Pub Marylebone",
+      "slug": "thecoachmakersarms"
+    },
+    {
+      "name": "The Compton Arms",
+      "slug": "thecomptonarms"
+    },
+    {
+      "name": "The Cow",
+      "slug": "thecow"
+    },
+    {
+      "name": "The Dover",
+      "slug": "thedoverrestaurant"
+    },
+    {
+      "name": "The Fat Badger - Notting Hill",
+      "slug": "thefatbadger"
+    },
+    {
+      "name": "The French House",
+      "slug": "thefrenchhouse"
+    },
+    {
+      "name": "The George",
+      "slug": "thegeorge"
+    },
+    {
+      "name": "The Good Oak",
+      "slug": "thegoodoaknottinghill"
+    },
+    {
+      "name": "The Grazing Goat Pub & Boutique Hotel Marylebone",
+      "slug": "thegrazinggoat"
+    },
+    {
+      "name": "The Hart - Marylebone",
+      "slug": "thehartuk"
+    },
+    {
+      "name": "The Hawk's Nest",
+      "slug": "thehawksnest"
+    },
+    {
+      "name": "The Hero - Maida Vale",
+      "slug": "thehero"
+    },
+    {
+      "name": "The Holly Bush, Hampstead",
+      "slug": "thehollybush"
+    },
+    {
+      "name": "The Hound",
+      "slug": "thehounduk"
+    },
+    {
+      "name": "The Kerfield Arms",
+      "slug": "thekerfieldarms"
+    },
+    {
+      "name": "The Lavery",
+      "slug": "thelavery"
+    },
+    {
+      "name": "The Libertine Restaurant & Bar",
+      "slug": "libertinerestaurantbar"
+    },
+    {
+      "name": "The Macbeth",
+      "slug": "themacbeth"
+    },
+    {
+      "name": "The Mall Tavern",
+      "slug": "themalltavernnottinghill"
+    },
+    {
+      "name": "The Mayflower Pub",
+      "slug": "themayflower"
+    },
+    {
+      "name": "The Orange Pub & Boutique Hotel Belgravia",
+      "slug": "theorange"
+    },
+    {
+      "name": "The Palomar",
+      "slug": "thepalomar"
+    },
+    {
+      "name": "The Pelican - Notting Hill",
+      "slug": "thepelicanw11"
+    },
+    {
+      "name": "The Pig and Butcher",
+      "slug": "thepigandbutcherlondon"
+    },
+    {
+      "name": "The Pig's Ear",
+      "slug": "thepigsear"
+    },
+    {
+      "name": "The Princess Royal Pub & Boutique Hotel Notting Hill",
+      "slug": "theprincessroyal"
+    },
+    {
+      "name": "The Queen's Arms",
+      "slug": "queensarmswestminster"
+    },
+    {
+      "name": "The River Café",
+      "slug": "rivercafelondon"
+    },
+    {
+      "name": "The Salusbury Pub & Dining Room",
+      "slug": "thesalusbury"
+    },
+    {
+      "name": "The Scotch of St James",
+      "slug": "thescotch"
+    },
+    {
+      "name": "The Shaston Arms",
+      "slug": "theshastonarms"
+    },
+    {
+      "name": "The Starman",
+      "slug": "thestarman"
+    },
+    {
+      "name": "The Tamil Prince",
+      "slug": "thetamilprince"
+    },
+    {
+      "name": "The Telegraph",
+      "slug": "telegraph"
+    },
+    {
+      "name": "The Walmer Castle",
+      "slug": "thewalmercastle"
+    },
+    {
+      "name": "The Waterman’s Arms",
+      "slug": "thewatermansarms"
+    },
+    {
+      "name": "The Winemakers Club",
+      "slug": "thewinemakersclub"
+    },
+    {
+      "name": "Theo's",
+      "slug": "no1parklaneterrace"
+    },
+    {
+      "name": "Trullo",
+      "slug": "trullo"
+    },
+    {
+      "name": "Upstairs",
+      "slug": "UpstairsatLangans"
+    },
+    {
+      "name": "Vesper Restaurant",
+      "slug": "vesperrestaurant"
+    },
+    {
+      "name": "Weezie's",
+      "slug": "weezies"
+    },
+    {
+      "name": "Wild by Tart",
+      "slug": "wildbytart"
+    },
+    {
+      "name": "Wild Corner",
+      "slug": "wildcorner"
+    },
+    {
+      "name": "Wild Tavern",
+      "slug": "wildtavernchelsea"
+    },
+    {
+      "name": "Wildflowers Restaurant",
+      "slug": "wildflowers"
+    },
+    {
+      "name": "Wine Bar",
+      "slug": "winebar"
+    },
+    {
+      "name": "Yasmin",
+      "slug": "yasmin"
+    },
+    {
+      "name": "Zylia",
+      "slug": "zyliacoventgarden"
+    }
   ]
 }
