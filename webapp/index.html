@@ -196,6 +196,26 @@
   .favchip-area.empty{color:var(--faint);background:transparent;border-style:dashed}
   .favchip-area:hover{border-color:var(--gold)}
   .fc-area{font-size:11.5px;font-weight:600;color:var(--gold-deep);background:rgba(228,196,124,.09);border:1px solid var(--hair);padding:1px 8px;border-radius:var(--pill);vertical-align:middle;white-space:nowrap}
+  /* Region / Borough dropdowns */
+  .ddrow{display:flex;gap:10px}
+  .dropdown{position:relative;flex:1 1 0;min-width:0}
+  .dd-btn{width:100%;height:46px;padding:0 12px;display:flex;align-items:center;justify-content:space-between;gap:8px;border-radius:13px;color:var(--champagne);background:rgba(255,255,255,.04);border:1px solid var(--panel-line);font:600 13px var(--sans);cursor:pointer}
+  .dd-btn>span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .dd-btn:hover{border-color:var(--hair)}
+  .dropdown.open .dd-btn{border-color:var(--gold);background:rgba(228,196,124,.05)}
+  .dd-caret{flex:0 0 auto;color:var(--gold-deep);transition:transform .2s}
+  .dropdown.open .dd-caret{transform:rotate(180deg)}
+  .dd-panel{display:none;position:absolute;top:52px;left:0;right:0;z-index:14;max-height:300px;overflow-y:auto;background:var(--panel-hi);border:1px solid var(--hair);border-radius:13px;padding:6px;box-shadow:0 18px 44px rgba(0,0,0,.55);scrollbar-width:none}
+  .dd-panel::-webkit-scrollbar{display:none}
+  .dropdown.open .dd-panel{display:block;animation:fade .16s ease both}
+  .dd-opt{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:9px;cursor:pointer;font-size:14px;color:var(--text)}
+  .dd-opt:hover{background:rgba(255,255,255,.05)}
+  .dd-opt .dd-lbl{flex:1 1 auto;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .dd-opt .dd-n{flex:0 0 auto;font-family:var(--mono);font-size:11px;color:var(--faint)}
+  .dd-check{flex:0 0 auto;width:20px;height:20px;border-radius:6px;border:1.5px solid var(--panel-line);display:grid;place-items:center;color:transparent}
+  .dd-opt.on .dd-check{background:linear-gradient(140deg,var(--gold-bright),var(--gold-deep));border-color:transparent;color:#241a05}
+  .dd-opt.on .dd-lbl{color:var(--champagne)}
+  .dd-opt.partial .dd-check{border-color:var(--gold);color:var(--gold);background:rgba(228,196,124,.14)}
 
   /* Favourites — manage */
   .favmanage{margin-top:26px;border-top:1px solid var(--hair-soft);padding-top:8px}
@@ -261,8 +281,19 @@
           <div class="field" style="margin-bottom:0"><label for="fav-we">Until</label><input class="input" id="fav-we" type="time" value="21:30" /></div>
         </div>
         <div class="field" id="favAreaField" style="margin:16px 0 0;display:none">
-          <label>Boroughs <span class="favarea-hint" id="favAreaHint">all</span></label>
-          <div class="areachips" id="favAreas"></div>
+          <label>Filter by area <span class="favarea-hint" id="favAreaHint">all</span></label>
+          <div class="ddrow">
+            <div class="dropdown" id="favRegionDD">
+              <button type="button" class="dd-btn" id="favRegionBtn"><span id="favRegionLbl">Region: All</span>
+                <svg class="dd-caret" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button>
+              <div class="dd-panel" id="favRegionPanel"></div>
+            </div>
+            <div class="dropdown" id="favBoroughDD">
+              <button type="button" class="dd-btn" id="favBoroughBtn"><span id="favBoroughLbl">Boroughs: All</span>
+                <svg class="dd-caret" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button>
+              <div class="dd-panel" id="favBoroughPanel"></div>
+            </div>
+          </div>
         </div>
         <button class="btn btn--gold btn--block" id="favRunBtn" style="margin-top:18px">Check all favourites</button>
         <p class="helper" style="text-align:center;margin-top:10px">On-demand only. No push notifications — this is separate from The Book.</p>
@@ -805,37 +836,72 @@
           return '<span class="favchip">'+esc(f.name)+tag+'<span class="x" data-rm="'+esc(f.slug)+'" role="button" aria-label="Remove '+esc(f.name)+'">✕</span></span>';
         }).join("")
       : '<span class="helper">No favourites yet — search your London list below, or add any slug.</span>';
-    renderFavAreaChips();
+    renderFilters();
     renderPicker($("#fav-search").value);
     // auto-open the manage drawer the first time if there's nothing to run yet
     if (!favManageInit){ favManageInit = true; favManageOpen = (list.length === 0); applyManage(); }
     if (!$("#fav-date").value) $("#fav-date").value = todayISO();
   }
 
-  // ---- Borough multi-select filter ----
-  function favAreasList(){
-    var set = {}; favs().forEach(function(f){ var a = favArea(f); if (a) set[a] = (set[a]||0)+1; });
-    return Object.keys(set).sort().map(function(a){ return { area:a, n:set[a] }; });
+  // ---- Region + Borough dropdown filters. A region ticks all its boroughs. ----
+  var REGIONS = ["Central","North","North-East","North-West","East","South-East","South","South-West","West"];
+  var REGION_OF = {"Barnes":"South-West","Battersea":"South-West","Belgravia":"Central","Bermondsey":"South-East","Bethnal Green":"East","Bloomsbury":"Central","Borough":"Central","Camberwell":"South-East","Carnaby":"Central","Chelsea":"West","Chinatown":"Central","Chingford":"North-East","Chiswick":"West","City of London":"Central","Clerkenwell":"Central","Covent Garden":"Central","Dalston":"East","De Beauvoir Town":"North","Embankment":"Central","Farringdon":"Central","Fitzrovia":"Central","Hackney":"East","Hackney Wick":"East","Haggerston":"East","Hammersmith":"West","Hampstead":"North-West","Highbury":"North","Holborn":"Central","Holland Park":"West","Hoxton":"East","Islington":"North","Kensington":"West","King's Cross":"North","Leytonstone":"North-East","London Fields":"East","Maida Vale":"West","Marylebone":"Central","Mayfair":"Central","Notting Hill":"West","Peckham":"South-East","Pimlico":"Central","Putney":"South-West","Queen's Park":"North-West","Rotherhithe":"South-East","Shepherd's Bush":"West","Shoreditch":"East","Soho":"Central","South Kensington":"West","Spitalfields":"East","St James's":"Central","Stockwell":"South","Swiss Cottage":"North-West","Victoria":"Central","Victoria Park":"East","Waterloo":"Central","Westbourne Park":"West"};
+  function ddCheck(){ return '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13l4 4L19 7"/></svg>'; }
+  function boroughCounts(){ var s={}; favs().forEach(function(f){ var a=favArea(f); if(a) s[a]=(s[a]||0)+1; }); return s; }
+  function regionGroups(counts){
+    var g={}; Object.keys(counts).forEach(function(a){ var r=REGION_OF[a]||"Other"; (g[r]=g[r]||[]).push(a); });
+    Object.keys(g).forEach(function(r){ g[r].sort(); });
+    return g;
   }
-  function renderFavAreaChips(){
-    var areas = favAreasList();
-    // drop any selected area that no longer exists among favourites
-    Object.keys(favSelectedAreas).forEach(function(a){ if (!areas.some(function(x){ return x.area===a; })) delete favSelectedAreas[a]; });
+
+  function renderFilters(){
+    var counts = boroughCounts();
+    var areas = Object.keys(counts).sort();
+    Object.keys(favSelectedAreas).forEach(function(a){ if (!counts[a]) delete favSelectedAreas[a]; });   // prune stale
     var field = $("#favAreaField");
-    if (!areas.length){ field.style.display = "none"; $("#favAreas").innerHTML = ""; return; }
+    if (!areas.length){ field.style.display = "none"; return; }
     field.style.display = "block";
     var selN = Object.keys(favSelectedAreas).length;
-    $("#favAreaHint").textContent = selN ? (selN + " selected — tap to clear") : "all — tap to narrow";
-    $("#favAreas").innerHTML = areas.map(function(x){
-      return '<button class="areachip'+(favSelectedAreas[x.area]?' on':'')+'" data-area="'+esc(x.area)+'">'+esc(x.area)+' <span class="ac-n">'+x.n+'</span></button>';
+    $("#favAreaHint").textContent = selN ? (selN + " selected") : "all";
+
+    // Borough dropdown
+    $("#favBoroughPanel").innerHTML = areas.map(function(a){
+      return '<div class="dd-opt'+(favSelectedAreas[a]?' on':'')+'" data-borough="'+esc(a)+'"><span class="dd-check">'+ddCheck()+'</span><span class="dd-lbl">'+esc(a)+'</span><span class="dd-n">'+counts[a]+'</span></div>';
     }).join("");
+    $("#favBoroughLbl").textContent = "Boroughs: " + (selN ? selN : "All");
+
+    // Region dropdown (only regions with venues, canonical order)
+    var groups = regionGroups(counts);
+    var order = REGIONS.filter(function(r){ return groups[r]; });
+    if (groups["Other"]) order.push("Other");
+    $("#favRegionPanel").innerHTML = order.map(function(r){
+      var ra = groups[r], on = ra.filter(function(a){ return favSelectedAreas[a]; }).length;
+      var cls = on===ra.length ? " on" : (on>0 ? " partial" : "");
+      return '<div class="dd-opt'+cls+'" data-region="'+esc(r)+'"><span class="dd-check">'+ddCheck()+'</span><span class="dd-lbl">'+esc(r)+'</span><span class="dd-n">'+ra.length+'</span></div>';
+    }).join("");
+    var full = order.filter(function(r){ return groups[r].every(function(a){ return favSelectedAreas[a]; }); });
+    $("#favRegionLbl").textContent = "Region: " + (selN===0 ? "All" : (full.length ? full.join(", ") : "Custom"));
   }
-  $("#favAreas").addEventListener("click", function(e){
-    var c = e.target.closest("[data-area]"); if (!c) return;
-    var a = c.dataset.area;
-    if (favSelectedAreas[a]) delete favSelectedAreas[a]; else favSelectedAreas[a] = true;
-    renderFavAreaChips();
+
+  $("#favRegionPanel").addEventListener("click", function(e){
+    var o = e.target.closest("[data-region]"); if (!o) return;
+    var ra = regionGroups(boroughCounts())[o.dataset.region] || [];
+    var allOn = ra.length && ra.every(function(a){ return favSelectedAreas[a]; });
+    ra.forEach(function(a){ if (allOn) delete favSelectedAreas[a]; else favSelectedAreas[a] = true; });
+    renderFilters();
   });
+  $("#favBoroughPanel").addEventListener("click", function(e){
+    var o = e.target.closest("[data-borough]"); if (!o) return;
+    var a = o.dataset.borough;
+    if (favSelectedAreas[a]) delete favSelectedAreas[a]; else favSelectedAreas[a] = true;
+    renderFilters();
+  });
+  function closeDD(except){ ["#favRegionDD","#favBoroughDD"].forEach(function(id){ var d=$(id); if (d!==except) d.classList.remove("open"); }); }
+  $("#favRegionBtn").onclick = function(){ var d=$("#favRegionDD"); var open=!d.classList.contains("open"); closeDD(); d.classList.toggle("open", open); };
+  $("#favBoroughBtn").onclick = function(){ var d=$("#favBoroughDD"); var open=!d.classList.contains("open"); closeDD(); d.classList.toggle("open", open); };
+  $("#favRegionDD").addEventListener("click", function(e){ e.stopPropagation(); });
+  $("#favBoroughDD").addEventListener("click", function(e){ e.stopPropagation(); });
+  document.addEventListener("click", function(){ closeDD(); });
 
   function renderPicker(q){
     q = (q||"").trim().toLowerCase();
