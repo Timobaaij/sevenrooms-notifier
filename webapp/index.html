@@ -162,10 +162,9 @@
   .tabbar{justify-content:space-around;padding:8px 16px calc(20px + var(--safe-b))}
   .tab{width:auto;min-width:74px}
 
-  /* Favourites — run-panel date/time boxes hug their rendered content (locale-adaptive:
-     short like "19:00" or long like "07:00 PM") instead of stretching full-width */
-  #favRunPanel .tworow .field{flex:0 1 auto}
-  #favRunPanel .input[type="date"],#favRunPanel .input[type="time"]{width:auto;max-width:none;padding:0 14px}
+  /* Favourites — Day, From and Until share one fixed width so they line up in the
+     two-column grid and stay narrower than the full-width default */
+  #favRunPanel .input[type="date"],#favRunPanel .input[type="time"]{width:140px;max-width:140px;padding:0 12px}
 
   /* Favourites — live-run results */
   .fav-summary{font-family:var(--serif);font-size:19px;color:var(--champagne);margin:20px 2px 4px;line-height:1.25;text-wrap:balance}
