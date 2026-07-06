@@ -184,6 +184,19 @@
 
   .favbulk{display:flex;gap:10px}
 
+  /* Favourites — borough filter + tags */
+  .favarea-hint{font-family:var(--mono);font-weight:500;font-size:10.5px;color:var(--faint);text-transform:none;letter-spacing:0;margin-left:6px}
+  .areachips{display:flex;flex-wrap:wrap;gap:7px}
+  .areachip{display:inline-flex;align-items:center;gap:6px;font:600 12.5px var(--sans);color:var(--text);padding:6px 11px;border-radius:var(--pill);background:rgba(255,255,255,.05);border:1px solid var(--hair-soft);cursor:pointer;transition:.15s}
+  .areachip .ac-n{font-family:var(--mono);font-size:10.5px;color:var(--faint)}
+  .areachip:active{transform:scale(.95)}
+  .areachip.on{color:#241a05;background:linear-gradient(140deg,var(--gold-bright),var(--gold-deep));border-color:transparent}
+  .areachip.on .ac-n{color:rgba(36,26,5,.72)}
+  .favchip-area{font-size:11px;color:var(--gold-bright);background:rgba(228,196,124,.10);border:1px solid var(--hair);padding:1px 8px;border-radius:var(--pill);cursor:pointer}
+  .favchip-area.empty{color:var(--faint);background:transparent;border-style:dashed}
+  .favchip-area:hover{border-color:var(--gold)}
+  .fc-area{font-size:11.5px;font-weight:600;color:var(--gold-deep);background:rgba(228,196,124,.09);border:1px solid var(--hair);padding:1px 8px;border-radius:var(--pill);vertical-align:middle;white-space:nowrap}
+
   /* Favourites — manage */
   .favmanage{margin-top:26px;border-top:1px solid var(--hair-soft);padding-top:8px}
   .favmanage-head{display:flex;align-items:center;justify-content:space-between;padding:12px 2px;cursor:pointer;user-select:none}
@@ -247,6 +260,10 @@
           <div class="field" style="margin-bottom:0"><label for="fav-ws">From</label><input class="input" id="fav-ws" type="time" value="19:00" /></div>
           <div class="field" style="margin-bottom:0"><label for="fav-we">Until</label><input class="input" id="fav-we" type="time" value="21:30" /></div>
         </div>
+        <div class="field" id="favAreaField" style="margin:16px 0 0;display:none">
+          <label>Boroughs <span class="favarea-hint" id="favAreaHint">all</span></label>
+          <div class="areachips" id="favAreas"></div>
+        </div>
         <button class="btn btn--gold btn--block" id="favRunBtn" style="margin-top:18px">Check all favourites</button>
         <p class="helper" style="text-align:center;margin-top:10px">On-demand only. No push notifications — this is separate from The Book.</p>
       </div>
@@ -273,6 +290,7 @@
               <input class="input" id="fav-manual-name" placeholder="Name" />
               <input class="input mono" id="fav-manual-slug" placeholder="slug or URL" />
             </div>
+            <input class="input" id="fav-manual-area" placeholder="Borough (optional, e.g. Soho)" style="margin-top:10px" />
             <button class="btn btn--ghost btn--block" id="favManualAdd" style="height:44px;margin-top:10px">Add favourite</button>
           </div>
         </div>
@@ -377,8 +395,7 @@
   var currentView = "book";
 
   // Verified London venues (name, slug) — for the Favourites picker. Availability-API confirmed.
-  var VENUES = [["A. Wong","awong"],["abc kitchens","abckitchens"],["ACE Pizza Victoria Park","acepizzavictoriapark"],["Acme Fire Cult","acmefirecult"],["AGORA souvla bar","agoralondon"],["Akara Restaurant","akara"],["Akub Restaurant","akub"],["ALTA Kingly Court","altarestaurant"],["Ambassadors Clubhouse","ambassadorsclubhouse"],["Anchor & Hope","theanchorandhope"],["Automat","automatdining"],["Bancone Covent Garden","banconecoventgarden"],["Barrafina Adelaide Street","barrafinaadelaidestreet"],["Barrafina Dean Street","barrafina"],["Barrafina Drury Lane","barrafinadrurylane"],["Berber & Q","berberandq"],["Berenjak Borough","berenjakborough"],["Berenjak Soho","berenjakjks"],["BiBi","bibi"],["BRAT Restaurant","bratshoreditch"],["Brat x Climpson's Arch","bratclimpsonsarch"],["Brawn","brawn"],["Brigadiers","brigadiers"],["Bubala King's Cross","bubalakingscross"],["Bubala Soho","bubalasoho"],["Burro","burro"],["Café Deco","cafedeco"],["Caia","caia"],["Campania","campania"],["Canal Restaurant","canalrestaurant"],["Canteen | Notting Hill","canteen"],["Canton Arms","cantonarms"],["Caravel","caravel"],["Carousel","carousellondon"],["Casa Felicia","casafelicia"],["Cav","cavrestaurant"],["Chez Lui","chezlui"],["Chez Rose","chezrose"],["Chishuru","chishuru"],["Darjeeling Express","darjeelingexpress"],["Dishoom Kensington","dishoomkensington"],["Dockley Road","dockleyroadkitchen"],["Don't Tell Dad","donttelldad"],["Donia","doniarestaurant"],["Dorian Restaurant","dorianrestaurant"],["Dove Restaurant","Dove"],["Dover Street Counter","doverstreetcounter"],["Duchy","duchyrestaurant"],["Empire Empire","empireempirelondon"],["EQUAL PARTS","equalparts"],["Evelyn's Table","evelynstable"],["Experimental Cocktail Club Chinatown","eccchinatown"],["Field Notes","fieldnotes"],["Firebird | Restaurant & Wine Bar","firebirdlondon"],["Folde","foldevenue"],["Fonda","fonda"],["Gina Restaurant","gina"],["Gold","goldnottinghill"],["Goodbye Horses","goodbyehorses"],["Gordon's Wine Bar","gordonswinebar"],["Gymkhana","gymkhana"],["Homies On Donkeys","homiesondonkeysrestaurant"],["Ibai","ibailondon"],["Impala","impala"],["Jacuzzi","jacuzzi"],["Josephine Bouchon - Chelsea","josephinebistro"],["José","josebypizarro"],["Julie's Restaurant","juliesrestaurant"],["Kiln","kilnlondon"],["Kinkally","kinkally"],["Kolae","kolae"],["Kricket Soho","kricketsoho"],["Kudu","kudurestaurant"],["La Petite Maison (LPM) London","lpmlondon"],["Lai Rai","lairai"],["Legado Restaurant","legado"],["LEYDI","leydi"],["Lucia's","Lucias"],["Lupa","lupa"],["Maison François","maisonfrancois"],["Mangal 2 Restaurant","mangal2restaurant"],["manteca","manteca"],["Mareida","mareida"],["Maresco","maresco"],["Marjorie's","marjories"],["MARTINO'S","martinoslondon"],["Miga","migarestaurant"],["Morchella","morchella"],["Mountain Beak Street","mountain"],["Netil360 Rooftop Bar - Restaurant","netil360"],["Nightjar Shoreditch","nightjarshoreditch"],["Noble Rot Mayfair","noblerotmayfair"],["NT's Loft","ntsloft"],["OMA","oma"],["OREN","oren"],["Osteria Angelina","osteriaangelina"],["Osteria Basilico","osteriabasilico"],["Osteria Vibrato","osteriavibrato"],["Oudh 1722","oudh1722"],["Passione Vino Exmouth Market","passionevinoclerkenwell"],["Planque","planque"],["Plaza Khao Gaeng","plaza"],["Plaza Khao Gaeng Borough Yards","plazakhaogaengborough"],["POLPO Italian Restaurant Soho","polposoho"],["Prince Arthur, Belgravia","theprincearthurbelgravia"],["Rabbit British Bistro","rabbitrestaurant"],["Rambutan","rambutan"],["Randall & Aubin","randallandaubin"],["Ria's","riassoho"],["Rita's","ritasbar"],["Rochelle Canteen","rochellecanteen"],["Roebuck","roebuckchiswick"],["Rogues.","rogues"],["Ruth's","ruths"],["Sabor","saborrestaurant"],["Senza Fondo","senzafondo"],["Shawarma Bar","shawarmabar"],["Singapore Garden","singaporegarden"],["Smoking Goat Shoreditch","smokinggoat"],["SOMA Soho","somasoho"],["Space Talk","spacetalk"],["Speedboat Bar","speedboat"],["Stable Wines","stablewines"],["STRAKER'S","strakerslondon"],["Sune Restaurant","sune"],["Suzi Tros 🇬🇷","suzitros"],["Tamila Kings Cross","tamilakingscross"],["TANGRA","tangra"],["Tatar Bunar","tatarbunarlondon"],["Tempo","tempo"],["The 10 Cases","10cases"],["The Albion","thealbionlondon"],["The Alfred Tennyson","thealfredtennyson"],["The Audley Public House","theaudley"],["The Baring","thebaring"],["The Blue Stoops","thebluestoops"],["The Boundary","boundarylondon"],["The Builders Arms","thebuildersarms"],["The Cadogan Arms","thecadoganarms"],["The Camberwell Arms","thecamberwellarms"],["The Cavendish Pub, Marylebone","thecavendishmarylebone"],["The Coach Makers Arms Pub Marylebone","thecoachmakersarms"],["The Compton Arms","thecomptonarms"],["The Cow","thecow"],["The Dover","thedoverrestaurant"],["The Fat Badger - Notting Hill","thefatbadger"],["The French House","thefrenchhouse"],["The George","thegeorge"],["The Good Oak","thegoodoaknottinghill"],["The Grazing Goat Pub & Boutique Hotel Marylebone","thegrazinggoat"],["The Hart - Marylebone","thehartuk"],["The Hawk's Nest","thehawksnest"],["The Hero - Maida Vale","thehero"],["The Holly Bush, Hampstead","thehollybush"],["The Hound","thehounduk"],["The Kerfield Arms","thekerfieldarms"],["The Lavery","thelavery"],["The Libertine Restaurant & Bar","libertinerestaurantbar"],["The Macbeth","themacbeth"],["The Mall Tavern","themalltavernnottinghill"],["The Mayflower Pub","themayflower"],["The Orange Pub & Boutique Hotel Belgravia","theorange"],["The Palomar","thepalomar"],["The Pelican - Notting Hill","thepelicanw11"],["The Pig and Butcher","thepigandbutcherlondon"],["The Pig's Ear","thepigsear"],["The Princess Royal Pub & Boutique Hotel Notting Hill","theprincessroyal"],["The Queen's Arms","queensarmswestminster"],["The River Café","rivercafelondon"],["The Salusbury Pub & Dining Room","thesalusbury"],["The Scotch of St James","thescotch"],["The Shaston Arms","theshastonarms"],["The Starman","thestarman"],["The Tamil Prince","thetamilprince"],["The Telegraph","telegraph"],["The Walmer Castle","thewalmercastle"],["The Waterman’s Arms","thewatermansarms"],["The Winemakers Club","thewinemakersclub"],["Theo's","no1parklaneterrace"],["Trullo","trullo"],["Upstairs","UpstairsatLangans"],["Vesper Restaurant","vesperrestaurant"],["Weezie's","weezies"],["Wild by Tart","wildbytart"],["Wild Corner","wildcorner"],["Wild Tavern","wildtavernchelsea"],["Wildflowers Restaurant","wildflowers"],["Wine Bar","winebar"],["Yasmin","yasmin"],["Zylia","zyliacoventgarden"]];
-
+  var VENUES = [["A. Wong","awong","Victoria"],["abc kitchens","abckitchens","Belgravia"],["ACE Pizza Victoria Park","acepizzavictoriapark","Victoria Park"],["Acme Fire Cult","acmefirecult","Dalston"],["AGORA souvla bar","agoralondon","Borough"],["Akara Restaurant","akara","Borough"],["Akub Restaurant","akub","Notting Hill"],["ALTA Kingly Court","altarestaurant","Carnaby"],["Ambassadors Clubhouse","ambassadorsclubhouse","Mayfair"],["Anchor & Hope","theanchorandhope","Waterloo"],["Automat","automatdining","Mayfair"],["Bancone Covent Garden","banconecoventgarden","Covent Garden"],["Barrafina Adelaide Street","barrafinaadelaidestreet","Covent Garden"],["Barrafina Dean Street","barrafina","Soho"],["Barrafina Drury Lane","barrafinadrurylane","Covent Garden"],["Berber & Q","berberandq","Haggerston"],["Berenjak Borough","berenjakborough","Borough"],["Berenjak Soho","berenjakjks","Soho"],["BiBi","bibi","Mayfair"],["BRAT Restaurant","bratshoreditch","Shoreditch"],["Brat x Climpson's Arch","bratclimpsonsarch","London Fields"],["Brawn","brawn","Bethnal Green"],["Brigadiers","brigadiers","City of London"],["Bubala King's Cross","bubalakingscross","King's Cross"],["Bubala Soho","bubalasoho","Soho"],["Burro","burro","Covent Garden"],["Café Deco","cafedeco","Bloomsbury"],["Caia","caia","Notting Hill"],["Campania","campania","Bethnal Green"],["Canal Restaurant","canalrestaurant","Westbourne Park"],["Canteen | Notting Hill","canteen","Notting Hill"],["Canton Arms","cantonarms","Stockwell"],["Caravel","caravel","Hoxton"],["Carousel","carousellondon","Fitzrovia"],["Casa Felicia","casafelicia","Queen's Park"],["Cav","cavrestaurant","Bethnal Green"],["Chez Lui","chezlui","Notting Hill"],["Chez Rose","chezrose","Mayfair"],["Chishuru","chishuru","Fitzrovia"],["Darjeeling Express","darjeelingexpress","Carnaby"],["Dishoom Kensington","dishoomkensington","Kensington"],["Dockley Road","dockleyroadkitchen","Bermondsey"],["Don't Tell Dad","donttelldad","Queen's Park"],["Donia","doniarestaurant","Carnaby"],["Dorian Restaurant","dorianrestaurant","Notting Hill"],["Dove Restaurant","Dove","Notting Hill"],["Dover Street Counter","doverstreetcounter","Mayfair"],["Duchy","duchyrestaurant","Shoreditch"],["Empire Empire","empireempirelondon","Notting Hill"],["EQUAL PARTS","equalparts","Bethnal Green"],["Evelyn's Table","evelynstable","Soho"],["Experimental Cocktail Club Chinatown","eccchinatown","Chinatown"],["Field Notes","fieldnotes","London Fields"],["Firebird | Restaurant & Wine Bar","firebirdlondon","Soho"],["Folde","foldevenue","Battersea"],["Fonda","fonda","Mayfair"],["Gina Restaurant","gina","Chingford"],["Gold","goldnottinghill","Notting Hill"],["Goodbye Horses","goodbyehorses","De Beauvoir Town"],["Gordon's Wine Bar","gordonswinebar","Embankment"],["Gymkhana","gymkhana","Mayfair"],["Homies On Donkeys","homiesondonkeysrestaurant","Leytonstone"],["Ibai","ibailondon","Farringdon"],["Impala","impala","Soho"],["Jacuzzi","jacuzzi","Kensington"],["Josephine Bouchon - Chelsea","josephinebistro","Chelsea"],["José","josebypizarro","Bermondsey"],["Julie's Restaurant","juliesrestaurant","Holland Park"],["Kiln","kilnlondon","Soho"],["Kinkally","kinkally","Fitzrovia"],["Kolae","kolae","Borough"],["Kricket Soho","kricketsoho","Soho"],["Kudu","kudurestaurant","Peckham"],["La Petite Maison (LPM) London","lpmlondon","Mayfair"],["Lai Rai","lairai","Peckham"],["Legado Restaurant","legado","Shoreditch"],["LEYDI","leydi","City of London"],["Lucia's","Lucias","Hackney Wick"],["Lupa","lupa","Highbury"],["Maison François","maisonfrancois","St James's"],["Mangal 2 Restaurant","mangal2restaurant","Dalston"],["manteca","manteca","Shoreditch"],["Mareida","mareida","Fitzrovia"],["Maresco","maresco","Soho"],["Marjorie's","marjories","Carnaby"],["MARTINO'S","martinoslondon","Chelsea"],["Miga","migarestaurant","London Fields"],["Morchella","morchella","Clerkenwell"],["Mountain Beak Street","mountain","Soho"],["Netil360 Rooftop Bar - Restaurant","netil360","London Fields"],["Nightjar Shoreditch","nightjarshoreditch","Shoreditch"],["Noble Rot Mayfair","noblerotmayfair","Mayfair"],["NT's Loft","ntsloft","London Fields"],["OMA","oma","Borough"],["OREN","oren","Dalston"],["Osteria Angelina","osteriaangelina","Spitalfields"],["Osteria Basilico","osteriabasilico","Notting Hill"],["Osteria Vibrato","osteriavibrato","Soho"],["Oudh 1722","oudh1722","Borough"],["Passione Vino Exmouth Market","passionevinoclerkenwell","Clerkenwell"],["Planque","planque","Haggerston"],["Plaza Khao Gaeng","plaza","Holborn"],["Plaza Khao Gaeng Borough Yards","plazakhaogaengborough","Borough"],["POLPO Italian Restaurant Soho","polposoho","Soho"],["Prince Arthur, Belgravia","theprincearthurbelgravia","Belgravia"],["Rabbit British Bistro","rabbitrestaurant","Chelsea"],["Rambutan","rambutan","Borough"],["Randall & Aubin","randallandaubin","Soho"],["Ria's","riassoho","Soho"],["Rita's","ritasbar","Soho"],["Rochelle Canteen","rochellecanteen","Shoreditch"],["Roebuck","roebuckchiswick","Chiswick"],["Rogues.","rogues","Bethnal Green"],["Ruth's","ruths","Putney"],["Sabor","saborrestaurant","Mayfair"],["Senza Fondo","senzafondo","Shoreditch"],["Shawarma Bar","shawarmabar","Clerkenwell"],["Singapore Garden","singaporegarden","Swiss Cottage"],["Smoking Goat Shoreditch","smokinggoat","Shoreditch"],["SOMA Soho","somasoho","Soho"],["Space Talk","spacetalk","Farringdon"],["Speedboat Bar","speedboat","Chinatown"],["Stable Wines","stablewines","Islington"],["STRAKER'S","strakerslondon","Notting Hill"],["Sune Restaurant","sune","Hackney"],["Suzi Tros 🇬🇷","suzitros","Notting Hill"],["Tamila Kings Cross","tamilakingscross","King's Cross"],["TANGRA","tangra","Soho"],["Tatar Bunar","tatarbunarlondon","Shoreditch"],["Tempo","tempo","Mayfair"],["The 10 Cases","10cases","Covent Garden"],["The Albion","thealbionlondon","Islington"],["The Alfred Tennyson","thealfredtennyson","Belgravia"],["The Audley Public House","theaudley","Mayfair"],["The Baring","thebaring","Islington"],["The Blue Stoops","thebluestoops","Kensington"],["The Boundary","boundarylondon","Shoreditch"],["The Builders Arms","thebuildersarms","Chelsea"],["The Cadogan Arms","thecadoganarms","Chelsea"],["The Camberwell Arms","thecamberwellarms","Camberwell"],["The Cavendish Pub, Marylebone","thecavendishmarylebone","Marylebone"],["The Coach Makers Arms Pub Marylebone","thecoachmakersarms","Marylebone"],["The Compton Arms","thecomptonarms","Islington"],["The Cow","thecow","Notting Hill"],["The Dover","thedoverrestaurant","Mayfair"],["The Fat Badger - Notting Hill","thefatbadger","Notting Hill"],["The French House","thefrenchhouse","Soho"],["The George","thegeorge","Fitzrovia"],["The Good Oak","thegoodoaknottinghill","Notting Hill"],["The Grazing Goat Pub & Boutique Hotel Marylebone","thegrazinggoat","Marylebone"],["The Hart - Marylebone","thehartuk","Marylebone"],["The Hawk's Nest","thehawksnest","Shepherd's Bush"],["The Hero - Maida Vale","thehero","Maida Vale"],["The Holly Bush, Hampstead","thehollybush","Hampstead"],["The Hound","thehounduk","Chiswick"],["The Kerfield Arms","thekerfieldarms","Camberwell"],["The Lavery","thelavery","South Kensington"],["The Libertine Restaurant & Bar","libertinerestaurantbar","City of London"],["The Macbeth","themacbeth","Hoxton"],["The Mall Tavern","themalltavernnottinghill","Notting Hill"],["The Mayflower Pub","themayflower","Rotherhithe"],["The Orange Pub & Boutique Hotel Belgravia","theorange","Belgravia"],["The Palomar","thepalomar","Soho"],["The Pelican - Notting Hill","thepelicanw11","Notting Hill"],["The Pig and Butcher","thepigandbutcherlondon","Islington"],["The Pig's Ear","thepigsear","Chelsea"],["The Princess Royal Pub & Boutique Hotel Notting Hill","theprincessroyal","Notting Hill"],["The Queen's Arms","queensarmswestminster","Pimlico"],["The River Café","rivercafelondon","Hammersmith"],["The Salusbury Pub & Dining Room","thesalusbury","Queen's Park"],["The Scotch of St James","thescotch","St James's"],["The Shaston Arms","theshastonarms","Soho"],["The Starman","thestarman","Mayfair"],["The Tamil Prince","thetamilprince","Islington"],["The Telegraph","telegraph","Putney"],["The Walmer Castle","thewalmercastle","Notting Hill"],["The Waterman’s Arms","thewatermansarms","Barnes"],["The Winemakers Club","thewinemakersclub","Farringdon"],["Theo's","no1parklaneterrace","Mayfair"],["Trullo","trullo","Highbury"],["Upstairs","UpstairsatLangans","Mayfair"],["Vesper Restaurant","vesperrestaurant","Clerkenwell"],["Weezie's","weezies","Belgravia"],["Wild by Tart","wildbytart","Belgravia"],["Wild Corner","wildcorner","Chelsea"],["Wild Tavern","wildtavernchelsea","Chelsea"],["Wildflowers Restaurant","wildflowers","Belgravia"],["Wine Bar","winebar",""],["Yasmin","yasmin","Soho"],["Zylia","zyliacoventgarden","Covent Garden"]];
   var $ = function(s){ return document.querySelector(s); };
   function esc(s){ return String(s==null?"":s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c];}); }
 
@@ -744,11 +761,20 @@
   }
   function todayISO(){ var d = new Date(); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
 
-  function addFav(name, slug){
+  // Borough/area tags. The tag lives on the venue (VENUES[i][2]); favourites carry
+  // their own copy so a manual edit sticks. VAREA maps slug -> venue's default area.
+  var VAREA = {}; VENUES.forEach(function(v){ if (v[2]) VAREA[v[1]] = v[2]; });
+  function favArea(f){ return ((f && f.area) || "").trim() || (f && VAREA[f.slug]) || ""; }
+  var favSelectedAreas = {};   // area name -> true (multi-select filter)
+
+  function addFav(name, slug, area){
     slug = extractSlug((slug||"").trim()); name = (name||"").trim() || slug;
     if (!slug) return;
     if (isFav(slug)) return;
-    favs().push({ name: name, slug: slug });
+    var rec = { name: name, slug: slug };
+    area = (area||"").trim() || VAREA[slug] || "";
+    if (area) rec.area = area;
+    favs().push(rec);
     favs().sort(function(a,b){ return a.name.toLowerCase() < b.name.toLowerCase() ? -1 : 1; });
     renderFavourites(); saveConfig("Added "+name);
   }
@@ -756,29 +782,70 @@
     STATE.config.favourites = favs().filter(function(f){ return f.slug !== slug; });
     renderFavourites(); saveConfig("Removed");
   }
+  function editArea(slug){
+    var f = favs().filter(function(x){ return x.slug === slug; })[0]; if (!f) return;
+    var cur = favArea(f);
+    var v = window.prompt("Borough / area for " + f.name + ":", cur);
+    if (v === null) return;
+    v = v.trim();
+    if (v) f.area = v; else delete f.area;
+    renderFavourites(); saveConfig(v ? ("Tagged "+f.name) : "Cleared tag");
+  }
 
   function renderFavourites(){
     var list = favs();
     $("#favCount").textContent = list.length;
-    // current favourites as removable chips
+    // current favourites as removable chips, each showing (and letting you edit) its borough
     $("#favList").innerHTML = list.length
-      ? list.map(function(f){ return '<span class="favchip">'+esc(f.name)+'<span class="x" data-rm="'+esc(f.slug)+'" role="button" aria-label="Remove '+esc(f.name)+'">✕</span></span>'; }).join("")
+      ? list.map(function(f){
+          var a = favArea(f);
+          var tag = a
+            ? '<span class="favchip-area" data-edit-area="'+esc(f.slug)+'">'+esc(a)+'</span>'
+            : '<span class="favchip-area empty" data-edit-area="'+esc(f.slug)+'">+ borough</span>';
+          return '<span class="favchip">'+esc(f.name)+tag+'<span class="x" data-rm="'+esc(f.slug)+'" role="button" aria-label="Remove '+esc(f.name)+'">✕</span></span>';
+        }).join("")
       : '<span class="helper">No favourites yet — search your London list below, or add any slug.</span>';
+    renderFavAreaChips();
     renderPicker($("#fav-search").value);
     // auto-open the manage drawer the first time if there's nothing to run yet
     if (!favManageInit){ favManageInit = true; favManageOpen = (list.length === 0); applyManage(); }
     if (!$("#fav-date").value) $("#fav-date").value = todayISO();
   }
 
+  // ---- Borough multi-select filter ----
+  function favAreasList(){
+    var set = {}; favs().forEach(function(f){ var a = favArea(f); if (a) set[a] = (set[a]||0)+1; });
+    return Object.keys(set).sort().map(function(a){ return { area:a, n:set[a] }; });
+  }
+  function renderFavAreaChips(){
+    var areas = favAreasList();
+    // drop any selected area that no longer exists among favourites
+    Object.keys(favSelectedAreas).forEach(function(a){ if (!areas.some(function(x){ return x.area===a; })) delete favSelectedAreas[a]; });
+    var field = $("#favAreaField");
+    if (!areas.length){ field.style.display = "none"; $("#favAreas").innerHTML = ""; return; }
+    field.style.display = "block";
+    var selN = Object.keys(favSelectedAreas).length;
+    $("#favAreaHint").textContent = selN ? (selN + " selected — tap to clear") : "all — tap to narrow";
+    $("#favAreas").innerHTML = areas.map(function(x){
+      return '<button class="areachip'+(favSelectedAreas[x.area]?' on':'')+'" data-area="'+esc(x.area)+'">'+esc(x.area)+' <span class="ac-n">'+x.n+'</span></button>';
+    }).join("");
+  }
+  $("#favAreas").addEventListener("click", function(e){
+    var c = e.target.closest("[data-area]"); if (!c) return;
+    var a = c.dataset.area;
+    if (favSelectedAreas[a]) delete favSelectedAreas[a]; else favSelectedAreas[a] = true;
+    renderFavAreaChips();
+  });
+
   function renderPicker(q){
     q = (q||"").trim().toLowerCase();
     if (!q){ $("#favPicker").innerHTML = ""; return; }
-    var matches = VENUES.filter(function(v){ return v[0].toLowerCase().indexOf(q) >= 0 || v[1].toLowerCase().indexOf(q) >= 0; });
+    var matches = VENUES.filter(function(v){ return v[0].toLowerCase().indexOf(q) >= 0 || v[1].toLowerCase().indexOf(q) >= 0 || (v[2]||"").toLowerCase().indexOf(q) >= 0; });
     var shown = matches.slice(0, 40);
     $("#favPicker").innerHTML = shown.map(function(v){
       var picked = isFav(v[1]);
       return '<div class="pickrow'+(picked?' picked':'')+'" data-slug="'+esc(v[1])+'" data-name="'+esc(v[0])+'">'
-        + '<span class="pr-name">'+esc(v[0])+' <span class="pr-slug">'+esc(v[1])+'</span></span>'
+        + '<span class="pr-name">'+esc(v[0])+' <span class="pr-slug">'+esc(v[2]||v[1])+'</span></span>'
         + '<span class="pr-add">'+(picked?'✓':'+')+'</span></div>';
     }).join("") + (matches.length > shown.length ? '<div class="pickmore">'+(matches.length-shown.length)+' more — keep typing to narrow</div>' : (shown.length?'':'<div class="pickmore">No match in your verified list. Add it by slug below.</div>'));
   }
@@ -790,19 +857,20 @@
     else addFav(row.dataset.name, row.dataset.slug);
   });
   $("#favList").addEventListener("click", function(e){
+    var ea = e.target.closest("[data-edit-area]"); if (ea){ editArea(ea.dataset.editArea); return; }
     var x = e.target.closest("[data-rm]"); if (x) removeFav(x.dataset.rm);
   });
   $("#favManualAdd").onclick = function(){
     var name = $("#fav-manual-name").value.trim();
     var slug = $("#fav-manual-slug").value.trim();
     if (!slug){ toast("Enter a slug or SevenRooms URL", true); return; }
-    addFav(name, slug);
-    $("#fav-manual-name").value = ""; $("#fav-manual-slug").value = "";
+    addFav(name, slug, $("#fav-manual-area").value);
+    $("#fav-manual-name").value = ""; $("#fav-manual-slug").value = ""; $("#fav-manual-area").value = "";
   };
   $("#favAddAll").onclick = function(){
     var have = {}; favs().forEach(function(f){ have[f.slug] = 1; });
     var added = 0;
-    VENUES.forEach(function(v){ if (!have[v[1]]){ favs().push({ name:v[0], slug:v[1] }); added++; } });
+    VENUES.forEach(function(v){ if (!have[v[1]]){ var rec={ name:v[0], slug:v[1] }; if (v[2]) rec.area=v[2]; favs().push(rec); added++; } });
     favs().sort(function(a,b){ return a.name.toLowerCase() < b.name.toLowerCase() ? -1 : 1; });
     renderFavourites(); saveConfig(added ? ("Added "+added+" favourites") : "All already added");
   };
@@ -864,27 +932,31 @@
   }
 
   $("#favRunBtn").onclick = function(){
-    var list = favs();
-    if (!list.length){ toast("Add some favourites first", true); favManageOpen = true; applyManage(); return; }
+    var all = favs();
+    if (!all.length){ toast("Add some favourites first", true); favManageOpen = true; applyManage(); return; }
+    var sel = Object.keys(favSelectedAreas);
+    var list = sel.length ? all.filter(function(f){ return favSelectedAreas[favArea(f)]; }) : all;
+    if (!list.length){ toast("No favourites in the selected boroughs", true); return; }
     var date = $("#fav-date").value || todayISO();
     var ws = $("#fav-ws").value || "", we = $("#fav-we").value || "";
+    var areaLabel = sel.length ? sel.slice().sort().join(", ") : "";
     var btn = this; btn.disabled = true;
-    $("#favResults").innerHTML = '<div class="fav-progress"><div class="spinner" style="width:22px;height:22px;margin:0"></div><span id="favProg">Checking '+list.length+' favourites…</span></div>';
+    $("#favResults").innerHTML = '<div class="fav-progress"><div class="spinner" style="width:22px;height:22px;margin:0"></div><span id="favProg">Checking '+list.length+' favourite'+(list.length===1?'':'s')+'…</span></div>';
     pool(list, function(f){ return fetchFavTimes(f, date, ws, we); }, 6, function(done, total){
-      var p = document.getElementById("favProg"); if (p) p.textContent = "Checking your favourites… " + done + " / " + total;
+      var p = document.getElementById("favProg"); if (p) p.textContent = "Checking… " + done + " / " + total;
     }).then(function(results){
-      renderFavResults(results.filter(Boolean), list, date, ws, we, results.filter(function(r){return r===null;}).length);
+      renderFavResults(results.filter(Boolean), list, date, ws, we, results.filter(function(r){return r===null;}).length, areaLabel);
     }).finally(function(){ btn.disabled = false; });
   };
 
-  function renderFavResults(results, list, date, ws, we, errCount){
+  function renderFavResults(results, list, date, ws, we, errCount, areaLabel){
     var hits = results.filter(function(r){ return r.hits.length; });
     hits.sort(function(a,b){ return a.hits[0].t < b.hits[0].t ? -1 : 1; });
     var misses = results.filter(function(r){ return !r.hits.length; }).map(function(r){ return r.fav.name; });
     var windowLabel = (ws||"any") + "–" + (we||"any");
     var html = '';
     html += '<div class="fav-summary"><span class="accent">'+hits.length+'</span> of '+list.length+' favourite'+(list.length===1?'':'s')+' '+(hits.length===1?'has':'have')+' a table</div>';
-    html += '<div class="fav-sub">'+esc(fmtDate(date))+' · party of '+favParty+' · '+esc(windowLabel)+(errCount?(' · '+errCount+' couldn\'t be checked'):'')+'</div>';
+    html += '<div class="fav-sub">'+esc(fmtDate(date))+' · party of '+favParty+' · '+esc(windowLabel)+(areaLabel?(' · '+esc(areaLabel)):'')+(errCount?(' · '+errCount+' couldn\'t be checked'):'')+'</div>';
     if (!hits.length){
       html += '<div class="state" style="padding:34px 20px"><div class="emblem" style="width:44px;height:44px"></div><div class="big" style="font-size:20px">Fully booked</div><div style="max-width:32ch;margin:0 auto">None of your favourites have a table in this window. Try a wider time or another day.</div></div>';
     } else {
@@ -892,8 +964,9 @@
       hits.forEach(function(r){
         var url = esc(bookingUrl(r.fav.slug, date));
         var shown = r.hits.slice(0, MAX_CHIPS), extra = r.hits.length - shown.length;
+        var fa = favArea(r.fav);
         html += '<div class="favcard">'
-          + '<div class="fc-head"><span class="fc-name">'+esc(r.fav.name)+'</span>'
+          + '<div class="fc-head"><span class="fc-name">'+esc(r.fav.name)+(fa?' <span class="fc-area">'+esc(fa)+'</span>':'')+'</span>'
           + '<a class="fc-open" href="'+url+'" target="_blank" rel="noopener" aria-label="Open booking page">'
           + '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17L17 7M9 7h8v8"/></svg></a></div>'
           + '<div class="timewrap">'
