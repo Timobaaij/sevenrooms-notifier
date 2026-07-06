@@ -178,6 +178,8 @@
   .fav-empty-names{font-size:12.5px;color:var(--faint);margin:4px 2px 0;line-height:1.5}
   .fav-progress{display:flex;align-items:center;gap:12px;padding:22px 4px;color:var(--muted);font-size:14px}
 
+  .favbulk{display:flex;gap:10px}
+
   /* Favourites — manage */
   .favmanage{margin-top:26px;border-top:1px solid var(--hair-soft);padding-top:8px}
   .favmanage-head{display:flex;align-items:center;justify-content:space-between;padding:12px 2px;cursor:pointer;user-select:none}
@@ -228,7 +230,7 @@
     <!-- FAVOURITES -->
     <section class="view" id="view-favourites">
       <h1 class="largetitle">Favourites</h1>
-      <p class="subtitle">Where can you still eat? A live look — never watched, never notified.</p>
+      <p class="subtitle">Choose a day, time window and party — Maître checks <strong>all</strong> your favourites at once and shows only the ones with a table.</p>
 
       <div class="watch" id="favRunPanel">
         <div class="tworow">
@@ -241,7 +243,7 @@
           <div class="field" style="margin-bottom:0"><label for="fav-ws">From</label><input class="input" id="fav-ws" type="time" value="19:00" /></div>
           <div class="field" style="margin-bottom:0"><label for="fav-we">Until</label><input class="input" id="fav-we" type="time" value="21:30" /></div>
         </div>
-        <button class="btn btn--gold btn--block" id="favRunBtn" style="margin-top:18px">Check availability now</button>
+        <button class="btn btn--gold btn--block" id="favRunBtn" style="margin-top:18px">Check all favourites</button>
         <p class="helper" style="text-align:center;margin-top:10px">On-demand only. No push notifications — this is separate from The Book.</p>
       </div>
 
@@ -253,7 +255,11 @@
           <svg class="chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
         </div>
         <div class="favmanage-body" id="favManageBody">
-          <div class="chipwrap" id="favList" style="margin-top:2px"></div>
+          <div class="favbulk">
+            <button class="btn btn--ghost" id="favAddAll" style="height:40px;flex:1">Add all 190</button>
+            <button class="btn btn--ghost" id="favClearAll" style="height:40px;flex:1">Clear all</button>
+          </div>
+          <div class="chipwrap" id="favList" style="margin-top:14px"></div>
           <div class="field" style="margin:16px 0 8px"><label for="fav-search">Add from your London list</label>
             <input class="input" id="fav-search" type="search" placeholder="Search 190 verified venues…" autocomplete="off" />
           </div>
@@ -788,6 +794,20 @@
     if (!slug){ toast("Enter a slug or SevenRooms URL", true); return; }
     addFav(name, slug);
     $("#fav-manual-name").value = ""; $("#fav-manual-slug").value = "";
+  };
+  $("#favAddAll").onclick = function(){
+    var have = {}; favs().forEach(function(f){ have[f.slug] = 1; });
+    var added = 0;
+    VENUES.forEach(function(v){ if (!have[v[1]]){ favs().push({ name:v[0], slug:v[1] }); added++; } });
+    favs().sort(function(a,b){ return a.name.toLowerCase() < b.name.toLowerCase() ? -1 : 1; });
+    renderFavourites(); saveConfig(added ? ("Added "+added+" favourites") : "All already added");
+  };
+  $("#favClearAll").onclick = function(){
+    if (!favs().length) return;
+    if (!window.confirm("Remove all "+favs().length+" favourites?")) return;
+    STATE.config.favourites = [];
+    $("#favResults").innerHTML = "";
+    renderFavourites(); saveConfig("Cleared favourites");
   };
 
   // manage drawer collapse
