@@ -71,11 +71,11 @@
       ],
       "email_to": "",
       "id": "Vesper",
-      "notify": "both",
+      "notify": "push",
       "num_days": 1,
       "party_size": 2,
       "platform": "sevenrooms",
-      "salt": "1783328168.891141",
+      "salt": "1783328183.3304029",
       "time_slot": "",
       "venues": [
         "vesperrestaurant"
