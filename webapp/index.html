@@ -153,6 +153,52 @@
   .toast .dot{width:8px;height:8px;border-radius:50%;background:var(--open)}
   .toast.err .dot{background:var(--danger)}
 
+  .topbar-actions{display:flex;align-items:center;gap:2px}
+  .iconbtn.accent{color:var(--gold)}
+  .iconbtn.accent:hover{color:var(--gold-bright);background:rgba(228,196,124,.08)}
+  .iconbtn[hidden]{display:none}
+
+  /* 3-tab bar (no centre FAB) */
+  .tabbar{justify-content:space-around;padding:8px 16px calc(20px + var(--safe-b))}
+  .tab{width:auto;min-width:74px}
+
+  /* Favourites — live-run results */
+  .fav-summary{font-family:var(--serif);font-size:19px;color:var(--champagne);margin:20px 2px 4px;line-height:1.25;text-wrap:balance}
+  .fav-summary .accent{color:var(--gold-bright)}
+  .fav-sub{color:var(--muted);font-size:13px;margin:0 2px 14px}
+  .favcard{border-radius:16px;background:linear-gradient(168deg,var(--panel-hi),var(--panel));border:1px solid var(--hair-soft);padding:14px 16px;margin-bottom:12px}
+  .favcard .fc-head{display:flex;align-items:center;gap:10px;margin-bottom:11px}
+  .favcard .fc-name{font-family:var(--serif);font-size:18px;color:var(--champagne);flex:1 1 auto;line-height:1.15;word-break:break-word}
+  .favcard .fc-open{flex:0 0 auto;color:var(--gold-deep);width:30px;height:30px;display:grid;place-items:center;border-radius:50%;border:1px solid var(--hair-soft);text-decoration:none}
+  .favcard .fc-open:hover{color:var(--gold-bright);background:rgba(228,196,124,.08)}
+  .timewrap{display:flex;flex-wrap:wrap;gap:7px}
+  .timechip{font-family:var(--mono);font-size:13px;font-variant-numeric:tabular-nums;color:#241a05;text-decoration:none;padding:6px 11px;border-radius:9px;background:linear-gradient(140deg,var(--gold-bright),var(--gold-deep));font-weight:600}
+  .timechip.req{color:var(--gold-bright);background:rgba(228,196,124,.10);border:1px solid var(--hair)}
+  .timechip:active{transform:scale(.96)}
+  .fav-empty-names{font-size:12.5px;color:var(--faint);margin:4px 2px 0;line-height:1.5}
+  .fav-progress{display:flex;align-items:center;gap:12px;padding:22px 4px;color:var(--muted);font-size:14px}
+
+  /* Favourites — manage */
+  .favmanage{margin-top:26px;border-top:1px solid var(--hair-soft);padding-top:8px}
+  .favmanage-head{display:flex;align-items:center;justify-content:space-between;padding:12px 2px;cursor:pointer;user-select:none}
+  .favmanage-title{font-size:13px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--gold-deep)}
+  .favcount{display:inline-grid;place-items:center;min-width:22px;height:22px;padding:0 6px;margin-left:6px;border-radius:var(--pill);background:rgba(228,196,124,.12);border:1px solid var(--hair);color:var(--gold-bright);font-family:var(--mono);font-size:12px;vertical-align:middle}
+  .favmanage-head .chev{color:var(--faint);transition:transform .25s}
+  .favmanage.open .chev{transform:rotate(180deg)}
+  .favmanage-body{display:none;padding-bottom:8px}
+  .favmanage.open .favmanage-body{display:block;animation:fade .28s ease both}
+  .favchip{display:inline-flex;align-items:center;gap:7px;font-size:13px;color:var(--text);padding:6px 8px 6px 12px;border-radius:10px;background:rgba(255,255,255,.05);border:1px solid var(--hair-soft)}
+  .favchip .x{cursor:pointer;color:var(--faint);width:18px;height:18px;display:grid;place-items:center;border-radius:50%}
+  .favchip .x:hover{color:var(--danger);background:rgba(232,138,138,.12)}
+  .pickrow{display:flex;align-items:center;gap:10px;padding:11px 4px;border-bottom:1px solid var(--hair-soft);cursor:pointer}
+  .pickrow:last-child{border-bottom:none}
+  .pickrow .pr-name{flex:1 1 auto;font-size:14.5px;color:var(--text);line-height:1.2}
+  .pickrow .pr-slug{font-family:var(--mono);font-size:11px;color:var(--faint)}
+  .pickrow .pr-add{flex:0 0 auto;width:28px;height:28px;display:grid;place-items:center;border-radius:50%;border:1px solid var(--hair);color:var(--gold)}
+  .pickrow.picked .pr-add{color:#241a05;background:linear-gradient(140deg,var(--gold-bright),var(--gold-deep));border-color:transparent}
+  .pickrow.picked .pr-name{color:var(--champagne)}
+  .pickmore{text-align:center;color:var(--faint);font-size:12px;padding:10px}
+
   a:focus-visible,button:focus-visible,.input:focus-visible,.toggle:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
   @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition-duration:.01ms!important}}
 </style>
@@ -161,9 +207,14 @@
 <div class="app">
   <div class="topbar">
     <div class="wordmark"><span class="diamond"></span>Maître</div>
-    <button class="iconbtn" id="refreshBtn" aria-label="Refresh" title="Refresh">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>
-    </button>
+    <div class="topbar-actions">
+      <button class="iconbtn accent" id="addBtn" aria-label="Add a table to watch" title="Add">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+      </button>
+      <button class="iconbtn" id="refreshBtn" aria-label="Refresh" title="Refresh">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>
+      </button>
+    </div>
   </div>
 
   <div class="body">
@@ -172,6 +223,50 @@
       <h1 class="largetitle">The Book</h1>
       <p class="subtitle">Every table Maître is watching for you.</p>
       <div id="watchlist"></div>
+    </section>
+
+    <!-- FAVOURITES -->
+    <section class="view" id="view-favourites">
+      <h1 class="largetitle">Favourites</h1>
+      <p class="subtitle">Where can you still eat? A live look — never watched, never notified.</p>
+
+      <div class="watch" id="favRunPanel">
+        <div class="tworow">
+          <div class="field" style="margin-bottom:0"><label>Party</label>
+            <div class="stepper"><button id="fav-pminus" aria-label="Fewer">–</button><span class="n" id="fav-pnum">2</span><button id="fav-pplus" aria-label="More">+</button></div>
+          </div>
+          <div class="field" style="margin-bottom:0"><label for="fav-date">Day</label><input class="input" id="fav-date" type="date" /></div>
+        </div>
+        <div class="tworow" style="margin-top:14px">
+          <div class="field" style="margin-bottom:0"><label for="fav-ws">From</label><input class="input" id="fav-ws" type="time" value="19:00" /></div>
+          <div class="field" style="margin-bottom:0"><label for="fav-we">Until</label><input class="input" id="fav-we" type="time" value="21:30" /></div>
+        </div>
+        <button class="btn btn--gold btn--block" id="favRunBtn" style="margin-top:18px">Check availability now</button>
+        <p class="helper" style="text-align:center;margin-top:10px">On-demand only. No push notifications — this is separate from The Book.</p>
+      </div>
+
+      <div id="favResults"></div>
+
+      <div class="favmanage">
+        <div class="favmanage-head" id="favManageToggle">
+          <span class="favmanage-title">Your favourites <span class="favcount" id="favCount">0</span></span>
+          <svg class="chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+        </div>
+        <div class="favmanage-body" id="favManageBody">
+          <div class="chipwrap" id="favList" style="margin-top:2px"></div>
+          <div class="field" style="margin:16px 0 8px"><label for="fav-search">Add from your London list</label>
+            <input class="input" id="fav-search" type="search" placeholder="Search 190 verified venues…" autocomplete="off" />
+          </div>
+          <div id="favPicker"></div>
+          <div class="field" style="margin-top:14px"><label>Not in the list? Add by slug</label>
+            <div class="tworow">
+              <input class="input" id="fav-manual-name" placeholder="Name" />
+              <input class="input mono" id="fav-manual-slug" placeholder="slug or URL" />
+            </div>
+            <button class="btn btn--ghost btn--block" id="favManualAdd" style="height:44px;margin-top:10px">Add favourite</button>
+          </div>
+        </div>
+      </div>
     </section>
 
     <!-- OPENINGS -->
@@ -185,14 +280,15 @@
   <!-- Tab bar -->
   <nav class="tabbar">
     <button class="tab active" data-view="book">
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5z"/><path d="M4 20.5A2.5 2.5 0 0 1 6.5 18H20v3H6.5A2.5 2.5 0 0 1 4 20.5z"/></svg>
+      <svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5z"/><path d="M4 20.5A2.5 2.5 0 0 1 6.5 18H20v3H6.5A2.5 2.5 0 0 1 4 20.5z"/></svg>
       The Book
     </button>
-    <button class="fab" id="addBtn" aria-label="Add a table to watch">
-      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+    <button class="tab" data-view="favourites">
+      <svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.6 5.9 6.4.6-4.8 4.3 1.4 6.3L12 17.8 6.8 20.4l1.4-6.3L3.4 9.8l6.4-.6z"/></svg>
+      Favourites
     </button>
     <button class="tab" data-view="openings">
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>
+      <svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>
       Openings
     </button>
   </nav>
@@ -267,7 +363,11 @@
 (function(){
   "use strict";
   var API = "api/config";
-  var STATE = { config:{searches:[]}, sha:null, key: localStorage.getItem("maitre_key")||"", editIndex:null };
+  var STATE = { config:{searches:[],favourites:[]}, sha:null, key: localStorage.getItem("maitre_key")||"", editIndex:null };
+  var currentView = "book";
+
+  // Verified London venues (name, slug) — for the Favourites picker. Availability-API confirmed.
+  var VENUES = [["A. Wong","awong"],["abc kitchens","abckitchens"],["ACE Pizza Victoria Park","acepizzavictoriapark"],["Acme Fire Cult","acmefirecult"],["AGORA souvla bar","agoralondon"],["Akara Restaurant","akara"],["Akub Restaurant","akub"],["ALTA Kingly Court","altarestaurant"],["Ambassadors Clubhouse","ambassadorsclubhouse"],["Anchor & Hope","theanchorandhope"],["Automat","automatdining"],["Bancone Covent Garden","banconecoventgarden"],["Barrafina Adelaide Street","barrafinaadelaidestreet"],["Barrafina Dean Street","barrafina"],["Barrafina Drury Lane","barrafinadrurylane"],["Berber & Q","berberandq"],["Berenjak Borough","berenjakborough"],["Berenjak Soho","berenjakjks"],["BiBi","bibi"],["BRAT Restaurant","bratshoreditch"],["Brat x Climpson's Arch","bratclimpsonsarch"],["Brawn","brawn"],["Brigadiers","brigadiers"],["Bubala King's Cross","bubalakingscross"],["Bubala Soho","bubalasoho"],["Burro","burro"],["Café Deco","cafedeco"],["Caia","caia"],["Campania","campania"],["Canal Restaurant","canalrestaurant"],["Canteen | Notting Hill","canteen"],["Canton Arms","cantonarms"],["Caravel","caravel"],["Carousel","carousellondon"],["Casa Felicia","casafelicia"],["Cav","cavrestaurant"],["Chez Lui","chezlui"],["Chez Rose","chezrose"],["Chishuru","chishuru"],["Darjeeling Express","darjeelingexpress"],["Dishoom Kensington","dishoomkensington"],["Dockley Road","dockleyroadkitchen"],["Don't Tell Dad","donttelldad"],["Donia","doniarestaurant"],["Dorian Restaurant","dorianrestaurant"],["Dove Restaurant","Dove"],["Dover Street Counter","doverstreetcounter"],["Duchy","duchyrestaurant"],["Empire Empire","empireempirelondon"],["EQUAL PARTS","equalparts"],["Evelyn's Table","evelynstable"],["Experimental Cocktail Club Chinatown","eccchinatown"],["Field Notes","fieldnotes"],["Firebird | Restaurant & Wine Bar","firebirdlondon"],["Folde","foldevenue"],["Fonda","fonda"],["Gina Restaurant","gina"],["Gold","goldnottinghill"],["Goodbye Horses","goodbyehorses"],["Gordon's Wine Bar","gordonswinebar"],["Gymkhana","gymkhana"],["Homies On Donkeys","homiesondonkeysrestaurant"],["Ibai","ibailondon"],["Impala","impala"],["Jacuzzi","jacuzzi"],["Josephine Bouchon - Chelsea","josephinebistro"],["José","josebypizarro"],["Julie's Restaurant","juliesrestaurant"],["Kiln","kilnlondon"],["Kinkally","kinkally"],["Kolae","kolae"],["Kricket Soho","kricketsoho"],["Kudu","kudurestaurant"],["La Petite Maison (LPM) London","lpmlondon"],["Lai Rai","lairai"],["Legado Restaurant","legado"],["LEYDI","leydi"],["Lucia's","Lucias"],["Lupa","lupa"],["Maison François","maisonfrancois"],["Mangal 2 Restaurant","mangal2restaurant"],["manteca","manteca"],["Mareida","mareida"],["Maresco","maresco"],["Marjorie's","marjories"],["MARTINO'S","martinoslondon"],["Miga","migarestaurant"],["Morchella","morchella"],["Mountain Beak Street","mountain"],["Netil360 Rooftop Bar - Restaurant","netil360"],["Nightjar Shoreditch","nightjarshoreditch"],["Noble Rot Mayfair","noblerotmayfair"],["NT's Loft","ntsloft"],["OMA","oma"],["OREN","oren"],["Osteria Angelina","osteriaangelina"],["Osteria Basilico","osteriabasilico"],["Osteria Vibrato","osteriavibrato"],["Oudh 1722","oudh1722"],["Passione Vino Exmouth Market","passionevinoclerkenwell"],["Planque","planque"],["Plaza Khao Gaeng","plaza"],["Plaza Khao Gaeng Borough Yards","plazakhaogaengborough"],["POLPO Italian Restaurant Soho","polposoho"],["Prince Arthur, Belgravia","theprincearthurbelgravia"],["Rabbit British Bistro","rabbitrestaurant"],["Rambutan","rambutan"],["Randall & Aubin","randallandaubin"],["Ria's","riassoho"],["Rita's","ritasbar"],["Rochelle Canteen","rochellecanteen"],["Roebuck","roebuckchiswick"],["Rogues.","rogues"],["Ruth's","ruths"],["Sabor","saborrestaurant"],["Senza Fondo","senzafondo"],["Shawarma Bar","shawarmabar"],["Singapore Garden","singaporegarden"],["Smoking Goat Shoreditch","smokinggoat"],["SOMA Soho","somasoho"],["Space Talk","spacetalk"],["Speedboat Bar","speedboat"],["Stable Wines","stablewines"],["STRAKER'S","strakerslondon"],["Sune Restaurant","sune"],["Suzi Tros 🇬🇷","suzitros"],["Tamila Kings Cross","tamilakingscross"],["TANGRA","tangra"],["Tatar Bunar","tatarbunarlondon"],["Tempo","tempo"],["The 10 Cases","10cases"],["The Albion","thealbionlondon"],["The Alfred Tennyson","thealfredtennyson"],["The Audley Public House","theaudley"],["The Baring","thebaring"],["The Blue Stoops","thebluestoops"],["The Boundary","boundarylondon"],["The Builders Arms","thebuildersarms"],["The Cadogan Arms","thecadoganarms"],["The Camberwell Arms","thecamberwellarms"],["The Cavendish Pub, Marylebone","thecavendishmarylebone"],["The Coach Makers Arms Pub Marylebone","thecoachmakersarms"],["The Compton Arms","thecomptonarms"],["The Cow","thecow"],["The Dover","thedoverrestaurant"],["The Fat Badger - Notting Hill","thefatbadger"],["The French House","thefrenchhouse"],["The George","thegeorge"],["The Good Oak","thegoodoaknottinghill"],["The Grazing Goat Pub & Boutique Hotel Marylebone","thegrazinggoat"],["The Hart - Marylebone","thehartuk"],["The Hawk's Nest","thehawksnest"],["The Hero - Maida Vale","thehero"],["The Holly Bush, Hampstead","thehollybush"],["The Hound","thehounduk"],["The Kerfield Arms","thekerfieldarms"],["The Lavery","thelavery"],["The Libertine Restaurant & Bar","libertinerestaurantbar"],["The Macbeth","themacbeth"],["The Mall Tavern","themalltavernnottinghill"],["The Mayflower Pub","themayflower"],["The Orange Pub & Boutique Hotel Belgravia","theorange"],["The Palomar","thepalomar"],["The Pelican - Notting Hill","thepelicanw11"],["The Pig and Butcher","thepigandbutcherlondon"],["The Pig's Ear","thepigsear"],["The Princess Royal Pub & Boutique Hotel Notting Hill","theprincessroyal"],["The Queen's Arms","queensarmswestminster"],["The River Café","rivercafelondon"],["The Salusbury Pub & Dining Room","thesalusbury"],["The Scotch of St James","thescotch"],["The Shaston Arms","theshastonarms"],["The Starman","thestarman"],["The Tamil Prince","thetamilprince"],["The Telegraph","telegraph"],["The Walmer Castle","thewalmercastle"],["The Waterman’s Arms","thewatermansarms"],["The Winemakers Club","thewinemakersclub"],["Theo's","no1parklaneterrace"],["Trullo","trullo"],["Upstairs","UpstairsatLangans"],["Vesper Restaurant","vesperrestaurant"],["Weezie's","weezies"],["Wild by Tart","wildbytart"],["Wild Corner","wildcorner"],["Wild Tavern","wildtavernchelsea"],["Wildflowers Restaurant","wildflowers"],["Wine Bar","winebar"],["Yasmin","yasmin"],["Zylia","zyliacoventgarden"]];
 
   var $ = function(s){ return document.querySelector(s); };
   function esc(s){ return String(s==null?"":s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c];}); }
@@ -293,10 +393,12 @@
   function loadConfig(){
     renderState("loading");
     api("GET").then(function(res){
-      STATE.config = res.config || { searches:[] };
+      STATE.config = res.config || { searches:[], favourites:[] };
       if (!Array.isArray(STATE.config.searches)) STATE.config.searches = [];
+      if (!Array.isArray(STATE.config.favourites)) STATE.config.favourites = [];
       STATE.sha = res.sha;
       render();
+      renderFavourites();
     }).catch(function(e){
       if (e.code === 401){ promptKey(); return; }
       renderState("error", e.message);
@@ -417,15 +519,19 @@
   }
 
   // ---- Tabs ----
+  function setView(v){
+    currentView = v;
+    document.querySelectorAll(".tab").forEach(function(x){ x.classList.toggle("active", x.dataset.view===v); });
+    $("#view-book").classList.toggle("show", v==="book");
+    $("#view-favourites").classList.toggle("show", v==="favourites");
+    $("#view-openings").classList.toggle("show", v==="openings");
+    // The top-bar "+" adds a watch; it only makes sense on The Book.
+    $("#addBtn").hidden = (v !== "book");
+    if (v==="favourites") renderFavourites();
+    $(".body").scrollTop = 0;
+  }
   document.querySelectorAll(".tab").forEach(function(t){
-    t.addEventListener("click", function(){
-      var v = t.dataset.view;
-      document.querySelectorAll(".tab").forEach(function(x){ x.classList.remove("active"); });
-      t.classList.add("active");
-      $("#view-book").classList.toggle("show", v==="book");
-      $("#view-openings").classList.toggle("show", v==="openings");
-      $(".body").scrollTop = 0;
-    });
+    t.addEventListener("click", function(){ setView(t.dataset.view); });
   });
 
   // ---- Toggle pause/resume (delegated) ----
@@ -610,6 +716,168 @@
     STATE.config.searches.splice(STATE.editIndex, 1);
     saveConfig("Deleted").then(closeSheet);
   };
+
+  // ================= FAVOURITES =================
+  // A separate, on-demand list. NEVER watched, NEVER notified — the backend
+  // only ever reads config.searches, so config.favourites is invisible to it.
+  var favParty = 2, favManageOpen = false, favManageInit = false;
+  function setFavParty(n){ favParty = Math.max(1, Math.min(20, n)); $("#fav-pnum").textContent = favParty; }
+  $("#fav-pplus").onclick = function(){ setFavParty(favParty+1); };
+  $("#fav-pminus").onclick = function(){ setFavParty(favParty-1); };
+
+  function favs(){ return STATE.config.favourites || (STATE.config.favourites = []); }
+  function isFav(slug){ return favs().some(function(f){ return f.slug === slug; }); }
+  function bookingUrl(slug, date){
+    var u = "https://www.sevenrooms.com/explore/" + encodeURIComponent(slug) + "/reservations/create/search/";
+    var q = []; if (date) q.push("date=" + encodeURIComponent(date)); q.push("party_size=" + favParty);
+    return u + "?" + q.join("&");
+  }
+  function todayISO(){ var d = new Date(); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
+
+  function addFav(name, slug){
+    slug = extractSlug((slug||"").trim()); name = (name||"").trim() || slug;
+    if (!slug) return;
+    if (isFav(slug)) return;
+    favs().push({ name: name, slug: slug });
+    favs().sort(function(a,b){ return a.name.toLowerCase() < b.name.toLowerCase() ? -1 : 1; });
+    renderFavourites(); saveConfig("Added "+name);
+  }
+  function removeFav(slug){
+    STATE.config.favourites = favs().filter(function(f){ return f.slug !== slug; });
+    renderFavourites(); saveConfig("Removed");
+  }
+
+  function renderFavourites(){
+    var list = favs();
+    $("#favCount").textContent = list.length;
+    // current favourites as removable chips
+    $("#favList").innerHTML = list.length
+      ? list.map(function(f){ return '<span class="favchip">'+esc(f.name)+'<span class="x" data-rm="'+esc(f.slug)+'" role="button" aria-label="Remove '+esc(f.name)+'">✕</span></span>'; }).join("")
+      : '<span class="helper">No favourites yet — search your London list below, or add any slug.</span>';
+    renderPicker($("#fav-search").value);
+    // auto-open the manage drawer the first time if there's nothing to run yet
+    if (!favManageInit){ favManageInit = true; favManageOpen = (list.length === 0); applyManage(); }
+    if (!$("#fav-date").value) $("#fav-date").value = todayISO();
+  }
+
+  function renderPicker(q){
+    q = (q||"").trim().toLowerCase();
+    if (!q){ $("#favPicker").innerHTML = ""; return; }
+    var matches = VENUES.filter(function(v){ return v[0].toLowerCase().indexOf(q) >= 0 || v[1].toLowerCase().indexOf(q) >= 0; });
+    var shown = matches.slice(0, 40);
+    $("#favPicker").innerHTML = shown.map(function(v){
+      var picked = isFav(v[1]);
+      return '<div class="pickrow'+(picked?' picked':'')+'" data-slug="'+esc(v[1])+'" data-name="'+esc(v[0])+'">'
+        + '<span class="pr-name">'+esc(v[0])+' <span class="pr-slug">'+esc(v[1])+'</span></span>'
+        + '<span class="pr-add">'+(picked?'✓':'+')+'</span></div>';
+    }).join("") + (matches.length > shown.length ? '<div class="pickmore">'+(matches.length-shown.length)+' more — keep typing to narrow</div>' : (shown.length?'':'<div class="pickmore">No match in your verified list. Add it by slug below.</div>'));
+  }
+  var favSearchT;
+  $("#fav-search").addEventListener("input", function(){ clearTimeout(favSearchT); favSearchT = setTimeout(function(){ renderPicker($("#fav-search").value); }, 120); });
+  $("#favPicker").addEventListener("click", function(e){
+    var row = e.target.closest(".pickrow"); if (!row) return;
+    if (isFav(row.dataset.slug)) removeFav(row.dataset.slug);
+    else addFav(row.dataset.name, row.dataset.slug);
+  });
+  $("#favList").addEventListener("click", function(e){
+    var x = e.target.closest("[data-rm]"); if (x) removeFav(x.dataset.rm);
+  });
+  $("#favManualAdd").onclick = function(){
+    var name = $("#fav-manual-name").value.trim();
+    var slug = $("#fav-manual-slug").value.trim();
+    if (!slug){ toast("Enter a slug or SevenRooms URL", true); return; }
+    addFav(name, slug);
+    $("#fav-manual-name").value = ""; $("#fav-manual-slug").value = "";
+  };
+
+  // manage drawer collapse
+  function applyManage(){ document.querySelector(".favmanage").classList.toggle("open", favManageOpen); }
+  $("#favManageToggle").addEventListener("click", function(){ favManageOpen = !favManageOpen; applyManage(); });
+
+  // ---- The live run: check every favourite, show only those with a table in the window ----
+  function pool(items, worker, concurrency, onProgress){
+    return new Promise(function(resolve){
+      var i = 0, done = 0, active = 0, out = new Array(items.length);
+      if (!items.length){ resolve(out); return; }
+      function pump(){
+        while (active < concurrency && i < items.length){
+          (function(idx){
+            active++;
+            Promise.resolve(worker(items[idx], idx))
+              .then(function(r){ out[idx] = r; }, function(){ out[idx] = null; })
+              .then(function(){ active--; done++; if (onProgress) onProgress(done, items.length); if (done === items.length) resolve(out); else pump(); });
+          })(i++);
+        }
+      }
+      pump();
+    });
+  }
+
+  function inWindow(hhmm, ws, we){
+    if (!/^\d{2}:\d{2}$/.test(hhmm)) return false;
+    if (ws && we && we < ws){ return hhmm >= ws || hhmm <= we; } // overnight window
+    if (ws && hhmm < ws) return false;
+    if (we && hhmm > we) return false;
+    return true;
+  }
+
+  function fetchFavTimes(fav, date, ws, we){
+    var headers = {}; if (STATE.key) headers["x-access-key"] = STATE.key;
+    var url = "api/times?venue=" + encodeURIComponent(fav.slug) + "&date=" + encodeURIComponent(date) + "&party=" + favParty;
+    return fetch(url, { headers: headers })
+      .then(function(r){ return r.json(); })
+      .then(function(res){
+        var all = (res && res.times) || [];
+        var hits = [];
+        all.forEach(function(t){
+          var hhmm = String(t).split(" ")[0];
+          if (inWindow(hhmm, ws, we)) hits.push({ t: hhmm, req: /REQUEST/i.test(t) });
+        });
+        hits.sort(function(a,b){ return a.t < b.t ? -1 : 1; });
+        return { fav: fav, hits: hits };
+      });
+  }
+
+  $("#favRunBtn").onclick = function(){
+    var list = favs();
+    if (!list.length){ toast("Add some favourites first", true); favManageOpen = true; applyManage(); return; }
+    var date = $("#fav-date").value || todayISO();
+    var ws = $("#fav-ws").value || "", we = $("#fav-we").value || "";
+    var btn = this; btn.disabled = true;
+    $("#favResults").innerHTML = '<div class="fav-progress"><div class="spinner" style="width:22px;height:22px;margin:0"></div><span id="favProg">Checking '+list.length+' favourites…</span></div>';
+    pool(list, function(f){ return fetchFavTimes(f, date, ws, we); }, 6, function(done, total){
+      var p = document.getElementById("favProg"); if (p) p.textContent = "Checking your favourites… " + done + " / " + total;
+    }).then(function(results){
+      renderFavResults(results.filter(Boolean), list, date, ws, we, results.filter(function(r){return r===null;}).length);
+    }).finally(function(){ btn.disabled = false; });
+  };
+
+  function renderFavResults(results, list, date, ws, we, errCount){
+    var hits = results.filter(function(r){ return r.hits.length; });
+    hits.sort(function(a,b){ return a.hits[0].t < b.hits[0].t ? -1 : 1; });
+    var misses = results.filter(function(r){ return !r.hits.length; }).map(function(r){ return r.fav.name; });
+    var windowLabel = (ws||"any") + "–" + (we||"any");
+    var html = '';
+    html += '<div class="fav-summary"><span class="accent">'+hits.length+'</span> of '+list.length+' favourite'+(list.length===1?'':'s')+' '+(hits.length===1?'has':'have')+' a table</div>';
+    html += '<div class="fav-sub">'+esc(fmtDate(date))+' · party of '+favParty+' · '+esc(windowLabel)+(errCount?(' · '+errCount+' couldn\'t be checked'):'')+'</div>';
+    if (!hits.length){
+      html += '<div class="state" style="padding:34px 20px"><div class="emblem" style="width:44px;height:44px"></div><div class="big" style="font-size:20px">Fully booked</div><div style="max-width:32ch;margin:0 auto">None of your favourites have a table in this window. Try a wider time or another day.</div></div>';
+    } else {
+      hits.forEach(function(r){
+        html += '<div class="favcard">'
+          + '<div class="fc-head"><span class="fc-name">'+esc(r.fav.name)+'</span>'
+          + '<a class="fc-open" href="'+esc(bookingUrl(r.fav.slug, date))+'" target="_blank" rel="noopener" aria-label="Open booking page">'
+          + '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17L17 7M9 7h8v8"/></svg></a></div>'
+          + '<div class="timewrap">'
+          + r.hits.map(function(h){ return '<a class="timechip'+(h.req?' req':'')+'" href="'+esc(bookingUrl(r.fav.slug, date))+'" target="_blank" rel="noopener">'+esc(h.t)+(h.req?' ·req':'')+'</a>'; }).join("")
+          + '</div></div>';
+      });
+    }
+    if (misses.length){
+      html += '<p class="fav-empty-names"><strong style="color:var(--muted);font-weight:600">No table in this window:</strong> ' + misses.map(esc).join(", ") + '</p>';
+    }
+    $("#favResults").innerHTML = html;
+  }
 
   // ---- Service worker (for install / offline shell) ----
   if ("serviceWorker" in navigator){
