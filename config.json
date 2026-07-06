@@ -27,23 +27,23 @@
       "salt": "1783365036106"
     },
     {
+      "id": "Yasmin",
+      "platform": "sevenrooms",
+      "venues": [
+        "yasmin"
+      ],
+      "party_size": 2,
       "date": "2026-07-16",
       "dates": [
         "2026-07-16"
       ],
-      "email_to": "",
-      "id": "Yasmin",
-      "notify": "push",
       "num_days": 1,
-      "party_size": 2,
-      "platform": "sevenrooms",
-      "salt": "1783251844017",
       "time_slot": "",
-      "venues": [
-        "yasmin"
-      ],
-      "window_end": "21:30",
-      "window_start": "19:00"
+      "window_start": "19:00",
+      "window_end": "21:00",
+      "notify": "push",
+      "email_to": "",
+      "salt": "1783365048009"
     },
     {
       "date": "2026-07-16",
