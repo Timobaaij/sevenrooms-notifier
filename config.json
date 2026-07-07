@@ -846,23 +846,23 @@
       "window_start": "19:00"
     },
     {
+      "id": "Kolae",
+      "platform": "sevenrooms",
+      "venues": [
+        "kolae"
+      ],
+      "party_size": 2,
       "date": "2026-07-16",
       "dates": [
         "2026-07-16"
       ],
-      "email_to": "",
-      "id": "Kolae",
-      "notify": "both",
       "num_days": 1,
-      "party_size": 2,
-      "platform": "sevenrooms",
-      "salt": "1783425442.1561117",
       "time_slot": "",
-      "venues": [
-        "kolae"
-      ],
+      "window_start": "19:00",
       "window_end": "20:30",
-      "window_start": "19:00"
+      "notify": "push",
+      "email_to": "",
+      "salt": "1783451077427"
     },
     {
       "id": "Impala",
