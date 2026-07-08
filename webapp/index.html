@@ -705,9 +705,11 @@
   // ---- Card taps (delegated) + swipe-to-delete ----
   var _swipeGuard = false;   // suppress the click that fires right after a horizontal swipe
   $("#watchlist").addEventListener("click", function(e){
-    if (_swipeGuard) return;
+    // A deliberate tap on the revealed Delete button is always honoured — even
+    // within the post-swipe guard window — so it fires on the first touch.
     var del = e.target.closest("[data-del]");
     if (del){ deleteSearch(+del.dataset.del); return; }
+    if (_swipeGuard) return;
     var sw = e.target.closest(".swipe");
     if (sw && sw.classList.contains("open")){ closeAllSwipes(); return; }   // tap an open card to close
     var tg = e.target.closest("[data-toggle]");
