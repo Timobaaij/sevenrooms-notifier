@@ -136,7 +136,7 @@ def fetch_sevenrooms_slots(
     lang: str = "en",
     halo_size_interval: int = 64,
     debug: bool = False,
-) -> List[str]:
+) -> List[Tuple[str, str]]:
     try:
         d_sr = dt.datetime.strptime(date_yyyy_mm_dd, "%Y-%m-%d").strftime("%m-%d-%Y")
     except Exception: return []
@@ -157,7 +157,7 @@ def fetch_sevenrooms_slots(
     except Exception: return []
 
     avail = (j.get("data", {}) or {}).get("availability", {}) or {}
-    out: List[str] = []
+    out: List[Tuple[str, str]] = []
     for _, day_blocks in avail.items():
         if not isinstance(day_blocks, list): continue
         for block in day_blocks:
@@ -165,7 +165,9 @@ def fetch_sevenrooms_slots(
             for t in block.get("times", []) or []:
                 if not isinstance(t, dict) or not is_bookable_time(t): continue
                 iso = t.get("time_iso") or t.get("date_time") or t.get("time")
-                if iso: out.append(str(iso))
+                # seating area / room, e.g. "Restaurant Terrace", "Restaurant - Indoors"
+                area = str(t.get("public_time_slot_description") or "").strip()
+                if iso: out.append((str(iso), area))
     return out
 
 
@@ -230,7 +232,7 @@ def main() -> None:
                     v, date, party, channel=channel, num_days=num_days, lang=lang, halo_size_interval=halo, debug=debug
                 )
 
-                for iso in iso_slots:
+                for iso, area in iso_slots:
                     hh = _hhmm(iso) or iso
                     if time_slot:
                         if (_hhmm(iso) or "") != time_slot: continue
@@ -238,11 +240,12 @@ def main() -> None:
                         if not _in_window((_hhmm(iso) or ""), window_start, window_end): continue
 
                     fp = hashlib.sha256(
-                        f"{sid}\n{platform}\n{v}\n{date}\n{iso}\n{salt}".encode()
+                        f"{sid}\n{platform}\n{v}\n{date}\n{iso}\n{area}\n{salt}".encode()
                     ).hexdigest()
 
                     if fp in notified: continue
-                    candidates.append((fp, f"{date} — {v} @ {hh}"))
+                    label = f"{date} — {v} @ {hh}" + (f" · {area}" if area else "")
+                    candidates.append((fp, label))
 
                 if delay: time.sleep(delay)
 

@@ -195,6 +195,9 @@
   .op-row{margin-top:12px}
   .op-row:first-of-type{margin-top:2px}
   .op-when{display:block;font-family:var(--mono);font-size:11.5px;color:var(--faint);margin-bottom:7px}
+  .op-area{margin-top:10px}
+  .op-area:first-of-type{margin-top:0}
+  .op-area-name{display:block;font-size:11.5px;font-weight:600;color:var(--gold-deep);margin-bottom:6px}
 
   .favbulk{display:flex;gap:10px}
 
@@ -616,11 +619,13 @@
       return fetch("api/times?venue="+encodeURIComponent(t.venue)+"&date="+encodeURIComponent(t.date)+"&party="+t.party, { headers: headers })
         .then(function(r){ return r.json(); })
         .then(function(res){
-          var all = (res && res.times) || [];
+          var slots = (res && res.slots) || null;
+          if (!slots){ slots = ((res && res.times) || []).map(function(x){ return { t:String(x).split(" ")[0], area:"", req:/REQUEST/i.test(x) }; }); }
           var ws = t.s.time_slot ? t.s.time_slot : (t.s.window_start||"");
           var we = t.s.time_slot ? t.s.time_slot : (t.s.window_end||"");
-          var set = {}; all.forEach(function(x){ if (/REQUEST/i.test(x)) return; var hhmm = String(x).split(" ")[0]; if (inWindow(hhmm, ws, we)) set[hhmm] = 1; });
-          return { t:t, hits: Object.keys(set).sort() };
+          var hits = [];
+          slots.forEach(function(s){ if (s.req) return; if (inWindow(s.t, ws, we)) hits.push({ t:s.t, area:s.area||"" }); });
+          return { t:t, hits: hits };
         });
     }, 6).then(function(results){
       renderOpeningsFeed(results.filter(Boolean));
@@ -628,6 +633,11 @@
     }).finally(function(){ _openingsRunning = false; var b = $("#opCheckBtn"); if (b){ b.disabled = false; b.textContent = "Check now"; } });
   }
 
+  function opChips(times, url){
+    var MAX = 6, shown = times.slice(0, MAX), extra = times.length - shown.length;
+    return shown.map(function(h){ return '<a class="timechip" href="'+url+'" target="_blank" rel="noopener">'+esc(h)+'</a>'; }).join("")
+      + (extra>0 ? '<a class="timechip more" href="'+url+'" target="_blank" rel="noopener">+'+extra+'</a>' : '');
+  }
   function renderOpeningsFeed(results){
     var feed = $("#openingsFeed"); if (!feed) return;
     var searches = STATE.config.searches || [];
@@ -649,12 +659,20 @@
       } else {
         rs.forEach(function(r){
           var url = esc(bookingUrl(r.t.venue, r.t.date, r.t.party));
-          var label = fmtDate(r.t.date) + (multiVenue ? ' · '+esc(r.t.venue) : '');
-          var MAX = 6, shown = r.hits.slice(0, MAX), extra = r.hits.length - shown.length;
-          html += '<div class="op-row"><span class="op-when">'+esc(label)+'</span><div class="timewrap">'
-            + shown.map(function(h){ return '<a class="timechip" href="'+url+'" target="_blank" rel="noopener">'+esc(h)+'</a>'; }).join("")
-            + (extra>0 ? '<a class="timechip more" href="'+url+'" target="_blank" rel="noopener">+'+extra+'</a>' : '')
-            + '</div></div>';
+          var when = fmtDate(r.t.date) + (multiVenue ? ' · '+esc(r.t.venue) : '');
+          // group this date's slots by seating area
+          var byArea = {}, order = [];
+          r.hits.forEach(function(h){ var a = h.area || ""; if (!(a in byArea)){ byArea[a] = []; order.push(a); } byArea[a].push(h.t); });
+          order.sort();
+          html += '<div class="op-row"><span class="op-when">'+esc(when)+'</span>';
+          if (order.length === 1 && order[0] === ""){
+            html += '<div class="timewrap">'+opChips(byArea[""], url)+'</div>';
+          } else {
+            order.forEach(function(a){
+              html += '<div class="op-area">'+(a ? '<span class="op-area-name">'+esc(a)+'</span>' : '')+'<div class="timewrap">'+opChips(byArea[a], url)+'</div></div>';
+            });
+          }
+          html += '</div>';
         });
       }
       html += '</div>';

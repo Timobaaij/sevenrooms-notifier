@@ -19,18 +19,19 @@ function toHHMM(s) {
 }
 
 async function sevenrooms(venue, date, party) {
+  const empty = { times: [], slots: [] };
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date);
-  if (!m) return [];
+  if (!m) return empty;
   const start = `${m[2]}-${m[3]}-${m[1]}`; // MM-DD-YYYY
   const url = `https://www.sevenrooms.com/api-yoa/availability/widget/range` +
     `?venue=${encodeURIComponent(venue)}&party_size=${party}&start_date=${start}` +
     `&num_days=1&channel=SEVENROOMS_WIDGET&selected_lang_code=en&halo_size_interval=64`;
   const r = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0", Accept: "application/json,text/plain,*/*" } });
-  if (!r.ok) return [];
+  if (!r.ok) return empty;
   let j;
-  try { j = await r.json(); } catch (_) { return []; }
+  try { j = await r.json(); } catch (_) { return empty; }
   const avail = ((j.data || {}).availability) || {};
-  const out = [];
+  const slots = [];
   for (const key in avail) {
     const day = avail[key];
     if (!Array.isArray(day)) continue;
@@ -43,11 +44,22 @@ async function sevenrooms(venue, date, party) {
         const isAvail = ("is_available" in t) ? t.is_available === true : !!t.access_persistent_id;
         if (!(isAvail || isReq)) continue;
         const hhmm = toHHMM(t.time_iso || t.date_time || t.time);
-        if (hhmm) out.push(hhmm + (isReq && !isAvail ? " (REQUEST)" : ""));
+        if (!hhmm) continue;
+        // seating area / room, e.g. "Restaurant Terrace", "Restaurant - Indoors"
+        const area = String(t.public_time_slot_description || "").trim();
+        slots.push({ t: hhmm, area: area, req: (isReq && !isAvail) });
       }
     }
   }
-  return [...new Set(out)].sort();
+  // de-dupe by time+area+req; sort by time then area
+  const seen = {}; const uniq = [];
+  for (const s of slots) { const k = s.t + "|" + s.area + "|" + s.req; if (!seen[k]) { seen[k] = 1; uniq.push(s); } }
+  uniq.sort((a, b) => a.t < b.t ? -1 : a.t > b.t ? 1 : (a.area < b.area ? -1 : a.area > b.area ? 1 : 0));
+  // backward-compatible flat time strings (still used by the Favourites view)
+  const tSeen = {}; const flat = [];
+  for (const s of uniq) { const label = s.t + (s.req ? " (REQUEST)" : ""); if (!tSeen[label]) { tSeen[label] = 1; flat.push(label); } }
+  flat.sort();
+  return { times: flat, slots: uniq };
 }
 
 export async function onRequestGet({ request, env }) {
@@ -60,7 +72,7 @@ export async function onRequestGet({ request, env }) {
   const party = parseInt(u.searchParams.get("party") || "2", 10) || 2;
   if (!venue || !date) return json({ error: "venue and date are required" }, 400);
   try {
-    return json({ times: await sevenrooms(venue, date, party) });
+    return json(await sevenrooms(venue, date, party));
   } catch (e) {
     return json({ error: String((e && e.message) || e) }, 502);
   }
