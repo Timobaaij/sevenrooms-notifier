@@ -182,6 +182,14 @@
   .fav-empty-names{font-size:12.5px;color:var(--faint);margin:4px 2px 0;line-height:1.5}
   .fav-progress{display:flex;align-items:center;gap:12px;padding:22px 4px;color:var(--muted);font-size:14px}
 
+  /* Openings — live feed for tracked searches */
+  .op-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:18px 0 4px}
+  .op-count{font-family:var(--serif);font-size:22px;color:var(--champagne);line-height:1.1}
+  .op-sub2{color:var(--muted);font-size:12.5px;margin-top:3px}
+  .op-row{margin-top:12px}
+  .op-row:first-of-type{margin-top:2px}
+  .op-when{display:block;font-family:var(--mono);font-size:11.5px;color:var(--faint);margin-bottom:7px}
+
   .favbulk{display:flex;gap:10px}
 
   /* Favourites — borough filter + tags */
@@ -332,7 +340,7 @@
     <!-- OPENINGS -->
     <section class="view" id="view-openings">
       <h1 class="largetitle">Openings</h1>
-      <p class="subtitle">How alerts reach you.</p>
+      <p class="subtitle">Live tables at the restaurants you're tracking — dismiss the alert, check back here anytime.</p>
       <div id="openings"></div>
     </section>
   </div>
@@ -556,18 +564,89 @@
   function renderOpenings(){
     var searches = (STATE.config.searches||[]);
     var active = searches.filter(function(s){ return (s.notify||"both")!=="none"; });
-    var venues = active.reduce(function(n,s){ return n + ((s.venues||[]).length||0); }, 0);
+    var venues = searches.reduce(function(n,s){ return n + ((s.venues||[]).length||0); }, 0);
     $("#openings").innerHTML = ''
-      + '<div class="watch" style="text-align:center;padding:26px 20px">'
-      +   '<div class="emblem" style="width:44px;height:44px;margin-bottom:14px"></div>'
-      +   '<div class="venue" style="font-size:22px">Watching '+active.length+' '+(active.length===1?'restaurant':'restaurants')+'</div>'
-      +   '<p style="color:var(--muted);margin:8px 0 0;font-size:14px">'+venues+' venue'+(venues===1?'':'s')+' polled every minute. The instant a table opens, an alert lands on your phone by push &amp; email — even when this app is closed.</p>'
+      + '<div class="op-head">'
+      +   '<div><div class="op-count">'+active.length+' watching</div>'
+      +   '<div class="op-sub2">'+searches.length+' tracked · '+venues+' venue'+(venues===1?'':'s')+' · polled every minute</div></div>'
+      +   '<button class="btn btn--ghost" id="opCheckBtn" style="height:40px;padding:0 16px;flex:0 0 auto">Check now</button>'
       + '</div>'
-      + '<p class="helper" style="text-align:center;margin:16px 0 22px">A live in-app feed of found tables is coming later. For now alerts arrive through your existing push &amp; email.</p>'
-      + '<button class="btn btn--ghost btn--block" id="resetAlerts">Reset alert history</button>'
+      + '<div id="openingsFeed"></div>'
+      + '<button class="btn btn--ghost btn--block" id="resetAlerts" style="margin-top:22px">Reset alert history</button>'
       + '<p class="helper" style="text-align:center;margin-top:8px">Lets tables you were already alerted about notify again.</p>';
-    var rb = document.getElementById("resetAlerts");
-    if (rb) rb.onclick = resetAlerts;
+    var rb = document.getElementById("resetAlerts"); if (rb) rb.onclick = resetAlerts;
+    var cb = document.getElementById("opCheckBtn"); if (cb) cb.onclick = function(){ runOpenings(true); };
+  }
+
+  // ---- Live feed for tracked searches: current tables/times, so you can dismiss
+  // the push and still check here. Re-checks live; matches each search's own window. ----
+  var _openingsRunning = false, _openingsLast = 0;
+  function runOpenings(force){
+    var feed = $("#openingsFeed"); if (!feed) return;
+    var searches = STATE.config.searches || [];
+    if (!searches.length){
+      feed.innerHTML = '<div class="state" style="padding:34px 20px"><div class="emblem" style="width:44px;height:44px"></div><div class="big" style="font-size:20px">Nothing tracked yet</div><div style="max-width:32ch;margin:0 auto">Add a watch in The Book and its live tables will show up here.</div></div>';
+      return;
+    }
+    if (_openingsRunning) return;
+    if (!force && feed.children.length && (Date.now() - _openingsLast) < 20000) return;   // fresh enough
+    _openingsRunning = true;
+    var cb = $("#opCheckBtn"); if (cb){ cb.disabled = true; cb.textContent = "Checking…"; }
+    feed.innerHTML = '<div class="fav-progress"><div class="spinner" style="width:22px;height:22px;margin:0"></div><span>Checking your tracked tables…</span></div>';
+    var tasks = [];
+    searches.forEach(function(s, si){
+      var dates = getDates(s), party = parseInt(s.party_size,10) || 2;
+      (s.venues||[]).forEach(function(v){ dates.forEach(function(d){ tasks.push({ si:si, s:s, venue:v, date:d, party:party }); }); });
+    });
+    pool(tasks, function(t){
+      var headers = {}; if (STATE.key) headers["x-access-key"] = STATE.key;
+      return fetch("api/times?venue="+encodeURIComponent(t.venue)+"&date="+encodeURIComponent(t.date)+"&party="+t.party, { headers: headers })
+        .then(function(r){ return r.json(); })
+        .then(function(res){
+          var all = (res && res.times) || [];
+          var ws = t.s.time_slot ? t.s.time_slot : (t.s.window_start||"");
+          var we = t.s.time_slot ? t.s.time_slot : (t.s.window_end||"");
+          var set = {}; all.forEach(function(x){ if (/REQUEST/i.test(x)) return; var hhmm = String(x).split(" ")[0]; if (inWindow(hhmm, ws, we)) set[hhmm] = 1; });
+          return { t:t, hits: Object.keys(set).sort() };
+        });
+    }, 6).then(function(results){
+      renderOpeningsFeed(results.filter(Boolean));
+      _openingsLast = Date.now();
+    }).finally(function(){ _openingsRunning = false; var b = $("#opCheckBtn"); if (b){ b.disabled = false; b.textContent = "Check now"; } });
+  }
+
+  function renderOpeningsFeed(results){
+    var feed = $("#openingsFeed"); if (!feed) return;
+    var searches = STATE.config.searches || [];
+    var bySearch = {}; results.forEach(function(r){ (bySearch[r.t.si] = bySearch[r.t.si] || []).push(r); });
+    var withTables = 0;
+    searches.forEach(function(s, si){ if ((bySearch[si]||[]).some(function(r){ return r.hits.length; })) withTables++; });
+    var html = '';
+    html += '<div class="fav-summary"><span class="accent">'+withTables+'</span> of '+searches.length+' tracked '+(searches.length===1?'table has':'tables have')+' a slot right now</div>';
+    html += '<div class="fav-sub">Live now · tap a time to book</div>';
+    searches.forEach(function(s, si){
+      var rs = (bySearch[si]||[]).filter(function(r){ return r.hits.length; });
+      var multiVenue = (s.venues||[]).length > 1;
+      var paused = (s.notify||"both") === "none";
+      html += '<div class="favcard">'
+        + '<div class="fc-head"><span class="fc-name">'+esc(s.id||"Untitled")+'</span>'
+        + '<span class="statuschip '+(paused?'statuschip--pause':'statuschip--live')+'" style="height:22px"><span class="tinydot"></span>'+(paused?'Paused':'Watching')+'</span></div>';
+      if (!rs.length){
+        html += '<p class="fav-empty-names" style="margin:0">No tables in your window right now.</p>';
+      } else {
+        rs.forEach(function(r){
+          var url = esc(bookingUrl(r.t.venue, r.t.date, r.t.party));
+          var label = fmtDate(r.t.date) + (multiVenue ? ' · '+esc(r.t.venue) : '');
+          var MAX = 6, shown = r.hits.slice(0, MAX), extra = r.hits.length - shown.length;
+          html += '<div class="op-row"><span class="op-when">'+esc(label)+'</span><div class="timewrap">'
+            + shown.map(function(h){ return '<a class="timechip" href="'+url+'" target="_blank" rel="noopener">'+esc(h)+'</a>'; }).join("")
+            + (extra>0 ? '<a class="timechip more" href="'+url+'" target="_blank" rel="noopener">+'+extra+'</a>' : '')
+            + '</div></div>';
+        });
+      }
+      html += '</div>';
+    });
+    feed.innerHTML = html;
   }
 
   function resetAlerts(){
@@ -587,6 +666,7 @@
     // The top-bar "+" adds a watch; it only makes sense on The Book.
     $("#addBtn").hidden = (v !== "book");
     if (v==="favourites") renderFavourites();
+    if (v==="openings") runOpenings();
     $(".body").scrollTop = 0;
   }
   document.querySelectorAll(".tab").forEach(function(t){
@@ -786,9 +866,9 @@
 
   function favs(){ return STATE.config.favourites || (STATE.config.favourites = []); }
   function isFav(slug){ return favs().some(function(f){ return f.slug === slug; }); }
-  function bookingUrl(slug, date){
+  function bookingUrl(slug, date, party){
     var u = "https://www.sevenrooms.com/explore/" + encodeURIComponent(slug) + "/reservations/create/search/";
-    var q = []; if (date) q.push("date=" + encodeURIComponent(date)); q.push("party_size=" + favParty);
+    var q = []; if (date) q.push("date=" + encodeURIComponent(date)); q.push("party_size=" + (party || favParty));
     return u + "?" + q.join("&");
   }
   function todayISO(){ var d = new Date(); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
