@@ -638,6 +638,16 @@
     return shown.map(function(h){ return '<a class="timechip" href="'+url+'" target="_blank" rel="noopener">'+esc(h)+'</a>'; }).join("")
       + (extra>0 ? '<a class="timechip more" href="'+url+'" target="_blank" rel="noopener">+'+extra+'</a>' : '');
   }
+  // group {t, area} hits by seating area -> HTML (flat if there's only one unnamed area)
+  function areaGroupsHtml(hits, url){
+    var byArea = {}, order = [];
+    hits.forEach(function(h){ var a = h.area || ""; if (!(a in byArea)){ byArea[a] = []; order.push(a); } byArea[a].push(h.t); });
+    order.sort();
+    if (order.length === 1 && order[0] === "") return '<div class="timewrap">'+opChips(byArea[""], url)+'</div>';
+    return order.map(function(a){
+      return '<div class="op-area">'+(a ? '<span class="op-area-name">'+esc(a)+'</span>' : '')+'<div class="timewrap">'+opChips(byArea[a], url)+'</div></div>';
+    }).join("");
+  }
   function renderOpeningsFeed(results){
     var feed = $("#openingsFeed"); if (!feed) return;
     var searches = STATE.config.searches || [];
@@ -660,19 +670,7 @@
         rs.forEach(function(r){
           var url = esc(bookingUrl(r.t.venue, r.t.date, r.t.party));
           var when = fmtDate(r.t.date) + (multiVenue ? ' · '+esc(r.t.venue) : '');
-          // group this date's slots by seating area
-          var byArea = {}, order = [];
-          r.hits.forEach(function(h){ var a = h.area || ""; if (!(a in byArea)){ byArea[a] = []; order.push(a); } byArea[a].push(h.t); });
-          order.sort();
-          html += '<div class="op-row"><span class="op-when">'+esc(when)+'</span>';
-          if (order.length === 1 && order[0] === ""){
-            html += '<div class="timewrap">'+opChips(byArea[""], url)+'</div>';
-          } else {
-            order.forEach(function(a){
-              html += '<div class="op-area">'+(a ? '<span class="op-area-name">'+esc(a)+'</span>' : '')+'<div class="timewrap">'+opChips(byArea[a], url)+'</div></div>';
-            });
-          }
-          html += '</div>';
+          html += '<div class="op-row"><span class="op-when">'+esc(when)+'</span>' + areaGroupsHtml(r.hits, url) + '</div>';
         });
       }
       html += '</div>';
@@ -1152,12 +1150,12 @@
     return fetch(url, { headers: headers })
       .then(function(r){ return r.json(); })
       .then(function(res){
-        var all = (res && res.times) || [];
+        var slots = (res && res.slots) || null;
+        if (!slots){ slots = ((res && res.times)||[]).map(function(x){ return { t:String(x).split(" ")[0], area:"", req:/REQUEST/i.test(x) }; }); }
         var hits = [];
-        all.forEach(function(t){
-          if (/REQUEST/i.test(t)) return;            // skip request-only slots — confirmable tables only
-          var hhmm = String(t).split(" ")[0];
-          if (inWindow(hhmm, ws, we)) hits.push({ t: hhmm });
+        slots.forEach(function(s){
+          if (s.req) return;                          // skip request-only slots — confirmable tables only
+          if (inWindow(s.t, ws, we)) hits.push({ t: s.t, area: s.area || "" });
         });
         hits.sort(function(a,b){ return a.t < b.t ? -1 : 1; });
         return { fav: fav, hits: hits };
@@ -1193,19 +1191,15 @@
     if (!hits.length){
       html += '<div class="state" style="padding:34px 20px"><div class="emblem" style="width:44px;height:44px"></div><div class="big" style="font-size:20px">Fully booked</div><div style="max-width:32ch;margin:0 auto">None of your favourites have a table in this window. Try a wider time or another day.</div></div>';
     } else {
-      var MAX_CHIPS = 6;
       hits.forEach(function(r){
         var url = esc(bookingUrl(r.fav.slug, date));
-        var shown = r.hits.slice(0, MAX_CHIPS), extra = r.hits.length - shown.length;
         var fa = favArea(r.fav);
         html += '<div class="favcard">'
           + '<div class="fc-head"><span class="fc-name">'+esc(r.fav.name)+(fa?' <span class="fc-area">'+esc(fa)+'</span>':'')+'</span>'
           + '<a class="fc-open" href="'+url+'" target="_blank" rel="noopener" aria-label="Open booking page">'
           + '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17L17 7M9 7h8v8"/></svg></a></div>'
-          + '<div class="timewrap">'
-          + shown.map(function(h){ return '<a class="timechip" href="'+url+'" target="_blank" rel="noopener">'+esc(h.t)+'</a>'; }).join("")
-          + (extra>0 ? '<a class="timechip more" href="'+url+'" target="_blank" rel="noopener">+'+extra+'</a>' : '')
-          + '</div></div>';
+          + areaGroupsHtml(r.hits, url)
+          + '</div>';
       });
     }
     if (misses.length){
