@@ -775,25 +775,6 @@
         "2026-07-16"
       ],
       "email_to": "",
-      "id": "Dover Street",
-      "notify": "push",
-      "num_days": 1,
-      "party_size": 2,
-      "platform": "sevenrooms",
-      "salt": "1783365036106",
-      "time_slot": "",
-      "venues": [
-        "doverstreetcounter"
-      ],
-      "window_end": "21:00",
-      "window_start": "19:30"
-    },
-    {
-      "date": "2026-07-16",
-      "dates": [
-        "2026-07-16"
-      ],
-      "email_to": "",
       "id": "Yasmin",
       "notify": "push",
       "num_days": 1,
