@@ -768,25 +768,5 @@
     "lang": "en",
     "reset_nonce": "1784570211949"
   },
-  "searches": [
-    {
-      "id": "Impala",
-      "platform": "sevenrooms",
-      "venues": [
-        "impala"
-      ],
-      "party_size": 2,
-      "date": "2026-07-23",
-      "dates": [
-        "2026-07-23"
-      ],
-      "num_days": 1,
-      "time_slot": "",
-      "window_start": "18:45",
-      "window_end": "20:00",
-      "notify": "push",
-      "email_to": "",
-      "salt": "1784570187484"
-    }
-  ]
+  "searches": []
 }
