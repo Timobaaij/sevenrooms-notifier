@@ -770,25 +770,6 @@
   },
   "searches": [
     {
-      "id": "Vesper",
-      "platform": "sevenrooms",
-      "venues": [
-        "vesperrestaurant"
-      ],
-      "party_size": 2,
-      "date": "2026-07-22",
-      "dates": [
-        "2026-07-22"
-      ],
-      "num_days": 1,
-      "time_slot": "",
-      "window_start": "18:30",
-      "window_end": "20:30",
-      "notify": "push",
-      "email_to": "",
-      "salt": "1784664077741"
-    },
-    {
       "id": "Impala",
       "platform": "sevenrooms",
       "venues": [
