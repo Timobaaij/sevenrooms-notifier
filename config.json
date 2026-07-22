@@ -768,5 +768,25 @@
     "lang": "en",
     "reset_nonce": "1784570211949"
   },
-  "searches": []
+  "searches": [
+    {
+      "id": "Tambu",
+      "platform": "sevenrooms",
+      "venues": [
+        "rambutan"
+      ],
+      "party_size": 2,
+      "date": "2026-07-22",
+      "dates": [
+        "2026-07-22"
+      ],
+      "num_days": 7,
+      "time_slot": "",
+      "window_start": "19:00",
+      "window_end": "21:30",
+      "notify": "push",
+      "email_to": "",
+      "salt": "1784755979857"
+    }
+  ]
 }
