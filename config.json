@@ -770,7 +770,7 @@
   },
   "searches": [
     {
-      "id": "Tambu",
+      "id": "rambutan",
       "platform": "sevenrooms",
       "venues": [
         "rambutan"
@@ -786,7 +786,7 @@
       "window_end": "22:30",
       "notify": "push",
       "email_to": "",
-      "salt": "1784756016362"
+      "salt": "1784756116856"
     }
   ]
 }
