@@ -326,7 +326,7 @@
         </div>
         <div class="favmanage-body" id="favManageBody">
           <div class="favbulk">
-            <button class="btn btn--ghost" id="favAddAll" style="height:40px;flex:1">Add all 190</button>
+            <button class="btn btn--ghost" id="favAddAll" style="height:40px;flex:1">Add all</button>
             <button class="btn btn--ghost" id="favClearAll" style="height:40px;flex:1">Clear all</button>
           </div>
           <div class="chipwrap" id="favList" style="margin-top:14px"></div>
@@ -962,6 +962,9 @@
   // Borough/area tags. The tag lives on the venue (VENUES[i][2]); favourites carry
   // their own copy so a manual edit sticks. VAREA maps slug -> venue's default area.
   var VAREA = {}; VENUES.forEach(function(v){ if (v[2]) VAREA[v[1]] = v[2]; });
+  // Venue-count labels track the list itself, so growing VENUES needs no copy edits.
+  $("#favAddAll").textContent = "Add all " + VENUES.length;
+  $("#fav-search").placeholder = "Search " + VENUES.length + " verified venues…";
   function favArea(f){ return ((f && f.area) || "").trim() || (f && VAREA[f.slug]) || ""; }
   var favSelectedAreas = {};   // area name -> true (multi-select filter)
 
