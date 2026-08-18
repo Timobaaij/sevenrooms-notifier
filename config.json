@@ -1,6 +1,11 @@
 {
   "favourites": [
     {
+      "name": "\"mu\"",
+      "slug": "mu",
+      "area": "Dalston"
+    },
+    {
       "name": "A. Wong",
       "slug": "awong"
     },
@@ -41,12 +46,22 @@
       "slug": "theanchorandhope"
     },
     {
+      "name": "Artusi",
+      "slug": "artusi",
+      "area": "Peckham"
+    },
+    {
       "name": "Automat",
       "slug": "automatdining"
     },
     {
       "name": "Bancone Covent Garden",
       "slug": "banconecoventgarden"
+    },
+    {
+      "name": "Bar Douro London Bridge",
+      "slug": "bardourolondonbridge",
+      "area": "Borough"
     },
     {
       "name": "Barrafina Adelaide Street",
@@ -113,6 +128,11 @@
       "slug": "caia"
     },
     {
+      "name": "Camino Farringdon",
+      "slug": "caminofarringdon",
+      "area": "Farringdon"
+    },
+    {
       "name": "Campania",
       "slug": "campania"
     },
@@ -155,6 +175,11 @@
     {
       "name": "Chishuru",
       "slug": "chishuru"
+    },
+    {
+      "name": "Coal Office Restaurant",
+      "slug": "coalofficerestaurant",
+      "area": "King's Cross"
     },
     {
       "name": "Darjeeling Express",
@@ -225,6 +250,11 @@
       "slug": "fonda"
     },
     {
+      "name": "Forza Wine Peckham",
+      "slug": "forzawine",
+      "area": "Peckham"
+    },
+    {
       "name": "Gina Restaurant",
       "slug": "gina"
     },
@@ -273,12 +303,22 @@
       "slug": "juliesrestaurant"
     },
     {
+      "name": "Kebab Queen",
+      "slug": "kebabqueen",
+      "area": "Covent Garden"
+    },
+    {
       "name": "Kiln",
       "slug": "kilnlondon"
     },
     {
       "name": "Kinkally",
       "slug": "kinkally"
+    },
+    {
+      "name": "KINZ Restaurant",
+      "slug": "kinz",
+      "area": "Notting Hill"
     },
     {
       "name": "Kolae",
@@ -375,6 +415,11 @@
     {
       "name": "OMA",
       "slug": "oma"
+    },
+    {
+      "name": "Opium Cocktail Bar - Soho",
+      "slug": "opiumchinatown",
+      "area": "Chinatown"
     },
     {
       "name": "OREN",
@@ -577,6 +622,11 @@
       "slug": "thecow"
     },
     {
+      "name": "The Culpeper",
+      "slug": "theculpeper",
+      "area": "Spitalfields"
+    },
+    {
       "name": "The Dover",
       "slug": "thedoverrestaurant"
     },
@@ -673,6 +723,11 @@
       "slug": "queensarmswestminster"
     },
     {
+      "name": "The Rex Rooms",
+      "slug": "therexrooms",
+      "area": "Chelsea"
+    },
+    {
       "name": "The River Café",
       "slug": "rivercafelondon"
     },
@@ -755,6 +810,11 @@
     {
       "name": "Yasmin",
       "slug": "yasmin"
+    },
+    {
+      "name": "Zum Barbarossa",
+      "slug": "zumbarbarossa",
+      "area": "Soho"
     },
     {
       "name": "Zylia",
