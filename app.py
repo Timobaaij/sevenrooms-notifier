@@ -6,6 +6,10 @@ import re
 import requests
 from github import Github
 
+# The notifier owns the OpenTable client (restaurant-id resolution, availability
+# query, slot parsing); the dashboard borrows it rather than keeping a second copy.
+from main import fetch_opentable_slots, _anchor_time, _hhmm
+
 # =========================================================
 # CONFIG
 # =========================================================
@@ -63,6 +67,27 @@ def reset_state():
 # =========================================================
 # Platform Helpers
 # =========================================================
+PLATFORMS = {"sevenrooms": "SevenRooms", "opentable": "OpenTable"}
+PLATFORM_LABELS = list(PLATFORMS.values())
+PLATFORM_BY_LABEL = {v: k for k, v in PLATFORMS.items()}
+
+def platform_of(search: dict) -> str:
+    p = (search.get("platform") or "sevenrooms").lower()
+    return p if p in PLATFORMS else p
+
+def get_opentable_rid(text: str):
+    """A numeric OpenTable restaurant id from a pasted link, id or /r/ slug."""
+    t = (text or "").strip()
+    if not t: return None
+    if t.isdigit(): return t
+    for pat in (r"[?&](?:rid|restaurantId|restRef|restref)=(\d+)", r"/restaurant/profile/(\d+)"):
+        m = re.search(pat, t, re.I)
+        if m: return m.group(1)
+    m = re.search(r"/r/([a-zA-Z0-9\-]+)", t)
+    if m: return m.group(1).lower()          # slug: the notifier resolves it to an id
+    if re.fullmatch(r"[a-zA-Z0-9\-]{3,}", t): return t.lower()
+    return None
+
 def get_sevenrooms_slug(text: str):
     if not text: return None
     m = re.search(r"[\?&]venue=([a-zA-Z0-9_\-\\]+)", text)
@@ -108,6 +133,32 @@ def fetch_sevenrooms_times(venue: str, date_yyyy_mm_dd: str, party: int, channel
             uniq.append(x)
             seen.add(x)
     return uniq
+
+def fetch_opentable_times(venue: str, date_yyyy_mm_dd: str, party: int, anchor: str = "19:00", num_days: int = 1, global_cfg: dict = None):
+    """Open times at an OpenTable venue as HH:MM strings, for the time picker."""
+    gbl = (global_cfg or {}).get("opentable", {}) or {}
+    slots = fetch_opentable_slots(
+        venue, date_yyyy_mm_dd, party, num_days=num_days, anchor_hhmm=anchor,
+        region=str(gbl.get("region", "") or ""),
+        availability_hash=str(gbl.get("availability_hash", "") or ""),
+    )
+    seen, uniq = set(), []
+    for iso, area in slots:
+        hhmm = _hhmm(iso)
+        if not hhmm: continue
+        label = hhmm + (f" ({area})" if area else "")
+        if label in seen: continue
+        seen.add(label); uniq.append(label)
+    return sorted(uniq)
+
+def fetch_times(platform: str, venue: str, date_yyyy_mm_dd: str, party: int, global_cfg: dict, anchor: str = "19:00", num_days: int = 1):
+    if (platform or "").lower() == "opentable":
+        return fetch_opentable_times(venue, date_yyyy_mm_dd, party, anchor=anchor, num_days=num_days, global_cfg=global_cfg)
+    return fetch_sevenrooms_times(
+        venue, date_yyyy_mm_dd, party,
+        channel=global_cfg.get("channel", "SEVENROOMS_WIDGET"),
+        lang=global_cfg.get("lang", "en"), num_days=num_days,
+    )
 
 # =========================================================
 # NATIVE MULTI-DATE SELECTOR
@@ -185,7 +236,7 @@ NOTIFY_LABELS = ["Push", "Email", "Both", "None"]
 NOTIFY_MAP = {"Push": "push", "Email": "email", "Both": "both", "None": "none"}
 
 st.title("🍽️ Reservation Dashboard")
-st.caption("Watches SevenRooms for open tables.")
+st.caption("Watches SevenRooms and OpenTable for open tables.")
 
 searches_all = config_data.get("searches", []) or []
 if not searches_all: st.info("No active searches yet.")
@@ -197,8 +248,8 @@ def _toggle(key: str):
 # DASHBOARD LIST
 # =========================================================
 for idx, s in enumerate(searches_all):
-    platform = (s.get("platform") or "sevenrooms").lower()
-    is_supported = platform == "sevenrooms"
+    platform = platform_of(s)
+    is_supported = platform in PLATFORMS
     date_txt = _dates_display(s)
     party_txt = str(s.get("party_size", ""))
     time_slot = (s.get("time_slot") or "").strip()
@@ -210,7 +261,7 @@ for idx, s in enumerate(searches_all):
         header_cols = st.columns([0.68, 0.32])
         with header_cols[0]:
             title = s.get("id", "Unnamed")
-            plat_display = "SevenRooms"
+            plat_display = PLATFORMS.get(platform, platform)
             st.markdown(f"**📍 {title} ({plat_display})**" if is_supported else f"**📍 {title} (Unsupported)**")
             st.caption(f"🗓 {date_txt} · 👥 {party_txt} · ⏱ {time_txt} · 🔔 {notify_txt}")
         
@@ -237,6 +288,7 @@ for idx, s in enumerate(searches_all):
 
         if st.session_state.get(f"show_details_{idx}", False):
             st.divider()
+            st.write(f"**Platform**: {plat_display}")
             st.write(f"**Venues**: {', '.join(s.get('venues', [])) or '—'}")
             st.write(f"**Dates**: {date_txt or '—'}")
             st.write(f"**Num Days**: {int(s.get('num_days', 1))}")
@@ -250,7 +302,16 @@ for idx, s in enumerate(searches_all):
 
             with st.form(f"edit_form_{idx}"):
                 e_name = st.text_input("Name", s.get("id", ""))
-                e_venues = st.text_input("Venues (slugs)", ", ".join(s.get("venues", [])))
+                e_plat_label = st.selectbox(
+                    "Books through", PLATFORM_LABELS,
+                    index=PLATFORM_LABELS.index(PLATFORMS.get(platform, "SevenRooms")),
+                    key=f"edit_plat_{idx}",
+                )
+                e_platform = PLATFORM_BY_LABEL[e_plat_label]
+                e_venues = st.text_input(
+                    "Venues (SevenRooms slugs, or OpenTable restaurant ids)",
+                    ", ".join(s.get("venues", [])),
+                )
                 e_party = st.number_input("Party", 1, 20, value=int(s.get("party_size", 2)))
                 e_num_days = st.number_input("Num Days", 1, 7, value=int(s.get("num_days", 1)))
                 e_time_slot = st.text_input("Exact time (HH:MM)", s.get("time_slot", ""))
@@ -267,10 +328,12 @@ for idx, s in enumerate(searches_all):
                 if submitted:
                     dates_list = _normalize_iso_dates(selected_dates)
                     if not dates_list: dates_list = [dt.date.today().isoformat()]
+                    extract = get_opentable_rid if e_platform == "opentable" else get_sevenrooms_slug
+                    e_venue_ids = [extract(v) or v.strip() for v in e_venues.split(",") if v.strip()]
                     config_data["searches"][idx].update({
                         "id": e_name.strip() or "Unnamed",
-                        "platform": "sevenrooms",
-                        "venues": [v.strip() for v in e_venues.split(",") if v.strip()],
+                        "platform": e_platform,
+                        "venues": e_venue_ids,
                         "date": dates_list[0],
                         "dates": dates_list,
                         "party_size": int(e_party),
@@ -295,9 +358,14 @@ st.subheader("➕ Add New Search")
 
 add_cols = st.columns([0.5, 0.5])
 with add_cols[0]:
-    n_platform = "sevenrooms"
-    default_venue = st.session_state.get("last_sr_slug", "")
-    n_venue = st.text_input("Venue slug(s) (comma separated)", value=default_venue, key="new_venue")
+    n_plat_label = st.selectbox("Books through", PLATFORM_LABELS, index=0, key="new_platform_label")
+    n_platform = PLATFORM_BY_LABEL[n_plat_label]
+    venue_hint = ("Restaurant id(s) (comma separated)" if n_platform == "opentable"
+                  else "Venue slug(s) (comma separated)")
+    default_venue = st.session_state.get(
+        "last_ot_rid" if n_platform == "opentable" else "last_sr_slug", ""
+    )
+    n_venue = st.text_input(venue_hint, value=default_venue, key="new_venue")
     n_id = st.text_input("Search name", key="new_name")
     n_party = st.number_input("Party", 1, 20, 2, key="new_party")
     n_num_days = st.number_input("Num Days", 1, 7, 1, key="new_num_days")
@@ -318,7 +386,17 @@ if st.button("🔄 Load available times", key="load_times"):
     if venue_first:
         with st.spinner("Fetching times..."):
             gbl = config_data.get("global", {})
-            times_list = fetch_sevenrooms_times(venue_first, str(date_for_times), int(n_party), channel=gbl.get("channel", "SEVENROOMS_WIDGET"), lang=gbl.get("lang", "en"), num_days=int(n_num_days))
+            # OpenTable answers around a time, so centre the lookup on the window
+            # the form is currently showing.
+            anchor = _anchor_time({
+                "window_start": st.session_state.get("new_wstart", "18:00"),
+                "window_end": st.session_state.get("new_wend", "22:00"),
+                "time_slot": st.session_state.get("new_time_manual", ""),
+            })
+            times_list = fetch_times(
+                n_platform, venue_first, str(date_for_times), int(n_party),
+                gbl, anchor=anchor, num_days=int(n_num_days),
+            )
         st.session_state["loaded_times"] = times_list
     else:
         st.session_state["loaded_times"] = []
@@ -340,10 +418,11 @@ else:
 if st.button("🚀 Launch search", type="primary", key="launch"):
     dates_list = _normalize_iso_dates(new_dates)
     if not dates_list: dates_list = [dt.date.today().isoformat()]
+    n_extract = get_opentable_rid if n_platform == "opentable" else get_sevenrooms_slug
     new_s = {
         "id": n_id.strip() or "Unnamed",
         "platform": n_platform,
-        "venues": [v.strip() for v in n_venue.split(",") if v.strip()],
+        "venues": [n_extract(v) or v.strip() for v in n_venue.split(",") if v.strip()],
         "party_size": int(n_party),
         "date": dates_list[0],
         "dates": dates_list,
@@ -376,3 +455,15 @@ with st.expander("⚙️ Advanced", expanded=False):
             st.session_state["last_sr_slug"] = slug
         else:
             st.error("Couldn't find a slug.")
+
+    st.divider()
+    st.subheader("Quick Id Finder (OpenTable)")
+    ot_text = st.text_input("Link/Id", key="ot_url_adv")
+    if st.button("Extract OpenTable id", key="btn_ot_rid_adv"):
+        rid = get_opentable_rid(ot_text)
+        if rid:
+            st.success(f"Restaurant id: {rid}" if rid.isdigit()
+                       else f"Slug: {rid} — the notifier resolves this to an id on first check")
+            st.session_state["last_ot_rid"] = rid
+        else:
+            st.error("Couldn't find an id.")
