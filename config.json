@@ -76,10 +76,6 @@
       "slug": "barrafinadrurylane"
     },
     {
-      "name": "Berber & Q",
-      "slug": "berberandq"
-    },
-    {
       "name": "Berenjak Borough",
       "slug": "berenjakborough"
     },
@@ -106,14 +102,6 @@
     {
       "name": "Brigadiers",
       "slug": "brigadiers"
-    },
-    {
-      "name": "Bubala King's Cross",
-      "slug": "bubalakingscross"
-    },
-    {
-      "name": "Bubala Soho",
-      "slug": "bubalasoho"
     },
     {
       "name": "Burro",
@@ -198,10 +186,6 @@
       "slug": "donttelldad"
     },
     {
-      "name": "Donia",
-      "slug": "doniarestaurant"
-    },
-    {
       "name": "Dorian Restaurant",
       "slug": "dorianrestaurant"
     },
@@ -236,10 +220,6 @@
     {
       "name": "Field Notes",
       "slug": "fieldnotes"
-    },
-    {
-      "name": "Firebird | Restaurant & Wine Bar",
-      "slug": "firebirdlondon"
     },
     {
       "name": "Folde",
@@ -303,11 +283,6 @@
       "slug": "juliesrestaurant"
     },
     {
-      "name": "Kebab Queen",
-      "slug": "kebabqueen",
-      "area": "Covent Garden"
-    },
-    {
       "name": "Kiln",
       "slug": "kilnlondon"
     },
@@ -327,10 +302,6 @@
     {
       "name": "Kricket Soho",
       "slug": "kricketsoho"
-    },
-    {
-      "name": "Kudu",
-      "slug": "kudurestaurant"
     },
     {
       "name": "La Petite Maison (LPM) London",
@@ -462,10 +433,6 @@
       "slug": "polposoho"
     },
     {
-      "name": "Prince Arthur, Belgravia",
-      "slug": "theprincearthurbelgravia"
-    },
-    {
       "name": "Rabbit British Bistro",
       "slug": "rabbitrestaurant"
     },
@@ -490,10 +457,6 @@
       "slug": "rochellecanteen"
     },
     {
-      "name": "Roebuck",
-      "slug": "roebuckchiswick"
-    },
-    {
       "name": "Rogues.",
       "slug": "rogues"
     },
@@ -504,10 +467,6 @@
     {
       "name": "Sabor",
       "slug": "saborrestaurant"
-    },
-    {
-      "name": "Senza Fondo",
-      "slug": "senzafondo"
     },
     {
       "name": "Shawarma Bar",
@@ -576,10 +535,6 @@
     {
       "name": "The Alfred Tennyson",
       "slug": "thealfredtennyson"
-    },
-    {
-      "name": "The Audley Public House",
-      "slug": "theaudley"
     },
     {
       "name": "The Baring",
@@ -691,10 +646,6 @@
       "slug": "themalltavernnottinghill"
     },
     {
-      "name": "The Mayflower Pub",
-      "slug": "themayflower"
-    },
-    {
       "name": "The Orange Pub & Boutique Hotel Belgravia",
       "slug": "theorange"
     },
@@ -736,10 +687,6 @@
       "slug": "thesalusbury"
     },
     {
-      "name": "The Scotch of St James",
-      "slug": "thescotch"
-    },
-    {
       "name": "The Shaston Arms",
       "slug": "theshastonarms"
     },
@@ -754,10 +701,6 @@
     {
       "name": "The Telegraph",
       "slug": "telegraph"
-    },
-    {
-      "name": "The Walmer Castle",
-      "slug": "thewalmercastle"
     },
     {
       "name": "The Waterman’s Arms",
