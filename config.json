@@ -790,25 +790,6 @@
       "notify": "push",
       "email_to": "",
       "salt": "1786969402083"
-    },
-    {
-      "id": "Sune",
-      "platform": "sevenrooms",
-      "venues": [
-        "sune-restaurant-london"
-      ],
-      "party_size": 2,
-      "date": "2026-08-18",
-      "dates": [
-        "2026-08-18"
-      ],
-      "num_days": 1,
-      "time_slot": "19:00",
-      "window_start": "",
-      "window_end": "",
-      "notify": "push",
-      "email_to": "",
-      "salt": "1787050636197"
     }
   ]
 }
