@@ -127,6 +127,18 @@ def is_bookable_time(t: dict) -> bool:
     if "is_available" in t: return t.get("is_available") is True
     return bool(t.get("access_persistent_id"))
 
+def _num_days_chunks(num_days: int) -> List[int]:
+    """Split a day range into sizes the widget API actually accepts.
+
+    SevenRooms only honours num_days of 1 or 3; anything else comes back as
+    400 "invalid num_days", which this client cannot tell apart from "no
+    tables". A 7-day search therefore used to alert on nothing at all. Walk
+    the window in 3s with 1s for the remainder instead.
+    """
+    n = max(1, int(num_days))
+    return [3] * (n // 3) + [1] * (n % 3)
+
+
 def fetch_sevenrooms_slots(
     venue: str,
     date_yyyy_mm_dd: str,
@@ -136,6 +148,34 @@ def fetch_sevenrooms_slots(
     lang: str = "en",
     halo_size_interval: int = 64,
     debug: bool = False,
+) -> List[Tuple[str, str]]:
+    try:
+        start = dt.datetime.strptime(date_yyyy_mm_dd, "%Y-%m-%d")
+    except Exception: return []
+
+    out: List[Tuple[str, str]] = []
+    seen: set = set()
+    offset = 0
+    for chunk in _num_days_chunks(num_days):
+        day = (start + dt.timedelta(days=offset)).strftime("%Y-%m-%d")
+        offset += chunk
+        for slot in _fetch_slots_once(
+            venue, day, party, channel, chunk, lang, halo_size_interval, debug
+        ):
+            if slot in seen: continue
+            seen.add(slot); out.append(slot)
+    return out
+
+
+def _fetch_slots_once(
+    venue: str,
+    date_yyyy_mm_dd: str,
+    party: int,
+    channel: str,
+    num_days: int,
+    lang: str,
+    halo_size_interval: int,
+    debug: bool,
 ) -> List[Tuple[str, str]]:
     try:
         d_sr = dt.datetime.strptime(date_yyyy_mm_dd, "%Y-%m-%d").strftime("%m-%d-%Y")

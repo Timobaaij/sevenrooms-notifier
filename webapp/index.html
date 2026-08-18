@@ -102,6 +102,7 @@
   .btn--gold{color:#241a05;background:linear-gradient(140deg,var(--gold-bright),var(--gold) 52%,var(--gold-deep));box-shadow:0 6px 18px rgba(185,143,66,.28)}
   .btn--gold:hover{filter:brightness(1.05)}
   .btn--gold[disabled]{opacity:.5;filter:grayscale(.3);cursor:default}
+  .btn--ghost[disabled]{opacity:.45;cursor:default}
   .btn--ghost{color:var(--gold);background:transparent;border-color:var(--hair)}
   .btn--block{width:100%}
 
@@ -331,7 +332,7 @@
           </div>
           <div class="chipwrap" id="favList" style="margin-top:14px"></div>
           <div class="field" style="margin:16px 0 8px"><label for="fav-search">Add from your London list</label>
-            <input class="input" id="fav-search" type="search" placeholder="Search 190 verified venues…" autocomplete="off" />
+            <input class="input" id="fav-search" type="search" placeholder="Search your London list…" autocomplete="off" />
           </div>
           <div id="favPicker"></div>
           <div class="field" style="margin-top:14px"><label>Not in the list? Add by slug</label>
@@ -963,8 +964,22 @@
   // their own copy so a manual edit sticks. VAREA maps slug -> venue's default area.
   var VAREA = {}; VENUES.forEach(function(v){ if (v[2]) VAREA[v[1]] = v[2]; });
   // Venue-count labels track the list itself, so growing VENUES needs no copy edits.
-  $("#favAddAll").textContent = "Add all " + VENUES.length;
   $("#fav-search").placeholder = "Search " + VENUES.length + " verified venues…";
+  // Venues in the catalogue that aren't favourites yet. When the shipped list
+  // grows, these are what an existing user is missing.
+  function missingVenues(){
+    var have = {}; favs().forEach(function(f){ have[f.slug] = 1; });
+    return VENUES.filter(function(v){ return !have[v[1]]; });
+  }
+  // The bulk button doubles as the signal that the list has grown since you last
+  // added: it reads "Add 12 new" rather than a flat total you'd assume you had.
+  function syncAddAllLabel(){
+    var btn = $("#favAddAll"), missing = missingVenues().length;
+    btn.disabled = !missing;
+    btn.textContent = !missing ? ("All " + VENUES.length + " added")
+      : favs().length ? ("Add " + missing + " new")
+      : ("Add all " + VENUES.length);
+  }
   function favArea(f){ return ((f && f.area) || "").trim() || (f && VAREA[f.slug]) || ""; }
   var favSelectedAreas = {};   // area name -> true (multi-select filter)
 
@@ -996,6 +1011,7 @@
   function renderFavourites(){
     var list = favs();
     $("#favCount").textContent = list.length;
+    syncAddAllLabel();
     // current favourites as removable chips, each showing (and letting you edit) its borough
     $("#favList").innerHTML = list.length
       ? list.map(function(f){
@@ -1104,9 +1120,8 @@
     $("#fav-manual-name").value = ""; $("#fav-manual-slug").value = ""; $("#fav-manual-area").value = "";
   };
   $("#favAddAll").onclick = function(){
-    var have = {}; favs().forEach(function(f){ have[f.slug] = 1; });
-    var added = 0;
-    VENUES.forEach(function(v){ if (!have[v[1]]){ var rec={ name:v[0], slug:v[1] }; if (v[2]) rec.area=v[2]; favs().push(rec); added++; } });
+    var missing = missingVenues(), added = missing.length;
+    missing.forEach(function(v){ var rec={ name:v[0], slug:v[1] }; if (v[2]) rec.area=v[2]; favs().push(rec); });
     favs().sort(function(a,b){ return a.name.toLowerCase() < b.name.toLowerCase() ? -1 : 1; });
     renderFavourites(); saveConfig(added ? ("Added "+added+" favourites") : "All already added");
   };
