@@ -47,6 +47,9 @@ jobs:
         env:
           EMAIL_USER: ${{ secrets.EMAIL_USER }}
           EMAIL_PASS: ${{ secrets.EMAIL_PASS }}
+          # Optional OpenTable overrides — empty unless you set them.
+          OPENTABLE_AVAILABILITY_HASH: ${{ secrets.OPENTABLE_AVAILABILITY_HASH }}
+          OPENTABLE_REGION: ${{ vars.OPENTABLE_REGION }}
         run: |
 
           for i in 1 2 3 4 5; do

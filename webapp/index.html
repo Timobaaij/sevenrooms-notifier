@@ -81,6 +81,7 @@
   .datechip{font-family:var(--mono);font-size:11.5px;color:var(--text);padding:3px 8px;border-radius:8px;background:rgba(255,255,255,.05);border:1px solid var(--hair-soft)}
   .pill{display:inline-flex;align-items:center;gap:5px;height:25px;padding:0 10px;border-radius:var(--pill);font-size:11.5px;font-weight:600;color:var(--text);background:rgba(255,255,255,.05);border:1px solid var(--hair-soft)}
   .pill--sr{color:var(--gold-bright);border-color:var(--hair);background:rgba(228,196,124,.08)}
+  .pill--ot{color:#8fd0e8;border-color:rgba(143,208,232,.28);background:rgba(143,208,232,.09)}
   .watch-actions{display:flex;align-items:center;gap:10px;margin-top:16px}
   .toggle{position:relative;width:50px;height:30px;flex:0 0 auto;border-radius:var(--pill);cursor:pointer;background:#26314c;border:1px solid var(--hair-soft);transition:background .22s}
   .toggle .knob{position:absolute;top:2px;left:2px;width:24px;height:24px;border-radius:50%;background:#eef1f8;box-shadow:0 2px 5px rgba(0,0,0,.4);transition:transform .22s cubic-bezier(.4,1.3,.5,1)}
@@ -331,11 +332,15 @@
             <button class="btn btn--ghost" id="favClearAll" style="height:40px;flex:1">Clear all</button>
           </div>
           <div class="chipwrap" id="favList" style="margin-top:14px"></div>
-          <div class="field" style="margin:16px 0 8px"><label for="fav-search">Add from your London list</label>
+          <div class="field" style="margin:16px 0 8px"><label for="fav-search">Add from your London SevenRooms list</label>
             <input class="input" id="fav-search" type="search" placeholder="Search your London list…" autocomplete="off" />
           </div>
           <div id="favPicker"></div>
-          <div class="field" style="margin-top:14px"><label>Not in the list? Add by slug</label>
+          <div class="field" style="margin-top:14px"><label>Not in the list? Add by slug or id</label>
+            <div class="segmented" id="favPlatSeg" style="margin-bottom:10px">
+              <button class="seg active" data-v="sevenrooms">SevenRooms</button>
+              <button class="seg" data-v="opentable">OpenTable</button>
+            </div>
             <div class="tworow">
               <input class="input" id="fav-manual-name" placeholder="Name" />
               <input class="input mono" id="fav-manual-slug" placeholder="slug or URL" />
@@ -383,9 +388,15 @@
     <div class="field"><label for="f-name">Name</label>
       <input class="input" id="f-name" placeholder="e.g. Dover Street Ella" />
     </div>
-    <div class="field"><label for="f-venues">Venue slug(s)</label>
+    <div class="field"><label>Books through</label>
+      <div class="segmented" id="platSeg">
+        <button class="seg active" data-v="sevenrooms">SevenRooms</button>
+        <button class="seg" data-v="opentable">OpenTable</button>
+      </div>
+    </div>
+    <div class="field"><label for="f-venues" id="f-venues-label">Venue slug(s)</label>
       <input class="input" id="f-venues" placeholder="comma-separated, e.g. doverstreetcounter" />
-      <p class="helper">The bit after <code>?venue=</code> in the SevenRooms reservation link.</p>
+      <p class="helper" id="f-venues-help">The bit after <code>?venue=</code> in the SevenRooms reservation link.</p>
     </div>
 
     <div class="tworow">
@@ -448,6 +459,53 @@
   var VENUES = [["\"mu\"","mu","Dalston"],["A. Wong","awong","Victoria"],["abc kitchens","abckitchens","Belgravia"],["ACE Pizza Victoria Park","acepizzavictoriapark","Victoria Park"],["Acme Fire Cult","acmefirecult","Dalston"],["AGORA souvla bar","agoralondon","Borough"],["Akara Restaurant","akara","Borough"],["Akub Restaurant","akub","Notting Hill"],["ALTA Kingly Court","altarestaurant","Carnaby"],["Ambassadors Clubhouse","ambassadorsclubhouse","Mayfair"],["Anchor & Hope","theanchorandhope","Waterloo"],["Artusi","artusi","Peckham"],["Automat","automatdining","Mayfair"],["Bancone Covent Garden","banconecoventgarden","Covent Garden"],["Bar Douro London Bridge","bardourolondonbridge","Borough"],["Barrafina Adelaide Street","barrafinaadelaidestreet","Covent Garden"],["Barrafina Dean Street","barrafina","Soho"],["Barrafina Drury Lane","barrafinadrurylane","Covent Garden"],["Berenjak Borough","berenjakborough","Borough"],["Berenjak Soho","berenjakjks","Soho"],["BiBi","bibi","Mayfair"],["BRAT Restaurant","bratshoreditch","Shoreditch"],["Brat x Climpson's Arch","bratclimpsonsarch","London Fields"],["Brawn","brawn","Bethnal Green"],["Brigadiers","brigadiers","City of London"],["Burro","burro","Covent Garden"],["Café Deco","cafedeco","Bloomsbury"],["Caia","caia","Notting Hill"],["Camino Farringdon","caminofarringdon","Farringdon"],["Campania","campania","Bethnal Green"],["Canal Restaurant","canalrestaurant","Westbourne Park"],["Canteen | Notting Hill","canteen","Notting Hill"],["Canton Arms","cantonarms","Stockwell"],["Caravel","caravel","Hoxton"],["Carousel","carousellondon","Fitzrovia"],["Casa Felicia","casafelicia","Queen's Park"],["Cav","cavrestaurant","Bethnal Green"],["Chez Lui","chezlui","Notting Hill"],["Chez Rose","chezrose","Mayfair"],["Chishuru","chishuru","Fitzrovia"],["Coal Office Restaurant","coalofficerestaurant","King's Cross"],["Darjeeling Express","darjeelingexpress","Carnaby"],["Dishoom Kensington","dishoomkensington","Kensington"],["Dockley Road","dockleyroadkitchen","Bermondsey"],["Don't Tell Dad","donttelldad","Queen's Park"],["Dorian Restaurant","dorianrestaurant","Notting Hill"],["Dove Restaurant","Dove","Notting Hill"],["Dover Street Counter","doverstreetcounter","Mayfair"],["Duchy","duchyrestaurant","Shoreditch"],["Empire Empire","empireempirelondon","Notting Hill"],["EQUAL PARTS","equalparts","Bethnal Green"],["Evelyn's Table","evelynstable","Soho"],["Experimental Cocktail Club Chinatown","eccchinatown","Chinatown"],["Field Notes","fieldnotes","London Fields"],["Folde","foldevenue","Battersea"],["Fonda","fonda","Mayfair"],["Forza Wine Peckham","forzawine","Peckham"],["Gina Restaurant","gina","Chingford"],["Gold","goldnottinghill","Notting Hill"],["Goodbye Horses","goodbyehorses","De Beauvoir Town"],["Gordon's Wine Bar","gordonswinebar","Embankment"],["Gymkhana","gymkhana","Mayfair"],["Homies On Donkeys","homiesondonkeysrestaurant","Leytonstone"],["Ibai","ibailondon","Farringdon"],["Impala","impala","Soho"],["Jacuzzi","jacuzzi","Kensington"],["José","josebypizarro","Bermondsey"],["Josephine Bouchon - Chelsea","josephinebistro","Chelsea"],["Julie's Restaurant","juliesrestaurant","Holland Park"],["Kiln","kilnlondon","Soho"],["Kinkally","kinkally","Fitzrovia"],["KINZ Restaurant","kinz","Notting Hill"],["Kolae","kolae","Borough"],["Kricket Soho","kricketsoho","Soho"],["La Petite Maison (LPM) London","lpmlondon","Mayfair"],["Lai Rai","lairai","Peckham"],["Legado Restaurant","legado","Shoreditch"],["LEYDI","leydi","City of London"],["Lucia's","Lucias","Hackney Wick"],["Lupa","lupa","Highbury"],["Maison François","maisonfrancois","St James's"],["Mangal 2 Restaurant","mangal2restaurant","Dalston"],["manteca","manteca","Shoreditch"],["Mareida","mareida","Fitzrovia"],["Maresco","maresco","Soho"],["Marjorie's","marjories","Carnaby"],["MARTINO'S","martinoslondon","Chelsea"],["Miga","migarestaurant","London Fields"],["Morchella","morchella","Clerkenwell"],["Mountain Beak Street","mountain","Soho"],["Netil360 Rooftop Bar - Restaurant","netil360","London Fields"],["Nightjar Shoreditch","nightjarshoreditch","Shoreditch"],["Noble Rot Mayfair","noblerotmayfair","Mayfair"],["NT's Loft","ntsloft","London Fields"],["OMA","oma","Borough"],["Opium Cocktail Bar - Soho","opiumchinatown","Chinatown"],["OREN","oren","Dalston"],["Osteria Angelina","osteriaangelina","Spitalfields"],["Osteria Basilico","osteriabasilico","Notting Hill"],["Osteria Vibrato","osteriavibrato","Soho"],["Oudh 1722","oudh1722","Borough"],["Passione Vino Exmouth Market","passionevinoclerkenwell","Clerkenwell"],["Planque","planque","Haggerston"],["Plaza Khao Gaeng","plaza","Holborn"],["Plaza Khao Gaeng Borough Yards","plazakhaogaengborough","Borough"],["POLPO Italian Restaurant Soho","polposoho","Soho"],["Rabbit British Bistro","rabbitrestaurant","Chelsea"],["Rambutan","rambutan","Borough"],["Randall & Aubin","randallandaubin","Soho"],["Ria's","riassoho","Soho"],["Rita's","ritasbar","Soho"],["Rochelle Canteen","rochellecanteen","Shoreditch"],["Rogues.","rogues","Bethnal Green"],["Ruth's","ruths","Putney"],["Sabor","saborrestaurant","Mayfair"],["Shawarma Bar","shawarmabar","Clerkenwell"],["Singapore Garden","singaporegarden","Swiss Cottage"],["Smoking Goat Shoreditch","smokinggoat","Shoreditch"],["SOMA Soho","somasoho","Soho"],["Space Talk","spacetalk","Farringdon"],["Speedboat Bar","speedboat","Chinatown"],["Stable Wines","stablewines","Islington"],["STRAKER'S","strakerslondon","Notting Hill"],["Sune Restaurant","sune","Hackney"],["Suzi Tros 🇬🇷","suzitros","Notting Hill"],["Tamila Kings Cross","tamilakingscross","King's Cross"],["TANGRA","tangra","Soho"],["Tatar Bunar","tatarbunarlondon","Shoreditch"],["Tempo","tempo","Mayfair"],["The 10 Cases","10cases","Covent Garden"],["The Albion","thealbionlondon","Islington"],["The Alfred Tennyson","thealfredtennyson","Belgravia"],["The Baring","thebaring","Islington"],["The Blue Stoops","thebluestoops","Kensington"],["The Boundary","boundarylondon","Shoreditch"],["The Builders Arms","thebuildersarms","Chelsea"],["The Cadogan Arms","thecadoganarms","Chelsea"],["The Camberwell Arms","thecamberwellarms","Camberwell"],["The Cavendish Pub, Marylebone","thecavendishmarylebone","Marylebone"],["The Coach Makers Arms Pub Marylebone","thecoachmakersarms","Marylebone"],["The Compton Arms","thecomptonarms","Islington"],["The Cow","thecow","Notting Hill"],["The Culpeper","theculpeper","Spitalfields"],["The Dover","thedoverrestaurant","Mayfair"],["The Fat Badger - Notting Hill","thefatbadger","Notting Hill"],["The French House","thefrenchhouse","Soho"],["The George","thegeorge","Fitzrovia"],["The Good Oak","thegoodoaknottinghill","Notting Hill"],["The Grazing Goat Pub & Boutique Hotel Marylebone","thegrazinggoat","Marylebone"],["The Hart - Marylebone","thehartuk","Marylebone"],["The Hawk's Nest","thehawksnest","Shepherd's Bush"],["The Hero - Maida Vale","thehero","Maida Vale"],["The Holly Bush, Hampstead","thehollybush","Hampstead"],["The Hound","thehounduk","Chiswick"],["The Kerfield Arms","thekerfieldarms","Camberwell"],["The Lavery","thelavery","South Kensington"],["The Libertine Restaurant & Bar","libertinerestaurantbar","City of London"],["The Macbeth","themacbeth","Hoxton"],["The Mall Tavern","themalltavernnottinghill","Notting Hill"],["The Orange Pub & Boutique Hotel Belgravia","theorange","Belgravia"],["The Palomar","thepalomar","Soho"],["The Pelican - Notting Hill","thepelicanw11","Notting Hill"],["The Pig and Butcher","thepigandbutcherlondon","Islington"],["The Pig's Ear","thepigsear","Chelsea"],["The Princess Royal Pub & Boutique Hotel Notting Hill","theprincessroyal","Notting Hill"],["The Queen's Arms","queensarmswestminster","Pimlico"],["The River Café","rivercafelondon","Hammersmith"],["The Salusbury Pub & Dining Room","thesalusbury","Queen's Park"],["The Shaston Arms","theshastonarms","Soho"],["The Starman","thestarman","Mayfair"],["The Tamil Prince","thetamilprince","Islington"],["The Telegraph","telegraph","Putney"],["The Waterman’s Arms","thewatermansarms","Barnes"],["The Winemakers Club","thewinemakersclub","Farringdon"],["Theo's","no1parklaneterrace","Mayfair"],["Trullo","trullo","Highbury"],["Upstairs","UpstairsatLangans","Mayfair"],["Vesper Restaurant","vesperrestaurant","Clerkenwell"],["Weezie's","weezies","Belgravia"],["Wild by Tart","wildbytart","Belgravia"],["Wild Corner","wildcorner","Chelsea"],["Wild Tavern","wildtavernchelsea","Chelsea"],["Wildflowers Restaurant","wildflowers","Belgravia"],["Wine Bar","winebar",""],["Yasmin","yasmin","Soho"],["Zum Barbarossa","zumbarbarossa","Soho"],["Zylia","zyliacoventgarden","Covent Garden"]];
   var $ = function(s){ return document.querySelector(s); };
   function esc(s){ return String(s==null?"":s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c];}); }
+
+  // ---- Platforms. SevenRooms venues are slugs, OpenTable venues are numeric
+  // restaurant ids; everything else (windows, dates, dedupe, alerts) is shared. ----
+  var PLATFORMS = {
+    sevenrooms: {
+      label: "SevenRooms",
+      pill: "pill--sr",
+      idLabel: "Venue slug(s)",
+      idPlaceholder: "comma-separated, e.g. doverstreetcounter",
+      idHelp: 'The bit after <code>?venue=</code> in the SevenRooms reservation link.',
+      manualPlaceholder: "slug or URL"
+    },
+    opentable: {
+      label: "OpenTable",
+      pill: "pill--ot",
+      idLabel: "Restaurant id(s)",
+      idPlaceholder: "comma-separated, e.g. 211123",
+      idHelp: 'Paste the OpenTable link (or its <code>rid=</code> number). A <code>/r/&lt;name&gt;</code> link works too.',
+      manualPlaceholder: "rid or OpenTable URL"
+    }
+  };
+  function plat(p){ return PLATFORMS[String(p||"").toLowerCase()] ? String(p).toLowerCase() : "sevenrooms"; }
+  function platOf(rec){ return plat(rec && rec.platform); }
+  function platMeta(p){ return PLATFORMS[plat(p)]; }
+
+  // OpenTable answers around a requested time instead of returning a whole day,
+  // so every lookup carries the middle of the window we care about.
+  function midTime(ws, we){
+    function mins(t){ var m=/^(\d{1,2}):(\d{2})$/.exec(t||""); return m ? (+m[1])*60 + (+m[2]) : null; }
+    var s = mins(ws), e = mins(we);
+    if (s === null && e === null) return "19:00";
+    if (s === null) return we;
+    if (e === null) return ws;
+    if (e < s) e += 1440;                                    // overnight window
+    var mid = Math.floor((s + e) / 2) % 1440;
+    return String(Math.floor(mid/60)).padStart(2,"0") + ":" + String(mid%60).padStart(2,"0");
+  }
+  function anchorOf(s){ return s.time_slot ? s.time_slot : midTime(s.window_start, s.window_end); }
+
+  function timesUrl(platform, venue, date, party, anchor){
+    var q = "api/times?platform=" + encodeURIComponent(plat(platform))
+      + "&venue=" + encodeURIComponent(venue)
+      + "&date=" + encodeURIComponent(date)
+      + "&party=" + party;
+    if (anchor) q += "&time=" + encodeURIComponent(anchor);
+    return q;
+  }
 
   function toast(msg, err){
     var t = $("#toast"); $("#toastMsg").textContent = msg;
@@ -541,7 +599,8 @@
     var html = "";
     searches.forEach(function(s, i){
       var paused = (s.notify||"both") === "none";
-      var platPill = '<span class="pill pill--sr">SevenRooms</span>';
+      var pm = platMeta(s.platform);
+      var platPill = '<span class="pill '+pm.pill+'">'+esc(pm.label)+'</span>';
       var timeLabel = s.time_slot ? s.time_slot : ((s.window_start||"?")+" – "+(s.window_end||"?"));
       var timeKind = s.time_slot ? "Exact" : "Window";
       var dates = getDates(s);
@@ -615,11 +674,14 @@
     var tasks = [];
     searches.forEach(function(s, si){
       var dates = getDates(s), party = parseInt(s.party_size,10) || 2;
-      (s.venues||[]).forEach(function(v){ dates.forEach(function(d){ tasks.push({ si:si, s:s, venue:v, date:d, party:party }); }); });
+      var p = platOf(s), anchor = anchorOf(s);
+      (s.venues||[]).forEach(function(v){ dates.forEach(function(d){
+        tasks.push({ si:si, s:s, venue:v, date:d, party:party, platform:p, anchor:anchor });
+      }); });
     });
     pool(tasks, function(t){
       var headers = {}; if (STATE.key) headers["x-access-key"] = STATE.key;
-      return fetch("api/times?venue="+encodeURIComponent(t.venue)+"&date="+encodeURIComponent(t.date)+"&party="+t.party, { headers: headers })
+      return fetch(timesUrl(t.platform, t.venue, t.date, t.party, t.anchor), { headers: headers })
         .then(function(r){ return r.json(); })
         .then(function(res){
           var slots = (res && res.slots) || null;
@@ -664,15 +726,18 @@
       var rs = (bySearch[si]||[]).filter(function(r){ return r.hits.length; });
       var multiVenue = (s.venues||[]).length > 1;
       var paused = (s.notify||"both") === "none";
+      var opm = platMeta(s.platform);
       html += '<div class="favcard">'
         + '<div class="fc-head"><span class="fc-name">'+esc(s.id||"Untitled")+'</span>'
+        + '<span class="pill '+opm.pill+'" style="height:22px;font-size:11px">'+esc(opm.label)+'</span>'
         + '<span class="statuschip '+(paused?'statuschip--pause':'statuschip--live')+'" style="height:22px"><span class="tinydot"></span>'+(paused?'Paused':'Watching')+'</span></div>';
       if (!rs.length){
         html += '<p class="fav-empty-names" style="margin:0">No tables in your window right now.</p>';
       } else {
         rs.forEach(function(r){
-          var url = esc(bookingUrl(r.t.venue, r.t.date, r.t.party));
-          var when = fmtDate(r.t.date) + (multiVenue ? ' · '+esc(r.t.venue) : '');
+          var url = esc(bookingUrl(r.t.venue, r.t.date, r.t.party, r.t.platform, r.t.anchor));
+          var vname = (s.venue_labels||{})[r.t.venue] || r.t.venue;
+          var when = fmtDate(r.t.date) + (multiVenue ? ' · '+esc(vname) : '');
           html += '<div class="op-row"><span class="op-when">'+esc(when)+'</span>' + areaGroupsHtml(r.hits, url) + '</div>';
         });
       }
@@ -803,28 +868,48 @@
   $("#dplus").onclick = function(){ setDays(numDays+1); };
   $("#dminus").onclick = function(){ setDays(numDays-1); };
 
-  // Slug auto-extract: turn a pasted SevenRooms URL into its venue slug.
-  function extractSlug(text){
+  // Venue-id auto-extract: turn a pasted booking URL into the id its platform
+  // uses — a SevenRooms slug, or an OpenTable numeric restaurant id.
+  function extractSlug(text, platform){
     text = (text||"").trim(); if(!text) return text;
+    if (plat(platform) === "opentable"){
+      if (/^\d+$/.test(text)) return text;
+      var r = text.match(/[?&](?:rid|restaurantId|restRef|restref)=(\d+)/i)
+           || text.match(/\/restaurant\/profile\/(\d+)/);
+      if (r) return r[1];
+      var s = text.match(/\/r\/([a-zA-Z0-9\-]+)/);        // /r/<name> — resolved server-side
+      if (s) return s[1].toLowerCase();
+      return text;
+    }
     var m = text.match(/[?&]venue=([a-zA-Z0-9_\-]+)/); if(m) return m[1];
     m = text.match(/\/reservations\/([a-zA-Z0-9_\-]+)/); if(m) return m[1];
     return text;
   }
   $("#f-venues").addEventListener("blur", function(){
-    var cleaned = this.value.split(",").map(function(v){ return extractSlug(v); }).filter(Boolean);
+    var p = segGet("platSeg") || "sevenrooms";
+    var cleaned = this.value.split(",").map(function(v){ return extractSlug(v, p); }).filter(Boolean);
     if (cleaned.length) this.value = cleaned.join(", ");
   });
 
+  // Venue field wording follows the chosen platform.
+  function applyPlatformFields(){
+    var pm = platMeta(segGet("platSeg"));
+    $("#f-venues-label").textContent = pm.idLabel;
+    $("#f-venues").placeholder = pm.idPlaceholder;
+    $("#f-venues-help").innerHTML = pm.idHelp;
+    $("#timeChips").innerHTML = "";
+  }
+
   // Load available times for the first venue + first date (exact-time mode).
   $("#loadTimes").addEventListener("click", function(){
-    var plat = "sevenrooms";
-    var venue = extractSlug(($("#f-venues").value.split(",")[0]||"").trim());
+    var p = segGet("platSeg") || "sevenrooms";
+    var venue = extractSlug(($("#f-venues").value.split(",")[0]||"").trim(), p);
     var date = sheetDates[0] || $("#f-date").value;
-    if(!venue){ toast("Add a venue slug first", true); return; }
+    if(!venue){ toast("Add a venue " + (p==="opentable" ? "id" : "slug") + " first", true); return; }
     if(!date){ toast("Pick a date first", true); return; }
     var btn = this; btn.textContent = "Loading…"; btn.disabled = true;
     var headers = {}; if (STATE.key) headers["x-access-key"] = STATE.key;
-    fetch("api/times?platform="+encodeURIComponent(plat)+"&venue="+encodeURIComponent(venue)+"&date="+encodeURIComponent(date)+"&party="+party, { headers: headers })
+    fetch(timesUrl(p, venue, date, party, $("#f-exact").value || midTime($("#f-ws").value, $("#f-we").value)), { headers: headers })
       .then(function(r){ return r.json(); })
       .then(function(res){
         var times = (res && res.times) || [];
@@ -851,6 +936,7 @@
         $("#windowRow").style.display = exact ? "none" : "flex";
         $("#exactRow").style.display = exact ? "block" : "none";
       }
+      if (seg.id === "platSeg") applyPlatformFields();
     });
   });
 
@@ -863,6 +949,8 @@
 
     var s = editing ? STATE.config.searches[STATE.editIndex] : null;
     $("#f-name").value = s ? (s.id||"") : "";
+    segSet("platSeg", platOf(s));
+    applyPlatformFields();
     $("#f-venues").value = s ? ((s.venues||[]).join(", ")) : "";
     setParty(s ? (parseInt(s.party_size,10)||2) : 2);
     setDays(s ? (parseInt(s.num_days,10)||1) : 1);
@@ -909,15 +997,15 @@
   $("#refreshBtn").onclick = function(){ this.classList.add("spin"); var b=this; loadConfig(); setTimeout(function(){ b.classList.remove("spin"); }, 700); };
 
   $("#saveBtn").onclick = function(){
-    var plat = "sevenrooms";
+    var p = segGet("platSeg") || "sevenrooms";
     var name = $("#f-name").value.trim();
-    var venues = $("#f-venues").value.split(",").map(function(v){return extractSlug(v);}).filter(Boolean);
-    if (!venues.length){ toast("Add at least one venue slug", true); return; }
+    var venues = $("#f-venues").value.split(",").map(function(v){return extractSlug(v, p);}).filter(Boolean);
+    if (!venues.length){ toast("Add at least one venue " + (p==="opentable" ? "id" : "slug"), true); return; }
     var exact = segGet("timeSeg") === "exact";
     var dates = sheetDates.slice(); if(!dates.length){ toast("Add at least one date", true); return; }
     var rec = {
       id: name || "Untitled",
-      platform: plat,
+      platform: p,
       venues: venues,
       party_size: party,
       date: dates[0],
@@ -930,6 +1018,10 @@
       email_to: $("#f-email").value.trim(),
       salt: String(Date.now())
     };
+    // OpenTable ids are numbers, so send along any names we know — the alert then
+    // reads "Sune @ 20:00" instead of "211123 @ 20:00".
+    var labels = venueLabels(p, venues);
+    if (labels) rec.venue_labels = labels;
     if (STATE.editIndex !== null){ STATE.config.searches[STATE.editIndex] = rec; }
     else { STATE.config.searches.push(rec); }
     var btn = this; btn.disabled = true;
@@ -955,10 +1047,28 @@
 
   function favs(){ return STATE.config.favourites || (STATE.config.favourites = []); }
   function isFav(slug){ return favs().some(function(f){ return f.slug === slug; }); }
-  function bookingUrl(slug, date, party){
+  function bookingUrl(slug, date, party, platform, anchor){
+    if (plat(platform) === "opentable"){
+      var ot = /^\d+$/.test(String(slug))
+        ? "https://www.opentable.com/restaurant/profile/" + encodeURIComponent(slug)
+        : "https://www.opentable.com/r/" + encodeURIComponent(slug);
+      var oq = ["covers=" + (party || favParty)];
+      if (date) oq.push("dateTime=" + encodeURIComponent(date + "T" + (anchor || "19:00")));
+      return ot + "?" + oq.join("&");
+    }
     var u = "https://www.sevenrooms.com/explore/" + encodeURIComponent(slug) + "/reservations/create/search/";
     var q = []; if (date) q.push("date=" + encodeURIComponent(date)); q.push("party_size=" + (party || favParty));
     return u + "?" + q.join("&");
+  }
+  // Names for the ids a search watches, taken from favourites on the same platform.
+  function venueLabels(platform, venues){
+    if (plat(platform) !== "opentable") return null;
+    var out = {}, n = 0;
+    favs().forEach(function(f){
+      if (platOf(f) !== "opentable") return;
+      if (venues.indexOf(f.slug) >= 0 && f.name && f.name !== f.slug){ out[f.slug] = f.name; n++; }
+    });
+    return n ? out : null;
   }
   function todayISO(){ var d = new Date(); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
 
@@ -966,7 +1076,7 @@
   // their own copy so a manual edit sticks. VAREA maps slug -> venue's default area.
   var VAREA = {}; VENUES.forEach(function(v){ if (v[2]) VAREA[v[1]] = v[2]; });
   // Venue-count labels track the list itself, so growing VENUES needs no copy edits.
-  $("#fav-search").placeholder = "Search " + VENUES.length + " verified venues…";
+  $("#fav-search").placeholder = "Search " + VENUES.length + " verified SevenRooms venues…";
   // Venues that have left SevenRooms. Their account still answers the availability
   // API, but it serves no inventory and has no public page, so a favourite pointing
   // at one can never alert and its booking link 404s. Listed explicitly rather than
@@ -977,11 +1087,13 @@
   function pruneRetired(){
     var dead = {}; RETIRED.forEach(function(s){ dead[s] = 1; });
     var removed = 0;
-    var keep = favs().filter(function(f){ return !dead[f.slug]; });
+    // Only SevenRooms entries: an OpenTable id is never one of these slugs, and
+    // its venues are none of our business here.
+    var keep = favs().filter(function(f){ return platOf(f) !== "sevenrooms" || !dead[f.slug]; });
     removed += favs().length - keep.length;
     STATE.config.favourites = keep;
     (STATE.config.searches || []).forEach(function(s){
-      if (!Array.isArray(s.venues)) return;
+      if (!Array.isArray(s.venues) || platOf(s) !== "sevenrooms") return;
       var v = s.venues.filter(function(x){ return !dead[String(x).trim()]; });
       removed += s.venues.length - v.length;
       s.venues = v;
@@ -989,9 +1101,10 @@
     return removed;
   }
   // Venues in the catalogue that aren't favourites yet. When the shipped list
-  // grows, these are what an existing user is missing.
+  // grows, these are what an existing user is missing. (The catalogue is the
+  // verified SevenRooms list; OpenTable venues are added by id.)
   function missingVenues(){
-    var have = {}; favs().forEach(function(f){ have[f.slug] = 1; });
+    var have = {}; favs().forEach(function(f){ if (platOf(f) === "sevenrooms") have[f.slug] = 1; });
     return VENUES.filter(function(v){ return !have[v[1]]; });
   }
   // The bulk button doubles as the signal that the list has grown since you last
@@ -1006,12 +1119,14 @@
   function favArea(f){ return ((f && f.area) || "").trim() || (f && VAREA[f.slug]) || ""; }
   var favSelectedAreas = {};   // area name -> true (multi-select filter)
 
-  function addFav(name, slug, area){
-    slug = extractSlug((slug||"").trim()); name = (name||"").trim() || slug;
+  function addFav(name, slug, area, platform){
+    var p = plat(platform);
+    slug = extractSlug((slug||"").trim(), p); name = (name||"").trim() || slug;
     if (!slug) return;
     if (isFav(slug)) return;
     var rec = { name: name, slug: slug };
-    area = (area||"").trim() || VAREA[slug] || "";
+    if (p !== "sevenrooms") rec.platform = p;
+    area = (area||"").trim() || (p === "sevenrooms" ? (VAREA[slug] || "") : "");
     if (area) rec.area = area;
     favs().push(rec);
     favs().sort(function(a,b){ return a.name.toLowerCase() < b.name.toLowerCase() ? -1 : 1; });
@@ -1042,7 +1157,8 @@
           var tag = a
             ? '<span class="favchip-area" data-edit-area="'+esc(f.slug)+'">'+esc(a)+'</span>'
             : '<span class="favchip-area empty" data-edit-area="'+esc(f.slug)+'">+ borough</span>';
-          return '<span class="favchip">'+esc(f.name)+tag+'<span class="x" data-rm="'+esc(f.slug)+'" role="button" aria-label="Remove '+esc(f.name)+'">✕</span></span>';
+          var pt = platOf(f) === "opentable" ? '<span class="pill pill--ot" style="height:20px;font-size:10.5px">OpenTable</span>' : '';
+          return '<span class="favchip">'+esc(f.name)+tag+pt+'<span class="x" data-rm="'+esc(f.slug)+'" role="button" aria-label="Remove '+esc(f.name)+'">✕</span></span>';
         }).join("")
       : '<span class="helper">No favourites yet — search your London list below, or add any slug.</span>';
     renderFilters();
@@ -1136,12 +1252,17 @@
     var x = e.target.closest("[data-rm]"); if (x) removeFav(x.dataset.rm);
   });
   $("#favManualAdd").onclick = function(){
+    var p = segGet("favPlatSeg") || "sevenrooms";
     var name = $("#fav-manual-name").value.trim();
     var slug = $("#fav-manual-slug").value.trim();
-    if (!slug){ toast("Enter a slug or SevenRooms URL", true); return; }
-    addFav(name, slug, $("#fav-manual-area").value);
+    if (!slug){ toast("Enter a " + (p==="opentable" ? "restaurant id or OpenTable URL" : "slug or SevenRooms URL"), true); return; }
+    addFav(name, slug, $("#fav-manual-area").value, p);
     $("#fav-manual-name").value = ""; $("#fav-manual-slug").value = ""; $("#fav-manual-area").value = "";
   };
+  // Placeholder follows the chosen platform, like the watch sheet.
+  document.querySelector("#favPlatSeg").addEventListener("click", function(){
+    $("#fav-manual-slug").placeholder = platMeta(segGet("favPlatSeg")).manualPlaceholder;
+  });
   $("#favAddAll").onclick = function(){
     var missing = missingVenues(), added = missing.length;
     missing.forEach(function(v){ var rec={ name:v[0], slug:v[1] }; if (v[2]) rec.area=v[2]; favs().push(rec); });
@@ -1189,7 +1310,7 @@
 
   function fetchFavTimes(fav, date, ws, we){
     var headers = {}; if (STATE.key) headers["x-access-key"] = STATE.key;
-    var url = "api/times?venue=" + encodeURIComponent(fav.slug) + "&date=" + encodeURIComponent(date) + "&party=" + favParty;
+    var url = timesUrl(platOf(fav), fav.slug, date, favParty, midTime(ws, we));
     return fetch(url, { headers: headers })
       .then(function(r){ return r.json(); })
       .then(function(res){
@@ -1235,10 +1356,11 @@
       html += '<div class="state" style="padding:34px 20px"><div class="emblem" style="width:44px;height:44px"></div><div class="big" style="font-size:20px">Fully booked</div><div style="max-width:32ch;margin:0 auto">None of your favourites have a table in this window. Try a wider time or another day.</div></div>';
     } else {
       hits.forEach(function(r){
-        var url = esc(bookingUrl(r.fav.slug, date));
+        var url = esc(bookingUrl(r.fav.slug, date, favParty, platOf(r.fav), midTime(ws, we)));
         var fa = favArea(r.fav);
+        var pt = platOf(r.fav) === "opentable" ? ' <span class="fc-area">OpenTable</span>' : '';
         html += '<div class="favcard">'
-          + '<div class="fc-head"><span class="fc-name">'+esc(r.fav.name)+(fa?' <span class="fc-area">'+esc(fa)+'</span>':'')+'</span>'
+          + '<div class="fc-head"><span class="fc-name">'+esc(r.fav.name)+(fa?' <span class="fc-area">'+esc(fa)+'</span>':'')+pt+'</span>'
           + '<a class="fc-open" href="'+url+'" target="_blank" rel="noopener" aria-label="Open booking page">'
           + '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17L17 7M9 7h8v8"/></svg></a></div>'
           + areaGroupsHtml(r.hits, url)

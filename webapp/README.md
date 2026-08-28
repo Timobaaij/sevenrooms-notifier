@@ -57,6 +57,13 @@ Project → **Settings → Variables and Secrets** → add:
 | `GH_BRANCH` | Text | `main` |
 | `ACCESS_KEY` | Secret | a passphrase you choose (gates the app) |
 
+Optional, for OpenTable (both blank is fine — see **Platforms** below):
+
+| Name | Type | Value |
+|---|---|---|
+| `OPENTABLE_AVAILABILITY_HASH` | Text | persisted-query hash, if the query document stops being accepted |
+| `OPENTABLE_REGION` | Text | `databaseRegion` to send, if your venues need one |
+
 Then **redeploy** so they take effect.
 
 ### 5. Open & install on your phone
@@ -70,6 +77,30 @@ project, Root directory `webapp`, no build command — the `functions/` folder i
 picked up automatically and `wrangler.toml`/`worker.js` are ignored.)*
 
 ---
+
+## Platforms
+
+Every watch names the platform it books through, and the rest of the app —
+windows, dates, party size, dedupe, alerts, the Openings feed, Favourites — works
+the same either way.
+
+| | SevenRooms | OpenTable |
+|---|---|---|
+| Venue is identified by | slug, e.g. `vesperrestaurant` | numeric restaurant id, e.g. `211123` |
+| Paste-friendly | the reservation link (`?venue=…`) | any OpenTable link (`rid=…`, `/restaurant/profile/…`, or `/r/<name>`) |
+| Availability comes from | the widget range API | the availability query the booking page uses |
+
+A `/r/<name>` link is stored as-is and resolved to its numeric id on the first
+check, so it keeps working if you only have the pretty URL.
+
+**About the OpenTable query.** OpenTable's site sends its availability call as a
+*persisted query* — a sha256 of the query rather than the query itself — and that
+hash changes whenever they redeploy. Both the watcher and this app therefore send
+the query document, which is what OpenTable's own front end falls back to. If a
+redeploy ever makes them refuse the document, capture the current hash (DevTools →
+Network → `gql?…opname=RestaurantsAvailability` → request body → `sha256Hash`) and
+set `OPENTABLE_AVAILABILITY_HASH` here and on the watcher. Nothing else changes.
+If neither route answers, the app reads the slots out of the booking page itself.
 
 ## Notes
 

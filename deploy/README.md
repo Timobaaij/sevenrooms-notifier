@@ -67,6 +67,22 @@ Fill in the same values you use in GitHub today:
 | `EMAIL_TO`       | Optional fallback address for "email" alerts           |
 | `POLL_INTERVAL`  | Seconds between polls — `60` = every minute            |
 
+OpenTable searches work with no extra setup. Two optional knobs exist for when
+OpenTable changes something underneath us:
+
+| Variable                       | What it is                                                                    |
+|--------------------------------|-------------------------------------------------------------------------------|
+| `OPENTABLE_AVAILABILITY_HASH`  | Persisted-query hash for OpenTable's availability call — see the note below    |
+| `OPENTABLE_REGION`             | `databaseRegion` to send, if your venues need one                             |
+
+OpenTable's own site sends its availability query as a *persisted query*: a
+sha256 of the query, not the query itself. That hash changes when OpenTable
+redeploys, so the watcher sends the query document instead — which is what
+OpenTable's front end also falls back to. If a redeploy ever makes them refuse
+the document, capture the fresh hash from your browser (DevTools → Network →
+`gql?…opname=RestaurantsAvailability` → request body → `sha256Hash`) and put it
+in `OPENTABLE_AVAILABILITY_HASH`. No code change needed.
+
 Then restart so it picks them up:
 
 ```bash
@@ -102,5 +118,5 @@ sudo systemctl stop maitre-notifier   # pause it
 - **Turn off GitHub Actions** once this is running, so you're not polling from
   two places: in the repo, *Settings → Actions → Disable*, or delete
   `.github/workflows/sevenrooms-notifier.yml`.
-- Polling every minute is gentle, but be a good citizen — SevenRooms
-  sees one lightweight request per venue per minute.
+- Polling every minute is gentle, but be a good citizen — SevenRooms and
+  OpenTable each see one lightweight request per venue per minute.
