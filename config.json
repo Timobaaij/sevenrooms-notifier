@@ -771,5 +771,25 @@
     "lang": "en",
     "reset_nonce": "1784570211949"
   },
-  "searches": []
+  "searches": [
+    {
+      "id": "Dien Vesper",
+      "platform": "sevenrooms",
+      "venues": [
+        "vesperrestaurant"
+      ],
+      "party_size": 3,
+      "date": "2026-09-18",
+      "dates": [
+        "2026-09-18"
+      ],
+      "num_days": 1,
+      "time_slot": "",
+      "window_start": "19:00",
+      "window_end": "20:30",
+      "notify": "push",
+      "email_to": "",
+      "salt": "1788248138034"
+    }
+  ]
 }
