@@ -790,6 +790,25 @@
       "notify": "push",
       "email_to": "",
       "salt": "1788248138034"
+    },
+    {
+      "id": "Rambu test",
+      "platform": "sevenrooms",
+      "venues": [
+        "rambutan"
+      ],
+      "party_size": 2,
+      "date": "2026-09-02",
+      "dates": [
+        "2026-09-02"
+      ],
+      "num_days": 7,
+      "time_slot": "",
+      "window_start": "16:00",
+      "window_end": "22:30",
+      "notify": "push",
+      "email_to": "",
+      "salt": "1788375114065"
     }
   ]
 }
