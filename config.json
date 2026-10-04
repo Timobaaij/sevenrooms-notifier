@@ -773,27 +773,6 @@
   },
   "searches": [
     {
-      "id": "Hello",
-      "platform": "sevenrooms",
-      "venues": [
-        "rambutan"
-      ],
-      "party_size": 2,
-      "date": "2026-10-06",
-      "dates": [
-        "2026-10-06",
-        "2026-10-07",
-        "2026-10-08"
-      ],
-      "num_days": 1,
-      "time_slot": "",
-      "window_start": "16:00",
-      "window_end": "22:00",
-      "notify": "push",
-      "email_to": "",
-      "salt": "1791147749522"
-    },
-    {
       "id": "Kid Thursday",
       "platform": "sevenrooms",
       "venues": [
