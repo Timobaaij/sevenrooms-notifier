@@ -1190,13 +1190,25 @@
     var headers = {}; if (STATE.key) headers["x-access-key"] = STATE.key;
     var url = "api/times?venue=" + encodeURIComponent(fav.slug) + "&date=" + encodeURIComponent(date) + "&party=" + favParty;
     return fetch(url, { headers: headers })
-      .then(function(r){ return r.json().then(function(j){ return { ok: r.ok, body: j }; }); })
+      .then(function(r){
+        // Read as text first: a Cloudflare error page is HTML, and r.json() on it
+        // would throw before we could say what actually came back.
+        return r.text().then(function(t){
+          var j = null; try { j = JSON.parse(t); } catch (_) {}
+          return { ok: r.ok, status: r.status, body: j, raw: t };
+        });
+      }, function(e){
+        if (!_favErr) _favErr = "network: " + ((e && e.message) || e);
+        throw e;
+      })
       .then(function(res){
         // A failed lookup must not read as "fully booked" — throw so the caller
         // counts it as unchecked instead of silently scoring it a miss.
-        if (!res.ok || (res.body && res.body.error)) {
-          _favErr = (res.body && res.body.error) || "lookup failed";
-          throw new Error(_favErr);
+        if (!res.ok || !res.body || res.body.error) {
+          var why = (res.body && res.body.error)
+            || ("HTTP " + res.status + (res.raw ? ": " + res.raw.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().slice(0, 90) : ""));
+          if (!_favErr) _favErr = why;
+          throw new Error(why);
         }
         var slots = (res.body && res.body.slots) || null;
         if (!slots){ slots = ((res.body && res.body.times)||[]).map(function(x){ return { t:String(x).split(" ")[0], area:"", req:/REQUEST/i.test(x) }; }); }
@@ -1237,6 +1249,7 @@
     var html = '';
     html += '<div class="fav-summary"><span class="accent">'+hits.length+'</span> of '+list.length+' favourite'+(list.length===1?'':'s')+' '+(hits.length===1?'has':'have')+' a table</div>';
     html += '<div class="fav-sub">'+esc(fmtDate(date))+' · party of '+favParty+' · '+esc(windowLabel)+(areaLabel?(' · '+esc(areaLabel)):'')+(errCount?(' · '+errCount+' couldn\'t be checked'):'')+'</div>';
+    if (errCount && _favErr) html += '<div class="fav-sub mono" style="font-size:12px;opacity:.75;margin-top:4px;word-break:break-word">Reason: '+esc(_favErr)+'</div>';
     if (!hits.length){
       // Everything failing upstream is not the same as everything being booked.
       if (errCount >= list.length){

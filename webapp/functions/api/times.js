@@ -27,17 +27,26 @@ async function sevenrooms(venue, date, party) {
     `&num_days=1&channel=SEVENROOMS_WIDGET&selected_lang_code=en&halo_size_interval=64`;
   // An upstream failure must never look like "no tables" — the whole app hangs
   // off that distinction, so these throw rather than return an empty list.
-  const r = await fetch(url, {
-    headers: {
-      "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-      Accept: "application/json,text/plain,*/*",
-      "Accept-Language": "en-GB,en;q=0.9",
-      Referer: "https://www.sevenrooms.com/"
-    }
-  });
-  if (!r.ok) throw new Error(`sevenrooms ${r.status} for ${venue}`);
+  let r;
+  try {
+    r = await fetch(url, {
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        Accept: "application/json,text/plain,*/*",
+        "Accept-Language": "en-GB,en;q=0.9",
+        Referer: "https://www.sevenrooms.com/"
+      }
+    });
+  } catch (e) {
+    throw new Error(`fetch to sevenrooms failed: ${(e && e.message) || e}`);
+  }
+  // Read the body as text so a block page or rate-limit notice can be quoted
+  // back to the app; "403" alone doesn't say who refused or why.
+  const text = await r.text().catch(() => "");
+  const snippet = () => text.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().slice(0, 120);
+  if (!r.ok) throw new Error(`sevenrooms ${r.status} for ${venue}${text ? ": " + snippet() : ""}`);
   let j;
-  try { j = await r.json(); } catch (_) { throw new Error("sevenrooms sent non-JSON for " + venue); }
+  try { j = JSON.parse(text); } catch (_) { throw new Error(`sevenrooms sent non-JSON for ${venue}: ${snippet()}`); }
   const avail = ((j.data || {}).availability) || {};
   const slots = [];
   for (const key in avail) {
