@@ -96,10 +96,6 @@
       "slug": "bratclimpsonsarch"
     },
     {
-      "name": "Brawn",
-      "slug": "brawn"
-    },
-    {
       "name": "Brigadiers",
       "slug": "brigadiers"
     },
@@ -141,10 +137,6 @@
       "slug": "caravel"
     },
     {
-      "name": "Carousel",
-      "slug": "carousellondon"
-    },
-    {
       "name": "Casa Felicia",
       "slug": "casafelicia"
     },
@@ -168,10 +160,6 @@
       "name": "Coal Office Restaurant",
       "slug": "coalofficerestaurant",
       "area": "King's Cross"
-    },
-    {
-      "name": "Darjeeling Express",
-      "slug": "darjeelingexpress"
     },
     {
       "name": "Dishoom Kensington",
@@ -216,10 +204,6 @@
     {
       "name": "Experimental Cocktail Club Chinatown",
       "slug": "eccchinatown"
-    },
-    {
-      "name": "Field Notes",
-      "slug": "fieldnotes"
     },
     {
       "name": "Folde",
@@ -324,10 +308,6 @@
       "slug": "Lucias"
     },
     {
-      "name": "Lupa",
-      "slug": "lupa"
-    },
-    {
       "name": "Maison François",
       "slug": "maisonfrancois"
     },
@@ -391,10 +371,6 @@
       "name": "Opium Cocktail Bar - Soho",
       "slug": "opiumchinatown",
       "area": "Chinatown"
-    },
-    {
-      "name": "OREN",
-      "slug": "oren"
     },
     {
       "name": "Osteria Angelina",
@@ -630,16 +606,8 @@
       "slug": "thekerfieldarms"
     },
     {
-      "name": "The Lavery",
-      "slug": "thelavery"
-    },
-    {
       "name": "The Libertine Restaurant & Bar",
       "slug": "libertinerestaurantbar"
-    },
-    {
-      "name": "The Macbeth",
-      "slug": "themacbeth"
     },
     {
       "name": "The Mall Tavern",
