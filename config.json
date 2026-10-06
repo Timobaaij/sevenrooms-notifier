@@ -827,9 +827,10 @@
       "time_slot": "",
       "window_start": "18:30",
       "window_end": "20:30",
-      "notify": "push",
+      "notify": "none",
       "email_to": "",
-      "salt": "1791147885746"
+      "salt": "1791147885746",
+      "_prev_notify": "push"
     }
   ]
 }
