@@ -19,17 +19,25 @@ function toHHMM(s) {
 }
 
 async function sevenrooms(venue, date, party) {
-  const empty = { times: [], slots: [] };
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date);
-  if (!m) return empty;
+  if (!m) throw new Error("bad date: " + date);
   const start = `${m[2]}-${m[3]}-${m[1]}`; // MM-DD-YYYY
   const url = `https://www.sevenrooms.com/api-yoa/availability/widget/range` +
     `?venue=${encodeURIComponent(venue)}&party_size=${party}&start_date=${start}` +
     `&num_days=1&channel=SEVENROOMS_WIDGET&selected_lang_code=en&halo_size_interval=64`;
-  const r = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0", Accept: "application/json,text/plain,*/*" } });
-  if (!r.ok) return empty;
+  // An upstream failure must never look like "no tables" — the whole app hangs
+  // off that distinction, so these throw rather than return an empty list.
+  const r = await fetch(url, {
+    headers: {
+      "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+      Accept: "application/json,text/plain,*/*",
+      "Accept-Language": "en-GB,en;q=0.9",
+      Referer: "https://www.sevenrooms.com/"
+    }
+  });
+  if (!r.ok) throw new Error(`sevenrooms ${r.status} for ${venue}`);
   let j;
-  try { j = await r.json(); } catch (_) { return empty; }
+  try { j = await r.json(); } catch (_) { throw new Error("sevenrooms sent non-JSON for " + venue); }
   const avail = ((j.data || {}).availability) || {};
   const slots = [];
   for (const key in avail) {
