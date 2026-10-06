@@ -55,8 +55,17 @@
       "slug": "automatdining"
     },
     {
+      "name": "Bambi",
+      "slug": "bambi",
+      "area": "Hackney"
+    },
+    {
       "name": "Bancone Covent Garden",
       "slug": "banconecoventgarden"
+    },
+    {
+      "name": "Bar Blondie",
+      "slug": "barblondie"
     },
     {
       "name": "Bar Douro London Bridge",
@@ -88,6 +97,11 @@
       "slug": "bibi"
     },
     {
+      "name": "Bistro Freddie",
+      "slug": "bistrofreddie",
+      "area": "Shoreditch"
+    },
+    {
       "name": "BRAT Restaurant",
       "slug": "bratshoreditch"
     },
@@ -98,6 +112,11 @@
     {
       "name": "Brigadiers",
       "slug": "brigadiers"
+    },
+    {
+      "name": "Brutes of Mayfair",
+      "slug": "brutesofmayfair",
+      "area": "Mayfair"
     },
     {
       "name": "Burro",
@@ -141,8 +160,17 @@
       "slug": "casafelicia"
     },
     {
+      "name": "Cassette Restaurant",
+      "slug": "cassette"
+    },
+    {
       "name": "Cav",
       "slug": "cavrestaurant"
+    },
+    {
+      "name": "Chez Bruce",
+      "slug": "chezbruce",
+      "area": "Balham"
     },
     {
       "name": "Chez Lui",
@@ -243,6 +271,10 @@
       "slug": "homiesondonkeysrestaurant"
     },
     {
+      "name": "Hon's BBQ",
+      "slug": "honsbbq"
+    },
+    {
       "name": "Ibai",
       "slug": "ibailondon"
     },
@@ -280,6 +312,11 @@
       "area": "Notting Hill"
     },
     {
+      "name": "KİD Restaurant",
+      "slug": "kid",
+      "area": "Soho"
+    },
+    {
       "name": "Kolae",
       "slug": "kolae"
     },
@@ -294,6 +331,11 @@
     {
       "name": "Lai Rai",
       "slug": "lairai"
+    },
+    {
+      "name": "Lauretta’s Pizzeria",
+      "slug": "laurettaspizzeria",
+      "area": "Whitechapel"
     },
     {
       "name": "Legado Restaurant",
@@ -336,6 +378,11 @@
       "slug": "martinoslondon"
     },
     {
+      "name": "Med Salleh Restaurant - Kentish Town",
+      "slug": "medsallehkentishtown",
+      "area": "Kentish Town"
+    },
+    {
       "name": "Miga",
       "slug": "migarestaurant"
     },
@@ -344,8 +391,16 @@
       "slug": "morchella"
     },
     {
+      "name": "MOTORINO",
+      "slug": "motorinolondon"
+    },
+    {
       "name": "Mountain Beak Street",
       "slug": "mountain"
+    },
+    {
+      "name": "NAKIMUSHI",
+      "slug": "nakimushi"
     },
     {
       "name": "Netil360 Rooftop Bar - Restaurant",
@@ -431,6 +486,10 @@
     {
       "name": "Rochelle Canteen",
       "slug": "rochellecanteen"
+    },
+    {
+      "name": "Rocola Studio",
+      "slug": "rocolastudio"
     },
     {
       "name": "Rogues.",
@@ -586,6 +645,11 @@
       "slug": "thehartuk"
     },
     {
+      "name": "The Harwood Arms",
+      "slug": "harwoodarms",
+      "area": "Fulham"
+    },
+    {
       "name": "The Hawk's Nest",
       "slug": "thehawksnest"
     },
@@ -596,6 +660,10 @@
     {
       "name": "The Holly Bush, Hampstead",
       "slug": "thehollybush"
+    },
+    {
+      "name": "The Horses",
+      "slug": "thehorses"
     },
     {
       "name": "The Hound",
@@ -632,6 +700,10 @@
     {
       "name": "The Pig's Ear",
       "slug": "thepigsear"
+    },
+    {
+      "name": "The Pig's Head",
+      "slug": "thepigshead"
     },
     {
       "name": "The Princess Royal Pub & Boutique Hotel Notting Hill",
