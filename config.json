@@ -790,9 +790,9 @@
         "winebar"
       ],
       "party_size": 2,
-      "date": "2026-10-29",
+      "date": "2026-10-28",
       "dates": [
-        "2026-10-29"
+        "2026-10-28"
       ],
       "num_days": 1,
       "time_slot": "",
@@ -800,7 +800,7 @@
       "window_end": "20:30",
       "notify": "push",
       "email_to": "",
-      "salt": "1793041484510"
+      "salt": "1793129390305"
     },
     {
       "id": "Marjories",
