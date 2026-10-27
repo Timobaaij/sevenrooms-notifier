@@ -257,6 +257,60 @@
   .pickrow.picked .pr-name{color:var(--champagne)}
   .pickmore{text-align:center;color:var(--faint);font-size:12px;padding:10px}
 
+  /* Favourites — full-screen map of the venues with a table. Phone-first: one
+     thumb drives it — pins up top, a swipeable card row at the bottom, and the
+     buttons sit just above the cards rather than out of reach at the top. */
+  .mapbtn{display:flex;align-items:center;justify-content:center;gap:9px;height:48px;margin:4px 0 16px;font-size:15px}
+  .mapview{position:fixed;top:0;bottom:0;left:50%;width:100%;max-width:480px;z-index:35;display:flex;flex-direction:column;background:var(--ground);transform:translate(-50%,100%);visibility:hidden;touch-action:manipulation;transition:transform .34s cubic-bezier(.32,.72,0,1),visibility 0s linear .34s}
+  .mapview.open{transform:translate(-50%,0);visibility:visible;transition-delay:0s}
+  .mv-head{flex:0 0 auto;display:flex;align-items:center;gap:8px;padding:calc(var(--safe-t) + 8px) 12px 10px 6px;background:var(--ground);border-bottom:1px solid var(--hair)}
+  .mv-head .iconbtn{width:44px;height:44px;color:var(--gold)}
+  .mv-title{flex:1 1 auto;min-width:0}
+  .mv-t1{font-family:var(--serif);font-size:19px;color:var(--champagne);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .mv-t2{font-size:12.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px}
+  .mv-body{flex:1 1 auto;position:relative;overflow:hidden}
+  /* #id so it outranks maplibre-gl.css, which sets .maplibregl-map{position:relative} */
+  #mvMap{position:absolute;inset:0;background:#0b1222;transition:opacity .25s}
+  .mv-loading{position:absolute;inset:0;display:grid;place-items:center;z-index:2;pointer-events:none}
+  .mv-bottom{position:absolute;left:0;right:0;bottom:0;z-index:1000;pointer-events:none;padding-bottom:calc(var(--safe-b) + 12px)}
+  .mv-fabs{display:flex;justify-content:flex-end;gap:10px;padding:0 14px 12px}
+  .mv-fab{pointer-events:auto;width:48px;height:48px;border-radius:50%;display:grid;place-items:center;border:1px solid var(--hair);background:rgba(15,24,48,.94);color:var(--gold);box-shadow:0 6px 18px rgba(0,0,0,.45);cursor:pointer;-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
+  .mv-fab:active{transform:scale(.92)}
+  .mv-fab.on{color:#241a05;background:linear-gradient(140deg,var(--gold-bright),var(--gold-deep));border-color:transparent}
+  .mv-fab.busy svg{animation:spin 1s linear infinite}
+  .mv-cards{pointer-events:auto;position:relative;display:flex;gap:10px;overflow-x:auto;scroll-snap-type:x mandatory;overscroll-behavior-x:contain;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+  .mv-cards::-webkit-scrollbar{display:none}
+  /* spacers instead of padding: Safari drops a scroller's right padding */
+  .mv-cards::before,.mv-cards::after{content:"";flex:0 0 22px}
+  .mv-card{flex:0 0 calc(100% - 64px);margin:0;scroll-snap-align:center;border-radius:18px;padding:13px 15px 14px;background:linear-gradient(168deg,rgba(20,32,60,.97),rgba(15,24,48,.97));border:1px solid var(--hair-soft);box-shadow:0 10px 30px rgba(0,0,0,.5);transition:border-color .2s}
+  .mv-card.sel{border-color:rgba(228,196,124,.45)}
+  .mv-card .fc-head{margin-bottom:4px}
+  .mv-card .fc-name{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  /* the toast would land on the card row, so it drops in under the header instead */
+  .mapview.open ~ .toast{bottom:auto;top:calc(var(--safe-t) + 78px)}
+  .mv-meta{font-size:12.5px;color:var(--muted);margin:0 0 10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .mv-meta .nomap{color:var(--faint);font-style:italic}
+  .mv-card .timewrap{flex-wrap:nowrap;overflow:hidden}
+  .mv-card .timechip{padding:9px 12px;font-size:14px}
+  .mv-map .maplibregl-canvas{outline:none}
+  .mv-map .maplibregl-ctrl-attrib{font-size:10px;background:rgba(8,13,26,.78);color:var(--faint)}
+  .mv-map .maplibregl-ctrl-attrib a,.mv-map .maplibregl-ctrl-attrib-inner{color:var(--muted)}
+  .mv-map .maplibregl-ctrl-attrib.maplibregl-compact{background:rgba(8,13,26,.78)}
+  .mv-map .maplibregl-ctrl-attrib-button{filter:invert(.8)}
+  /* A pin is a gold time label with a tail; the marker element itself is left to
+     MapLibre (it owns that element's transform), so all styling sits on .pin. */
+  .pinwrap{cursor:pointer;padding-bottom:6px}
+  .pin{position:relative;width:max-content;white-space:nowrap;padding:6px 8px;border-radius:9px;font:600 12px/1 var(--mono);font-variant-numeric:tabular-nums;color:#241a05;background:linear-gradient(140deg,var(--gold-bright),var(--gold-deep));box-shadow:0 3px 10px rgba(0,0,0,.55);transform-origin:50% 100%;transition:transform .15s}
+  .pin::after{content:"";position:absolute;left:50%;bottom:-12px;margin-left:-6px;border:6px solid transparent;border-top-color:var(--gold-deep)}
+  .pin::before{content:"";position:absolute;inset:-8px}
+  .pin.sel{color:var(--ground);background:var(--champagne);transform:scale(1.14);box-shadow:0 4px 16px rgba(0,0,0,.7)}
+  .pin.sel::after{border-top-color:var(--champagne)}
+  /* zoomed out: labels collide, so unselected pins shrink to dots */
+  .mv-far .pin:not(.sel){width:14px;height:14px;padding:0;font-size:0;border-radius:50%;border:2px solid #241a05;box-shadow:0 1px 5px rgba(0,0,0,.6)}
+  .mv-far .pin:not(.sel)::after{display:none}
+  .mv-far .pin:not(.sel)::before{inset:-13px}
+  .me-dot{width:16px;height:16px;border-radius:50%;background:#3d8bff;border:3px solid #fff;box-shadow:0 0 0 7px rgba(61,139,255,.2),0 2px 6px rgba(0,0,0,.5)}
+
   a:focus-visible,button:focus-visible,.input:focus-visible,.toggle:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
   @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition-duration:.01ms!important}}
 </style>
@@ -434,6 +488,31 @@
     <button class="linkbtn danger" id="deleteBtn" style="display:none;width:100%;margin-top:2px;height:44px">Delete this watch</button>
   </div>
 
+  <!-- Favourites map (full screen) -->
+  <div class="mapview" id="mapView" role="dialog" aria-modal="true" aria-label="Map of favourites with a table" aria-hidden="true">
+    <div class="mv-head">
+      <button class="iconbtn" id="mvClose" aria-label="Back to the list">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+      </button>
+      <div class="mv-title"><div class="mv-t1" id="mvT1"></div><div class="mv-t2" id="mvT2"></div></div>
+    </div>
+    <div class="mv-body">
+      <div class="mv-map" id="mvMap"></div>
+      <div class="mv-loading" id="mvLoading"><div class="spinner"></div></div>
+      <div class="mv-bottom" id="mvBottom">
+        <div class="mv-fabs">
+          <button class="mv-fab" id="mvFit" aria-label="Show all on the map">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>
+          </button>
+          <button class="mv-fab" id="mvLocate" aria-label="Show my location and sort by distance">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/><circle cx="12" cy="12" r="6.5"/><circle cx="12" cy="12" r="2" fill="currentColor"/></svg>
+          </button>
+        </div>
+        <div class="mv-cards" id="mvCards"></div>
+      </div>
+    </div>
+  </div>
+
   <div class="toast" id="toast"><span class="dot"></span><span id="toastMsg"></span></div>
 </div>
 
@@ -445,7 +524,9 @@
   var currentView = "book";
 
   // Verified London venues (name, slug) — for the Favourites picker. Availability-API confirmed.
-  var VENUES = [["\"mu\"","mu","Dalston"],["A. Wong","awong","Victoria"],["abc kitchens","abckitchens","Belgravia"],["ACE Pizza Victoria Park","acepizzavictoriapark","Victoria Park"],["Acme Fire Cult","acmefirecult","Dalston"],["AGORA souvla bar","agoralondon","Borough"],["Akara Restaurant","akara","Borough"],["Akub Restaurant","akub","Notting Hill"],["ALTA Kingly Court","altarestaurant","Carnaby"],["Ambassadors Clubhouse","ambassadorsclubhouse","Mayfair"],["Anchor & Hope","theanchorandhope","Waterloo"],["Artusi","artusi","Peckham"],["Automat","automatdining","Mayfair"],["Bambi","bambi","Hackney"],["Bancone Covent Garden","banconecoventgarden","Covent Garden"],["Bar Blondie","barblondie",""],["Bar Douro London Bridge","bardourolondonbridge","Borough"],["Barrafina Adelaide Street","barrafinaadelaidestreet","Covent Garden"],["Barrafina Dean Street","barrafina","Soho"],["Barrafina Drury Lane","barrafinadrurylane","Covent Garden"],["Berenjak Borough","berenjakborough","Borough"],["Berenjak Soho","berenjakjks","Soho"],["BiBi","bibi","Mayfair"],["Bistro Freddie","bistrofreddie","Shoreditch"],["BRAT Restaurant","bratshoreditch","Shoreditch"],["Brat x Climpson's Arch","bratclimpsonsarch","London Fields"],["Brigadiers","brigadiers","City of London"],["Brutes of Mayfair","brutesofmayfair","Mayfair"],["Burro","burro","Covent Garden"],["Café Deco","cafedeco","Bloomsbury"],["Caia","caia","Notting Hill"],["Camino Farringdon","caminofarringdon","Farringdon"],["Campania","campania","Bethnal Green"],["Canal Restaurant","canalrestaurant","Westbourne Park"],["Canteen | Notting Hill","canteen","Notting Hill"],["Canton Arms","cantonarms","Stockwell"],["Caravel","caravel","Hoxton"],["Casa Felicia","casafelicia","Queen's Park"],["Cassette Restaurant","cassette",""],["Cav","cavrestaurant","Bethnal Green"],["Chez Bruce","chezbruce","Balham"],["Chez Lui","chezlui","Notting Hill"],["Chez Rose","chezrose","Mayfair"],["Chishuru","chishuru","Fitzrovia"],["Coal Office Restaurant","coalofficerestaurant","King's Cross"],["Dishoom Kensington","dishoomkensington","Kensington"],["Dockley Road","dockleyroadkitchen","Bermondsey"],["Don't Tell Dad","donttelldad","Queen's Park"],["Dorian Restaurant","dorianrestaurant","Notting Hill"],["Dove Restaurant","Dove","Notting Hill"],["Dover Street Counter","doverstreetcounter","Mayfair"],["Duchy","duchyrestaurant","Shoreditch"],["Empire Empire","empireempirelondon","Notting Hill"],["EQUAL PARTS","equalparts","Bethnal Green"],["Evelyn's Table","evelynstable","Soho"],["Experimental Cocktail Club Chinatown","eccchinatown","Chinatown"],["Folde","foldevenue","Battersea"],["Fonda","fonda","Mayfair"],["Forza Wine Peckham","forzawine","Peckham"],["Gina Restaurant","gina","Chingford"],["Gold","goldnottinghill","Notting Hill"],["Goodbye Horses","goodbyehorses","De Beauvoir Town"],["Gordon's Wine Bar","gordonswinebar","Embankment"],["Gymkhana","gymkhana","Mayfair"],["Homies On Donkeys","homiesondonkeysrestaurant","Leytonstone"],["Hon's BBQ","honsbbq",""],["Ibai","ibailondon","Farringdon"],["Impala","impala","Soho"],["Jacuzzi","jacuzzi","Kensington"],["Josephine Bouchon - Chelsea","josephinebistro","Chelsea"],["José","josebypizarro","Bermondsey"],["Julie's Restaurant","juliesrestaurant","Holland Park"],["Kiln","kilnlondon","Soho"],["Kinkally","kinkally","Fitzrovia"],["KINZ Restaurant","kinz","Notting Hill"],["KİD Restaurant","kid","Soho"],["Kolae","kolae","Borough"],["Kricket Soho","kricketsoho","Soho"],["La Petite Maison (LPM) London","lpmlondon","Mayfair"],["Lai Rai","lairai","Peckham"],["Lauretta’s Pizzeria","laurettaspizzeria","Whitechapel"],["Legado Restaurant","legado","Shoreditch"],["LEYDI","leydi","City of London"],["Lucia's","Lucias","Hackney Wick"],["Maison François","maisonfrancois","St James's"],["Mangal 2 Restaurant","mangal2restaurant","Dalston"],["manteca","manteca","Shoreditch"],["Mareida","mareida","Fitzrovia"],["Maresco","maresco","Soho"],["Marjorie's","marjories","Carnaby"],["MARTINO'S","martinoslondon","Chelsea"],["Med Salleh Restaurant - Kentish Town","medsallehkentishtown","Kentish Town"],["Miga","migarestaurant","London Fields"],["Morchella","morchella","Clerkenwell"],["MOTORINO","motorinolondon",""],["Mountain Beak Street","mountain","Soho"],["NAKIMUSHI","nakimushi",""],["Netil360 Rooftop Bar - Restaurant","netil360","London Fields"],["Nightjar Shoreditch","nightjarshoreditch","Shoreditch"],["Noble Rot Mayfair","noblerotmayfair","Mayfair"],["NT's Loft","ntsloft","London Fields"],["OMA","oma","Borough"],["Opium Cocktail Bar - Soho","opiumchinatown","Chinatown"],["Osteria Angelina","osteriaangelina","Spitalfields"],["Osteria Basilico","osteriabasilico","Notting Hill"],["Osteria Vibrato","osteriavibrato","Soho"],["Oudh 1722","oudh1722","Borough"],["Passione Vino Exmouth Market","passionevinoclerkenwell","Clerkenwell"],["Planque","planque","Haggerston"],["Plaza Khao Gaeng","plaza","Holborn"],["Plaza Khao Gaeng Borough Yards","plazakhaogaengborough","Borough"],["POLPO Italian Restaurant Soho","polposoho","Soho"],["Rabbit British Bistro","rabbitrestaurant","Chelsea"],["Rambutan","rambutan","Borough"],["Randall & Aubin","randallandaubin","Soho"],["Ria's","riassoho","Soho"],["Rita's","ritasbar","Soho"],["Rochelle Canteen","rochellecanteen","Shoreditch"],["Rocola Studio","rocolastudio",""],["Rogues.","rogues","Bethnal Green"],["Ruth's","ruths","Putney"],["Sabor","saborrestaurant","Mayfair"],["Shawarma Bar","shawarmabar","Clerkenwell"],["Singapore Garden","singaporegarden","Swiss Cottage"],["Smoking Goat Shoreditch","smokinggoat","Shoreditch"],["SOMA Soho","somasoho","Soho"],["Space Talk","spacetalk","Farringdon"],["Speedboat Bar","speedboat","Chinatown"],["Stable Wines","stablewines","Islington"],["STRAKER'S","strakerslondon","Notting Hill"],["Sune Restaurant","sune","Hackney"],["Suzi Tros 🇬🇷","suzitros","Notting Hill"],["Tamila Kings Cross","tamilakingscross","King's Cross"],["TANGRA","tangra","Soho"],["Tatar Bunar","tatarbunarlondon","Shoreditch"],["Tempo","tempo","Mayfair"],["The 10 Cases","10cases","Covent Garden"],["The Albion","thealbionlondon","Islington"],["The Alfred Tennyson","thealfredtennyson","Belgravia"],["The Baring","thebaring","Islington"],["The Blue Stoops","thebluestoops","Kensington"],["The Boundary","boundarylondon","Shoreditch"],["The Builders Arms","thebuildersarms","Chelsea"],["The Cadogan Arms","thecadoganarms","Chelsea"],["The Camberwell Arms","thecamberwellarms","Camberwell"],["The Cavendish Pub, Marylebone","thecavendishmarylebone","Marylebone"],["The Coach Makers Arms Pub Marylebone","thecoachmakersarms","Marylebone"],["The Compton Arms","thecomptonarms","Islington"],["The Cow","thecow","Notting Hill"],["The Culpeper","theculpeper","Spitalfields"],["The Dover","thedoverrestaurant","Mayfair"],["The Fat Badger - Notting Hill","thefatbadger","Notting Hill"],["The French House","thefrenchhouse","Soho"],["The George","thegeorge","Fitzrovia"],["The Good Oak","thegoodoaknottinghill","Notting Hill"],["The Grazing Goat Pub & Boutique Hotel Marylebone","thegrazinggoat","Marylebone"],["The Hart - Marylebone","thehartuk","Marylebone"],["The Harwood Arms","harwoodarms","Fulham"],["The Hawk's Nest","thehawksnest","Shepherd's Bush"],["The Hero - Maida Vale","thehero","Maida Vale"],["The Holly Bush, Hampstead","thehollybush","Hampstead"],["The Horses","thehorses",""],["The Hound","thehounduk","Chiswick"],["The Kerfield Arms","thekerfieldarms","Camberwell"],["The Libertine Restaurant & Bar","libertinerestaurantbar","City of London"],["The Mall Tavern","themalltavernnottinghill","Notting Hill"],["The Orange Pub & Boutique Hotel Belgravia","theorange","Belgravia"],["The Palomar","thepalomar","Soho"],["The Pelican - Notting Hill","thepelicanw11","Notting Hill"],["The Pig and Butcher","thepigandbutcherlondon","Islington"],["The Pig's Ear","thepigsear","Chelsea"],["The Pig's Head","thepigshead",""],["The Princess Royal Pub & Boutique Hotel Notting Hill","theprincessroyal","Notting Hill"],["The Queen's Arms","queensarmswestminster","Pimlico"],["The River Café","rivercafelondon","Hammersmith"],["The Salusbury Pub & Dining Room","thesalusbury","Queen's Park"],["The Shaston Arms","theshastonarms","Soho"],["The Starman","thestarman","Mayfair"],["The Tamil Prince","thetamilprince","Islington"],["The Telegraph","telegraph","Putney"],["The Waterman’s Arms","thewatermansarms","Barnes"],["The Winemakers Club","thewinemakersclub","Farringdon"],["Theo's","no1parklaneterrace","Mayfair"],["Trullo","trullo","Highbury"],["Upstairs","UpstairsatLangans","Mayfair"],["Vesper Restaurant","vesperrestaurant","Clerkenwell"],["Weezie's","weezies","Belgravia"],["Wild by Tart","wildbytart","Belgravia"],["Wild Corner","wildcorner","Chelsea"],["Wild Tavern","wildtavernchelsea","Chelsea"],["Wildflowers Restaurant","wildflowers","Belgravia"],["Wine Bar","winebar",""],["Yasmin","yasmin","Soho"],["Zum Barbarossa","zumbarbarossa","Soho"],["Zylia","zyliacoventgarden","Covent Garden"]];
+  var VENUES = [["\"mu\"","mu","Dalston"],["A. Wong","awong","Victoria"],["abc kitchens","abckitchens","Belgravia"],["ACE Pizza Victoria Park","acepizzavictoriapark","Victoria Park"],["Acme Fire Cult","acmefirecult","Dalston"],["AGORA souvla bar","agoralondon","Borough"],["Akara Restaurant","akara","Borough"],["Akub Restaurant","akub","Notting Hill"],["ALTA Kingly Court","altarestaurant","Carnaby"],["Ambassadors Clubhouse","ambassadorsclubhouse","Mayfair"],["Anchor & Hope","theanchorandhope","Waterloo"],["Artusi","artusi","Peckham"],["Automat","automatdining","Mayfair"],["Bambi","bambi","Hackney"],["Bancone Covent Garden","banconecoventgarden","Covent Garden"],["Bar Blondie","barblondie",""],["Bar Douro London Bridge","bardourolondonbridge","Borough"],["Barrafina Adelaide Street","barrafinaadelaidestreet","Covent Garden"],["Barrafina Dean Street","barrafina","Soho"],["Barrafina Drury Lane","barrafinadrurylane","Covent Garden"],["Berenjak Borough","berenjakborough","Borough"],["Berenjak Soho","berenjakjks","Soho"],["BiBi","bibi","Mayfair"],["Bistro Freddie","bistrofreddie","Shoreditch"],["BRAT Restaurant","bratshoreditch","Shoreditch"],["Brat x Climpson's Arch","bratclimpsonsarch","London Fields"],["Brigadiers","brigadiers","City of London"],["Brutes of Mayfair","brutesofmayfair","Mayfair"],["Burro","burro","Covent Garden"],["Café Deco","cafedeco","Bloomsbury"],["Caia","caia","Notting Hill"],["Camino Farringdon","caminofarringdon","Farringdon"],["Campania","campania","Bethnal Green"],["Canal Restaurant","canalrestaurant","Westbourne Park"],["Canteen | Notting Hill","canteen","Notting Hill"],["Canton Arms","cantonarms","Stockwell"],["Caravel","caravel","Hoxton"],["Casa Felicia","casafelicia","Queen's Park"],["Cassette Restaurant","cassette",""],["Chez Bruce","chezbruce","Balham"],["Chez Lui","chezlui","Notting Hill"],["Chez Rose","chezrose","Mayfair"],["Chishuru","chishuru","Fitzrovia"],["Coal Office Restaurant","coalofficerestaurant","King's Cross"],["Dishoom Kensington","dishoomkensington","Kensington"],["Dockley Road","dockleyroadkitchen","Bermondsey"],["Don't Tell Dad","donttelldad","Queen's Park"],["Dorian Restaurant","dorianrestaurant","Notting Hill"],["Dove Restaurant","Dove","Notting Hill"],["Dover Street Counter","doverstreetcounter","Mayfair"],["Duchy","duchyrestaurant","Shoreditch"],["Empire Empire","empireempirelondon","Notting Hill"],["EQUAL PARTS","equalparts","Bethnal Green"],["Evelyn's Table","evelynstable","Soho"],["Experimental Cocktail Club Chinatown","eccchinatown","Chinatown"],["Folde","foldevenue","Battersea"],["Fonda","fonda","Mayfair"],["Forza Wine Peckham","forzawine","Peckham"],["Gina Restaurant","gina","Chingford"],["Gold","goldnottinghill","Notting Hill"],["Goodbye Horses","goodbyehorses","De Beauvoir Town"],["Gordon's Wine Bar","gordonswinebar","Embankment"],["Gymkhana","gymkhana","Mayfair"],["Homies On Donkeys","homiesondonkeysrestaurant","Leytonstone"],["Hon's BBQ","honsbbq",""],["Ibai","ibailondon","Farringdon"],["Impala","impala","Soho"],["Jacuzzi","jacuzzi","Kensington"],["Josephine Bouchon - Chelsea","josephinebistro","Chelsea"],["Julie's Restaurant","juliesrestaurant","Holland Park"],["Kiln","kilnlondon","Soho"],["Kinkally","kinkally","Fitzrovia"],["KINZ Restaurant","kinz","Notting Hill"],["KİD Restaurant","kid","Soho"],["Kolae","kolae","Borough"],["Kricket Soho","kricketsoho","Soho"],["La Petite Maison (LPM) London","lpmlondon","Mayfair"],["Lai Rai","lairai","Peckham"],["Lauretta’s Pizzeria","laurettaspizzeria","Whitechapel"],["Legado Restaurant","legado","Shoreditch"],["LEYDI","leydi","City of London"],["Maison François","maisonfrancois","St James's"],["Mangal 2 Restaurant","mangal2restaurant","Dalston"],["manteca","manteca","Shoreditch"],["Mareida","mareida","Fitzrovia"],["Maresco","maresco","Soho"],["Marjorie's","marjories","Carnaby"],["MARTINO'S","martinoslondon","Chelsea"],["Med Salleh Restaurant - Kentish Town","medsallehkentishtown","Kentish Town"],["Miga","migarestaurant","London Fields"],["Morchella","morchella","Clerkenwell"],["MOTORINO","motorinolondon",""],["Mountain Beak Street","mountain","Soho"],["NAKIMUSHI","nakimushi",""],["Netil360 Rooftop Bar - Restaurant","netil360","London Fields"],["Nightjar Shoreditch","nightjarshoreditch","Shoreditch"],["Noble Rot Mayfair","noblerotmayfair","Mayfair"],["NT's Loft","ntsloft","London Fields"],["OMA","oma","Borough"],["Opium Cocktail Bar - Soho","opiumchinatown","Chinatown"],["Osteria Angelina","osteriaangelina","Spitalfields"],["Osteria Basilico","osteriabasilico","Notting Hill"],["Osteria Vibrato","osteriavibrato","Soho"],["Oudh 1722","oudh1722","Borough"],["Passione Vino Exmouth Market","passionevinoclerkenwell","Clerkenwell"],["Planque","planque","Haggerston"],["Plaza Khao Gaeng","plaza","Holborn"],["Plaza Khao Gaeng Borough Yards","plazakhaogaengborough","Borough"],["POLPO Italian Restaurant Soho","polposoho","Soho"],["Rabbit British Bistro","rabbitrestaurant","Chelsea"],["Rambutan","rambutan","Borough"],["Randall & Aubin","randallandaubin","Soho"],["Ria's","riassoho","Soho"],["Rochelle Canteen","rochellecanteen","Shoreditch"],["Rocola Studio","rocolastudio",""],["Rogues.","rogues","Bethnal Green"],["Ruth's","ruths","Putney"],["Sabor","saborrestaurant","Mayfair"],["Shawarma Bar","shawarmabar","Clerkenwell"],["Singapore Garden","singaporegarden","Swiss Cottage"],["Smoking Goat Shoreditch","smokinggoat","Shoreditch"],["SOMA Soho","somasoho","Soho"],["Space Talk","spacetalk","Farringdon"],["Speedboat Bar","speedboat","Chinatown"],["Stable Wines","stablewines","Islington"],["STRAKER'S","strakerslondon","Notting Hill"],["Sune Restaurant","sune","Hackney"],["Suzi Tros 🇬🇷","suzitros","Notting Hill"],["Tamila Kings Cross","tamilakingscross","King's Cross"],["TANGRA","tangra","Soho"],["Tatar Bunar","tatarbunarlondon","Shoreditch"],["Tempo","tempo","Mayfair"],["The 10 Cases","10cases","Covent Garden"],["The Albion","thealbionlondon","Islington"],["The Alfred Tennyson","thealfredtennyson","Belgravia"],["The Baring","thebaring","Islington"],["The Blue Stoops","thebluestoops","Kensington"],["The Boundary","boundarylondon","Shoreditch"],["The Builders Arms","thebuildersarms","Chelsea"],["The Cadogan Arms","thecadoganarms","Chelsea"],["The Camberwell Arms","thecamberwellarms","Camberwell"],["The Cavendish Pub, Marylebone","thecavendishmarylebone","Marylebone"],["The Coach Makers Arms Pub Marylebone","thecoachmakersarms","Marylebone"],["The Compton Arms","thecomptonarms","Islington"],["The Cow","thecow","Notting Hill"],["The Culpeper","theculpeper","Spitalfields"],["The Dover","thedoverrestaurant","Mayfair"],["The Fat Badger - Notting Hill","thefatbadger","Notting Hill"],["The French House","thefrenchhouse","Soho"],["The George","thegeorgepub","Fitzrovia"],["The Good Oak","thegoodoaknottinghill","Notting Hill"],["The Grazing Goat Pub & Boutique Hotel Marylebone","thegrazinggoat","Marylebone"],["The Hart - Marylebone","thehartuk","Marylebone"],["The Hawk's Nest","thehawksnest","Shepherd's Bush"],["The Hero - Maida Vale","thehero","Maida Vale"],["The Horses","thehorses",""],["The Hound","thehounduk","Chiswick"],["The Kerfield Arms","thekerfieldarms","Camberwell"],["The Mall Tavern","themalltavernnottinghill","Notting Hill"],["The Orange Pub & Boutique Hotel Belgravia","theorange","Belgravia"],["The Palomar","thepalomar","Soho"],["The Pelican - Notting Hill","thepelicanw11","Notting Hill"],["The Pig and Butcher","thepigandbutcherlondon","Islington"],["The Pig's Ear","thepigsear","Chelsea"],["The Pig's Head","thepigshead",""],["The Princess Royal Pub & Boutique Hotel Notting Hill","theprincessroyal","Notting Hill"],["The Queen's Arms","queensarmswestminster","Pimlico"],["The River Café","rivercafelondon","Hammersmith"],["The Salusbury Pub & Dining Room","thesalusbury","Queen's Park"],["The Shaston Arms","theshastonarms","Soho"],["The Starman","thestarman","Mayfair"],["The Tamil Prince","thetamilprince","Islington"],["The Telegraph","telegraph","Putney"],["The Waterman’s Arms","thewatermansarms","Barnes"],["The Winemakers Club","thewinemakersclub","Farringdon"],["Theo's","no1parklaneterrace","Mayfair"],["Trullo","trullo","Highbury"],["Upstairs","UpstairsatLangans","Mayfair"],["Vesper Restaurant","vesperrestaurant","Clerkenwell"],["Weezie's","weezies","Belgravia"],["Wild by Tart","wildbytart","Belgravia"],["Wild Corner","wildcorner","Chelsea"],["Wild Tavern","wildtavernchelsea","Chelsea"],["Wildflowers Restaurant","wildflowers","Belgravia"],["Wine Bar","winebar",""],["Yasmin","yasmin","Soho"],["Zum Barbarossa","zumbarbarossa","Soho"],["Zylia","zyliacoventgarden","Covent Garden"]];
+  // Venue coordinates (slug -> [lat, lng]) for the Favourites map; taken from each venue's SevenRooms profile.
+  var VGEO = {"mu":[51.52888,-0.07843],"awong":[51.49299,-0.14054],"abckitchens":[51.50230,-0.15552],"acepizzavictoriapark":[51.53712,-0.04491],"acmefirecult":[51.54698,-0.07480],"agoralondon":[51.50537,-0.08999],"akara":[51.50594,-0.09173],"akub":[51.50842,-0.19852],"altarestaurant":[51.51272,-0.13892],"ambassadorsclubhouse":[51.51110,-0.13979],"theanchorandhope":[51.50346,-0.10658],"artusi":[51.46667,-0.07272],"automatdining":[51.51012,-0.14805],"bambi":[51.53776,-0.05755],"banconecoventgarden":[51.50958,-0.12641],"barblondie":[51.53725,-0.20314],"bardourolondonbridge":[51.50440,-0.09538],"barrafinaadelaidestreet":[51.50943,-0.12574],"barrafina":[51.51408,-0.13265],"barrafinadrurylane":[51.51433,-0.12189],"berenjakborough":[51.50531,-0.08990],"berenjakjks":[51.51303,-0.13076],"bibi":[51.51244,-0.15335],"bistrofreddie":[51.52421,-0.08159],"bratshoreditch":[51.52425,-0.07674],"bratclimpsonsarch":[51.53956,-0.05839],"brigadiers":[51.51260,-0.09167],"brutesofmayfair":[51.51104,-0.14520],"burro":[51.51171,-0.12533],"cafedeco":[51.52017,-0.13054],"caia":[51.52269,-0.20763],"caminofarringdon":[51.52089,-0.10459],"campania":[51.52973,-0.06961],"canalrestaurant":[51.52254,-0.19981],"canteen":[51.52102,-0.20931],"cantonarms":[51.47715,-0.12301],"caravel":[51.53383,-0.09379],"casafelicia":[51.53559,-0.20501],"cassette":[51.51104,-0.12260],"chezbruce":[51.44600,-0.16565],"chezlui":[51.51538,-0.20546],"chezrose":[51.51351,-0.14215],"chishuru":[51.51662,-0.13992],"coalofficerestaurant":[51.53487,-0.12621],"dishoomkensington":[51.50126,-0.19114],"dockleyroadkitchen":[51.49563,-0.06966],"donttelldad":[51.53735,-0.20339],"dorianrestaurant":[51.51661,-0.20060],"Dove":[51.51539,-0.20594],"doverstreetcounter":[51.50905,-0.14310],"duchyrestaurant":[51.52430,-0.08156],"empireempirelondon":[51.51797,-0.20356],"equalparts":[51.52809,-0.07624],"evelynstable":[51.51113,-0.13262],"eccchinatown":[51.51192,-0.13103],"foldevenue":[51.46034,-0.17619],"fonda":[51.51120,-0.13962],"forzawine":[51.46982,-0.06820],"gina":[51.63304,0.00777],"goldnottinghill":[51.51298,-0.20264],"goodbyehorses":[51.54024,-0.08983],"gordonswinebar":[51.50748,-0.12291],"gymkhana":[51.50849,-0.14147],"homiesondonkeysrestaurant":[51.56901,0.01206],"honsbbq":[51.54287,-0.02206],"ibailondon":[51.51798,-0.09901],"impala":[51.51475,-0.13312],"jacuzzi":[51.50184,-0.19206],"josephinebistro":[51.48656,-0.17947],"juliesrestaurant":[51.51013,-0.21055],"kilnlondon":[51.51140,-0.13606],"kinkally":[51.51919,-0.13566],"kinz":[51.50957,-0.19535],"kid":[51.51385,-0.13190],"kolae":[51.50546,-0.09163],"kricketsoho":[51.51081,-0.13517],"lpmlondon":[51.51263,-0.14623],"lairai":[51.46813,-0.06713],"laurettaspizzeria":[51.52987,-0.06890],"legado":[51.52442,-0.07835],"leydi":[51.51627,-0.10240],"maisonfrancois":[51.50761,-0.13818],"mangal2restaurant":[51.55081,-0.07495],"manteca":[51.52402,-0.08057],"mareida":[51.52090,-0.14293],"maresco":[51.51516,-0.13611],"marjories":[51.51373,-0.13912],"martinoslondon":[51.49226,-0.15692],"medsallehkentishtown":[51.55167,-0.14080],"migarestaurant":[51.53453,-0.05766],"morchella":[51.52668,-0.10841],"motorinolondon":[51.51889,-0.13805],"mountain":[51.51196,-0.13826],"nakimushi":[51.50838,-0.19423],"netil360":[51.53758,-0.05772],"nightjarshoreditch":[51.52652,-0.08774],"noblerotmayfair":[51.50650,-0.14716],"ntsloft":[51.53758,-0.05772],"oma":[51.50535,-0.09002],"opiumchinatown":[51.51169,-0.13161],"osteriaangelina":[51.52164,-0.07734],"osteriabasilico":[51.51537,-0.20588],"osteriavibrato":[51.51468,-0.13112],"oudh1722":[51.50412,-0.09497],"passionevinoclerkenwell":[51.52615,-0.10840],"planque":[51.53837,-0.07582],"plaza":[51.51628,-0.12922],"plazakhaogaengborough":[51.50533,-0.09122],"polposoho":[51.51249,-0.13760],"rabbitrestaurant":[51.48870,-0.16608],"rambutan":[51.50556,-0.09152],"randallandaubin":[51.51233,-0.13413],"riassoho":[51.51391,-0.13900],"rochellecanteen":[51.52577,-0.07429],"rocolastudio":[51.53921,-0.05677],"rogues":[51.53218,-0.05893],"ruths":[51.46793,-0.22178],"saborrestaurant":[51.51140,-0.13970],"shawarmabar":[51.52601,-0.10873],"singaporegarden":[51.54223,-0.17983],"smokinggoat":[51.52422,-0.07692],"somasoho":[51.51086,-0.13527],"spacetalk":[51.52029,-0.10152],"speedboat":[51.50722,-0.12759],"stablewines":[51.54405,-0.08954],"strakerslondon":[51.52152,-0.20871],"sune":[51.53541,-0.06272],"suzitros":[51.50818,-0.19777],"tamilakingscross":[51.53180,-0.12058],"tangra":[51.51373,-0.13141],"tatarbunarlondon":[51.52689,-0.08015],"tempo":[51.52846,-0.05624],"10cases":[51.51457,-0.12435],"thealbionlondon":[51.53937,-0.10951],"thealfredtennyson":[51.49962,-0.15644],"thebaring":[51.53710,-0.08850],"thebluestoops":[51.50728,-0.19485],"boundarylondon":[51.52417,-0.07621],"thebuildersarms":[51.48917,-0.16774],"thecadoganarms":[51.48600,-0.17294],"thecamberwellarms":[51.47377,-0.08833],"thecavendishmarylebone":[51.51902,-0.14982],"thecoachmakersarms":[51.51718,-0.15062],"thecomptonarms":[51.54366,-0.10201],"thecow":[51.51918,-0.19535],"theculpeper":[51.51692,-0.07302],"thedoverrestaurant":[51.50889,-0.14300],"thefatbadger":[51.52086,-0.20907],"thefrenchhouse":[51.51275,-0.13173],"thegeorgepub":[51.51770,-0.14188],"thegoodoaknottinghill":[51.51868,-0.19767],"thegrazinggoat":[51.51528,-0.15813],"thehartuk":[51.51840,-0.15487],"thehawksnest":[51.50234,-0.22790],"thehero":[51.52432,-0.18876],"thehorses":[51.52302,-0.10932],"thehounduk":[51.49282,-0.25682],"thekerfieldarms":[51.47295,-0.08986],"themalltavernnottinghill":[51.50849,-0.19392],"theorange":[51.49055,-0.15230],"thepalomar":[51.51124,-0.13269],"thepelicanw11":[51.51879,-0.20471],"thepigandbutcherlondon":[51.53740,-0.10674],"thepigsear":[51.48429,-0.17225],"thepigshead":[51.46565,-0.14106],"theprincessroyal":[51.51559,-0.19434],"queensarmswestminster":[51.49262,-0.13919],"rivercafelondon":[51.48400,-0.22423],"thesalusbury":[51.53562,-0.20542],"theshastonarms":[51.51344,-0.13824],"thestarman":[51.51088,-0.13952],"thetamilprince":[51.54093,-0.11371],"telegraph":[51.44877,-0.22652],"thewatermansarms":[51.47365,-0.25110],"thewinemakersclub":[51.51718,-0.10483],"no1parklaneterrace":[51.50352,-0.15051],"trullo":[51.54627,-0.10157],"UpstairsatLangans":[51.50722,-0.12759],"vesperrestaurant":[51.52519,-0.11009],"weezies":[51.49792,-0.15030],"wildbytart":[51.49338,-0.14825],"wildcorner":[51.49081,-0.16608],"wildtavernchelsea":[51.49072,-0.16582],"wildflowers":[51.49051,-0.15272],"winebar":[51.50879,-0.15157],"yasmin":[51.51071,-0.13740],"zumbarbarossa":[51.51410,-0.13292],"zyliacoventgarden":[51.51024,-0.12421]};
   var $ = function(s){ return document.querySelector(s); };
   function esc(s){ return String(s==null?"":s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c];}); }
 
@@ -477,7 +558,7 @@
       var dropped = pruneRetired();
       render();
       renderFavourites();
-      if (dropped) saveConfig(dropped + " venue" + (dropped === 1 ? " has" : "s have") + " left SevenRooms — removed");
+      if (dropped) saveConfig("Venue list tidied — " + dropped + " favourite" + (dropped === 1 ? "" : "s") + " fixed or removed");
     }).catch(function(e){
       if (e.code === 401){ promptKey(); return; }
       renderState("error", e.message);
@@ -973,9 +1054,19 @@
   // at one can never alert and its booking link 404s. Listed explicitly rather than
   // just dropped from VENUES, because favourites saved earlier still reference them.
   var RETIRED = ["barcrispin", "baretna", "berberandq", "brawn", "bubalakingscross", "bubalasoho", "carousellondon", "darjeelingexpress", "doniarestaurant", "fieldnotes", "firebirdlondon", "kebabqueen", "kismet", "kudurestaurant", "lupa", "oren", "roebuckchiswick", "senzafondo", "theaudley", "thelavery", "themacbeth", "themayflower", "theplimsoll", "theprincearthurbelgravia", "thescotch", "thewalmercastle"];
+  // Slugs that turned out to belong to a different venue abroad (Abu Dhabi, Dubai,
+  // Brisbane, Dallas, Providence, Surrey) — the London namesakes book elsewhere or
+  // have closed. Pruned the same way.
+  RETIRED = RETIRED.concat(["cavrestaurant", "josebypizarro", "Lucias", "ritasbar", "harwoodarms", "thehollybush", "libertinerestaurantbar"]);
+  // Slugs that pointed at the wrong venue, mapped to the right one.
+  var RELINKED = { "thegeorge": "thegeorgepub" };
   function pruneRetired(){
     var dead = {}; RETIRED.forEach(function(s){ dead[s] = 1; });
     var removed = 0;
+    favs().forEach(function(f){ if (RELINKED[f.slug]){ f.slug = RELINKED[f.slug]; removed++; } });
+    (STATE.config.searches || []).forEach(function(s){
+      if (Array.isArray(s.venues)) s.venues = s.venues.map(function(x){ var k = String(x).trim(); if (RELINKED[k]){ removed++; return RELINKED[k]; } return x; });
+    });
     var keep = favs().filter(function(f){ return !dead[f.slug]; });
     removed += favs().length - keep.length;
     STATE.config.favourites = keep;
@@ -1258,6 +1349,9 @@
         html += '<div class="state" style="padding:34px 20px"><div class="emblem" style="width:44px;height:44px"></div><div class="big" style="font-size:20px">Fully booked</div><div style="max-width:32ch;margin:0 auto">None of your favourites have a table in this window. Try a wider time or another day.</div></div>';
       }
     } else {
+      html += '<button class="btn btn--ghost btn--block mapbtn" id="favMapBtn" type="button">'
+        + '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4L3 6.5v13.5l6-2.5 6 2.5 6-2.5V4l-6 2.5z"/><path d="M9 4v13.5M15 6.5V20"/></svg>'
+        + 'View '+(hits.length===1?'it':'all '+hits.length)+' on the map</button>';
       hits.forEach(function(r){
         var url = esc(bookingUrl(r.fav.slug, date));
         var fa = favArea(r.fav);
@@ -1273,7 +1367,249 @@
       html += '<p class="fav-empty-names"><strong style="color:var(--muted);font-weight:600">No table in this window:</strong> ' + misses.map(esc).join(", ") + '</p>';
     }
     $("#favResults").innerHTML = html;
+    _favLast = { hits: hits, date: date, ws: ws, we: we, areaLabel: areaLabel, party: favParty };
+    var mb = $("#favMapBtn"); if (mb) mb.onclick = openFavMap;
   }
+
+  // ---- Favourites map: the last run's hits as pins, with a swipeable card per venue ----
+  // MapLibre is only fetched the first time the map opens, so the list view costs nothing.
+  // Tiles and the base style come from OpenFreeMap (free, no key); the dark style is
+  // recoloured to the app's navy so the gold pins carry the eye.
+  var _favLast = null;
+  var MAPLIB = "https://cdnjs.cloudflare.com/ajax/libs/maplibre-gl/5.24.0/";
+  var MAP_STYLE = "https://tiles.openfreemap.org/styles/dark";
+  var _maplibP = null;
+  function loadMapLib(){
+    if (window.maplibregl) return Promise.resolve(window.maplibregl);
+    if (_maplibP) return _maplibP;
+    function tag(el, attrs){ for (var k in attrs) el[k] = attrs[k]; return new Promise(function(ok, bad){ el.onload = ok; el.onerror = function(){ el.remove(); bad(new Error("couldn't load " + (attrs.src || attrs.href))); }; document.head.appendChild(el); }); }
+    _maplibP = Promise.all([
+      tag(document.createElement("link"), { rel: "stylesheet", href: MAPLIB + "maplibre-gl.min.css", integrity: "sha256-qx5w1Z7EBGW65+cDDaLzzPKBM/1QLmK9WY7vut/XpzI=", crossOrigin: "anonymous" }),
+      tag(document.createElement("script"), { src: MAPLIB + "maplibre-gl.min.js", integrity: "sha256-d9qijKhITfvXOsPEwVgan3niw/fqqjIgLZ+xYOka4Ys=", crossOrigin: "anonymous" })
+    ]).then(function(){ return window.maplibregl; }, function(e){ _maplibP = null; throw e; });
+    return _maplibP;
+  }
+
+  // OpenFreeMap "dark" is near-black and very low contrast; this lifts the streets
+  // a little and tints everything towards the app's navy.
+  var NAVY = { bg: "#0b1222", res: "#0e1628", bld: "#121b31", water: "#14284a", park: "#101e27", minor: "#222d47", path: "#1a2339",
+               major: "#35425f", casing: "#1d2740", label: "#9aa4bd", road: "#717d99", halo: "#0b1222", rail: "#1f2942" };
+  function navyStyle(map){
+    function set(id, k, v){ try { map.setPaintProperty(id, k, v); } catch (_) {} }
+    map.getStyle().layers.forEach(function(l){
+      var id = l.id;
+      if (l.type === "background") set(id, "background-color", NAVY.bg);
+      else if (id === "water") set(id, "fill-color", NAVY.water);
+      else if (id === "waterway") set(id, "line-color", NAVY.water);
+      else if (/^landuse_residential/.test(id)) set(id, "fill-color", NAVY.res);
+      else if (/landuse_park|landcover_wood/.test(id)) set(id, "fill-color", NAVY.park);
+      else if (id === "building") set(id, "fill-color", NAVY.bld);
+      else if (id === "highway_path") set(id, "line-color", NAVY.path);
+      else if (id === "highway_minor") set(id, "line-color", NAVY.minor);
+      else if (/highway_(major|motorway)_(inner|subtle)/.test(id)) set(id, "line-color", NAVY.major);
+      else if (/_casing$/.test(id)) set(id, "line-color", NAVY.casing);
+      else if (/dashline$/.test(id)) set(id, "line-color", NAVY.bg);
+      else if (/^railway/.test(id)) set(id, "line-color", NAVY.rail);
+      else if (l.type === "symbol"){ set(id, "text-color", /highway/.test(id) ? NAVY.road : NAVY.label); set(id, "text-halo-color", NAVY.halo); }
+    });
+  }
+
+  var MV = { map: null, markers: [], me: null, meMarker: null, items: [], sel: -1, t: 0 };
+  function distKm(a, b){
+    var R = 6371, r = Math.PI / 180, dLat = (b.lat - a.lat) * r, dLng = (b.lng - a.lng) * r;
+    var h = Math.sin(dLat/2) * Math.sin(dLat/2) + Math.cos(a.lat*r) * Math.cos(b.lat*r) * Math.sin(dLng/2) * Math.sin(dLng/2);
+    return 2 * R * Math.asin(Math.sqrt(h));
+  }
+  function fmtDist(km){ return km < 1 ? (Math.round(km * 100) * 10) + " m" : km.toFixed(km < 10 ? 1 : 0) + " km"; }
+
+  // Earliest time first; once located, nearest first. Venues without coordinates go last.
+  function mapItems(){
+    var items = _favLast.hits.map(function(r){
+      var g = VGEO[r.fav.slug];
+      var it = { fav: r.fav, hits: r.hits, geo: g ? { lat: g[0], lng: g[1] } : null, km: null };
+      if (it.geo && MV.me) it.km = distKm(MV.me, it.geo);
+      return it;
+    });
+    items.sort(function(a, b){
+      if (!a.geo !== !b.geo) return a.geo ? -1 : 1;
+      if (a.km != null && b.km != null && a.km !== b.km) return a.km - b.km;
+      return a.hits[0].t < b.hits[0].t ? -1 : a.hits[0].t > b.hits[0].t ? 1 : 0;
+    });
+    return items;
+  }
+
+  function mapCardHtml(it){
+    var url = esc(bookingUrl(it.fav.slug, _favLast.date, _favLast.party));
+    var fa = favArea(it.fav);
+    var areas = []; it.hits.forEach(function(h){ if (h.area && areas.indexOf(h.area) < 0) areas.push(h.area); });
+    var meta = [];
+    if (fa) meta.push(esc(fa));
+    if (it.km != null) meta.push(fmtDist(it.km));
+    if (!it.geo) meta.push('<span class="nomap">not on the map</span>');
+    if (areas.length) meta.push(esc(areas.join(", ")));
+    var times = []; it.hits.forEach(function(h){ if (times.indexOf(h.t) < 0) times.push(h.t); });
+    var MAX = 4, shown = times.slice(0, times.length > MAX ? MAX - 1 : MAX), extra = times.length - shown.length;
+    return '<div class="favcard mv-card">'
+      + '<div class="fc-head"><span class="fc-name">' + esc(it.fav.name) + '</span>'
+      + '<a class="fc-open" href="' + url + '" target="_blank" rel="noopener" aria-label="Open booking page">'
+      + '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17L17 7M9 7h8v8"/></svg></a></div>'
+      + '<div class="mv-meta">' + (meta.join(" · ") || "&nbsp;") + '</div>'
+      + '<div class="timewrap">'
+      + shown.map(function(t){ return '<a class="timechip" href="' + url + '" target="_blank" rel="noopener">' + esc(t) + '</a>'; }).join("")
+      + (extra > 0 ? '<a class="timechip more" href="' + url + '" target="_blank" rel="noopener">+' + extra + '</a>' : '')
+      + '</div></div>';
+  }
+
+  function openFavMap(){
+    if (!_favLast || !_favLast.hits.length) return;
+    var view = $("#mapView");
+    view.classList.add("open"); view.setAttribute("aria-hidden", "false");
+    var n = _favLast.hits.length;
+    var unplaced = _favLast.hits.filter(function(r){ return !VGEO[r.fav.slug]; }).length;
+    $("#mvT1").textContent = n + " favourite" + (n === 1 ? " has" : "s have") + " a table";
+    $("#mvT2").textContent = fmtDate(_favLast.date) + " · party of " + _favLast.party + " · " + (_favLast.ws || "any") + "–" + (_favLast.we || "any")
+      + (unplaced ? " · " + unplaced + " not on map" : "");
+    $("#mvLoading").style.display = MV.map ? "none" : "";
+    loadMapLib().then(function(ml){
+      if (!view.classList.contains("open")) return;
+      if (!MV.map){
+        MV.map = new ml.Map({
+          container: "mvMap", style: MAP_STYLE, center: [-0.13, 51.512], zoom: 11,
+          attributionControl: false, dragRotate: false, pitchWithRotate: false, touchPitch: false, maxPitch: 0
+        });
+        MV.map.touchZoomRotate.disableRotation();
+        MV.map.keyboard.disableRotation();
+        MV.map.addControl(new ml.AttributionControl({ compact: true }), "top-right");
+        // keep the default near-black style hidden until it has been recoloured
+        $("#mvMap").style.opacity = "0";
+        MV.map.on("style.load", function(){
+          navyStyle(MV.map); $("#mvMap").style.opacity = "1"; $("#mvLoading").style.display = "none";
+        });
+        // credits stay one tap away behind the (i) rather than covering the top of the map
+        MV.map.once("idle", collapseCredits);
+        MV.map.on("zoom", syncFar);
+        MV.map.on("error", function(e){
+          if (MV.styleOk || !e || !e.error) return;
+          $("#mvLoading").style.display = "none"; closeFavMap(); toast("The map needs a connection — try again online", true);
+        });
+        MV.map.once("style.load", function(){ MV.styleOk = true; });
+      } else {
+        $("#mvLoading").style.display = "none";
+      }
+      MV.map.resize(); collapseCredits();
+      renderMap(ml);
+      fitMap(false);
+    }, function(){
+      $("#mvLoading").style.display = "none";
+      closeFavMap();
+      toast("The map needs a connection — try again online", true);
+    });
+  }
+  function collapseCredits(){ var at = $("#mvMap .maplibregl-ctrl-attrib"); if (at) at.classList.remove("maplibregl-compact-show"); }
+  function closeFavMap(){
+    var view = $("#mapView");
+    view.classList.remove("open"); view.setAttribute("aria-hidden", "true");
+  }
+
+  function renderMap(ml){
+    MV.items = mapItems(); MV.sel = -1;
+    MV.markers.forEach(function(m){ m.remove(); }); MV.markers = [];
+    MV.items.forEach(function(it, i){
+      if (!it.geo) return;
+      var el = document.createElement("div");
+      el.className = "pinwrap";
+      el.setAttribute("aria-label", it.fav.name + ", " + it.hits[0].t);
+      el.innerHTML = '<div class="pin">' + esc(it.hits[0].t) + '</div>';
+      el.addEventListener("click", function(e){ e.stopPropagation(); selectMapItem(i, "pin"); });
+      it.marker = new ml.Marker({ element: el, anchor: "bottom" }).setLngLat([it.geo.lng, it.geo.lat]).addTo(MV.map);
+      MV.markers.push(it.marker);
+    });
+    var cards = $("#mvCards");
+    cards.innerHTML = MV.items.map(mapCardHtml).join("");
+    cards.scrollLeft = 0;
+    syncFar();
+    if (MV.items.length) selectMapItem(0, "init");
+  }
+  // MapLibre zoom 12 shows about what a 256px-tile map shows at 13
+  function syncFar(){ if (MV.map) $("#mvMap").classList.toggle("mv-far", MV.map.getZoom() < 12); }
+  function bottomH(){ return $("#mvBottom").offsetHeight; }
+  function mapPad(){ return { top: 56, left: 36, right: 36, bottom: bottomH() + 24 }; }
+
+  function fitMap(animate){
+    var pts = MV.items.filter(function(it){ return it.geo; });
+    if (!pts.length) return;
+    if (pts.length === 1){
+      MV.map.jumpTo({ center: [pts[0].geo.lng, pts[0].geo.lat], zoom: 14, padding: { top: 0, left: 0, right: 0, bottom: bottomH() } });
+      return;
+    }
+    var b = new maplibregl.LngLatBounds();
+    pts.forEach(function(it){ b.extend([it.geo.lng, it.geo.lat]); });
+    MV.map.fitBounds(b, { padding: mapPad(), maxZoom: 14.5, duration: animate ? 600 : 0 });
+  }
+
+  // Move only when the pin is hidden behind the header or the card row.
+  function ensureVisible(lnglat, zoomIn){
+    var pad = mapPad(), c = MV.map.getContainer(), pt = MV.map.project(lnglat);
+    var inside = pt.x >= pad.left && pt.x <= c.clientWidth - pad.right && pt.y >= pad.top && pt.y <= c.clientHeight - pad.bottom;
+    if (inside && !zoomIn) return;
+    var o = { center: lnglat, offset: [0, -bottomH() / 2 + 20], duration: 450 };
+    if (zoomIn) o.zoom = 13.5;
+    MV.map.easeTo(o);
+  }
+
+  function selectMapItem(i, src){
+    var prev = MV.items[MV.sel];
+    if (prev && prev.marker){ var pe = prev.marker.getElement(); pe.firstChild.classList.remove("sel"); pe.style.zIndex = ""; }
+    MV.sel = i;
+    var cards = $("#mvCards").querySelectorAll(".mv-card");
+    cards.forEach(function(c, k){ c.classList.toggle("sel", k === i); });
+    var it = MV.items[i]; if (!it) return;
+    if (it.marker){
+      var el = it.marker.getElement(); el.firstChild.classList.add("sel"); el.style.zIndex = "5";
+      // a tapped dot zooms in to street level so the neighbours' times show too
+      if (src !== "init") ensureVisible(it.marker.getLngLat(), src === "pin" && MV.map.getZoom() < 12);
+    }
+    if (src === "pin" && cards[i]){
+      var box = $("#mvCards");
+      box.scrollTo({ left: cards[i].offsetLeft - (box.clientWidth - cards[i].offsetWidth) / 2, behavior: "smooth" });
+    }
+  }
+
+  // Swiping the card row selects whichever card ends up centred.
+  $("#mvCards").addEventListener("scroll", function(){
+    clearTimeout(MV.t);
+    MV.t = setTimeout(function(){
+      var box = $("#mvCards"), cards = box.querySelectorAll(".mv-card"), mid = box.scrollLeft + box.clientWidth / 2, best = -1, bd = 1e9;
+      cards.forEach(function(c, k){ var d = Math.abs(c.offsetLeft + c.offsetWidth / 2 - mid); if (d < bd){ bd = d; best = k; } });
+      if (best >= 0 && best !== MV.sel) selectMapItem(best, "card");
+    }, 90);
+  }, { passive: true });
+
+  $("#mvClose").onclick = closeFavMap;
+  $("#mvFit").onclick = function(){ if (MV.map) fitMap(true); };
+  $("#mvLocate").onclick = function(){
+    var ml = window.maplibregl;
+    if (!MV.map || !ml) return;
+    if (!navigator.geolocation){ toast("Location isn't available here", true); return; }
+    var b = this; b.classList.add("busy");
+    navigator.geolocation.getCurrentPosition(function(p){
+      b.classList.remove("busy"); b.classList.add("on");
+      MV.me = { lat: p.coords.latitude, lng: p.coords.longitude };
+      if (!MV.meMarker){ var d = document.createElement("div"); d.className = "me-dot"; MV.meMarker = new ml.Marker({ element: d }); }
+      MV.meMarker.setLngLat([MV.me.lng, MV.me.lat]).addTo(MV.map);
+      renderMap(ml);
+      var near = MV.items[0];
+      if (near && near.geo){
+        var bb = new ml.LngLatBounds([MV.me.lng, MV.me.lat], [MV.me.lng, MV.me.lat]).extend([near.geo.lng, near.geo.lat]);
+        MV.map.fitBounds(bb, { padding: mapPad(), maxZoom: 15, duration: 600 });
+      } else MV.map.easeTo({ center: [MV.me.lng, MV.me.lat], zoom: 14 });
+      toast("Sorted by distance from you");
+    }, function(e){
+      b.classList.remove("busy");
+      toast(e && e.code === 1 ? "Location is off for this app — allow it in Settings" : "Couldn't find your location", true);
+    }, { enableHighAccuracy: true, timeout: 12000, maximumAge: 60000 });
+  };
+  document.addEventListener("keydown", function(e){ if (e.key === "Escape" && $("#mapView").classList.contains("open")) closeFavMap(); });
 
   // ---- Service worker (for install / offline shell) ----
   if ("serviceWorker" in navigator){

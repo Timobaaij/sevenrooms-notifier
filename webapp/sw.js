@@ -3,6 +3,7 @@
  *   your phone immediately when online (cache is only the offline fallback).
  * - Static assets are cache-first with a background refresh.
  * - The /api/* proxy is never cached.
+ * - Cross-origin requests (map tiles, MapLibre from cdnjs) are not intercepted.
  */
 const CACHE = "maitre-v2";
 const SHELL = [
@@ -35,6 +36,9 @@ self.addEventListener("fetch", (e) => {
   // Never intercept the API — always live.
   if (url.pathname.endsWith("/api/config") || url.pathname.endsWith("/api/times")) return;
   if (req.method !== "GET") return;
+  // Map tiles and the map library come from other hosts; let the browser's own
+  // HTTP cache handle them rather than filling this cache with tiles.
+  if (url.origin !== self.location.origin) return;
 
   const isPage = req.mode === "navigate" || (req.headers.get("accept") || "").includes("text/html");
 
