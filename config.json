@@ -164,10 +164,6 @@
       "slug": "cassette"
     },
     {
-      "name": "Cav",
-      "slug": "cavrestaurant"
-    },
-    {
       "name": "Chez Bruce",
       "slug": "chezbruce",
       "area": "Balham"
@@ -291,10 +287,6 @@
       "slug": "josephinebistro"
     },
     {
-      "name": "José",
-      "slug": "josebypizarro"
-    },
-    {
       "name": "Julie's Restaurant",
       "slug": "juliesrestaurant"
     },
@@ -344,10 +336,6 @@
     {
       "name": "LEYDI",
       "slug": "leydi"
-    },
-    {
-      "name": "Lucia's",
-      "slug": "Lucias"
     },
     {
       "name": "Maison François",
@@ -478,10 +466,6 @@
     {
       "name": "Ria's",
       "slug": "riassoho"
-    },
-    {
-      "name": "Rita's",
-      "slug": "ritasbar"
     },
     {
       "name": "Rochelle Canteen",
@@ -630,7 +614,7 @@
     },
     {
       "name": "The George",
-      "slug": "thegeorge"
+      "slug": "thegeorgepub"
     },
     {
       "name": "The Good Oak",
@@ -645,21 +629,12 @@
       "slug": "thehartuk"
     },
     {
-      "name": "The Harwood Arms",
-      "slug": "harwoodarms",
-      "area": "Fulham"
-    },
-    {
       "name": "The Hawk's Nest",
       "slug": "thehawksnest"
     },
     {
       "name": "The Hero - Maida Vale",
       "slug": "thehero"
-    },
-    {
-      "name": "The Holly Bush, Hampstead",
-      "slug": "thehollybush"
     },
     {
       "name": "The Horses",
@@ -672,10 +647,6 @@
     {
       "name": "The Kerfield Arms",
       "slug": "thekerfieldarms"
-    },
-    {
-      "name": "The Libertine Restaurant & Bar",
-      "slug": "libertinerestaurantbar"
     },
     {
       "name": "The Mall Tavern",
