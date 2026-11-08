@@ -801,6 +801,25 @@
       "notify": "push",
       "email_to": "",
       "salt": "1794135748372"
+    },
+    {
+      "id": "Untitled",
+      "platform": "sevenrooms",
+      "venues": [
+        "rambutan"
+      ],
+      "party_size": 2,
+      "date": "2026-11-08",
+      "dates": [
+        "2026-11-08"
+      ],
+      "num_days": 7,
+      "time_slot": "",
+      "window_start": "12:00",
+      "window_end": "21:30",
+      "notify": "push",
+      "email_to": "",
+      "salt": "1794138498718"
     }
   ]
 }
