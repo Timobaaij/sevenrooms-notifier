@@ -56,9 +56,14 @@ async function sevenrooms(venue, date, party) {
       const times = (block && block.times) || [];
       for (const t of times) {
         if (!t || typeof t !== "object") continue;
-        const isReq = t.is_requestable === true;
+        // Request-only slots ("type":"request") carry an access_persistent_id too, so
+        // the id alone can't mean "bookable": only a "book" slot is a real table.
+        const isReq = t.is_requestable === true || t.type === "request";
         if (t.is_waitlist === true) continue;
-        const isAvail = ("is_available" in t) ? t.is_available === true : !!t.access_persistent_id;
+        const isAvail = isReq ? false
+          : ("is_available" in t) ? t.is_available === true
+          : t.type ? t.type === "book"
+          : !!t.access_persistent_id;
         if (!(isAvail || isReq)) continue;
         const hhmm = toHHMM(t.time_iso || t.date_time || t.time);
         if (!hhmm) continue;

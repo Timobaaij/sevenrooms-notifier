@@ -124,7 +124,9 @@ def send_email(to_email: str, subject: str, body: str, debug: bool = False) -> b
 def is_bookable_time(t: dict) -> bool:
     if t.get("is_requestable") is True: return False
     if t.get("is_waitlist") is True: return False
+    if t.get("type") == "request": return False
     if "is_available" in t: return t.get("is_available") is True
+    if t.get("type"): return t.get("type") == "book"
     return bool(t.get("access_persistent_id"))
 
 def _num_days_chunks(num_days: int) -> List[int]:
