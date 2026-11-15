@@ -789,7 +789,7 @@
       "venues": [
         "thewatermansarms"
       ],
-      "party_size": 3,
+      "party_size": 4,
       "date": "2026-11-22",
       "dates": [
         "2026-11-22"
@@ -800,7 +800,7 @@
       "window_end": "16:00",
       "notify": "push",
       "email_to": "",
-      "salt": "1794135748372"
+      "salt": "1794766481074"
     }
   ]
 }
