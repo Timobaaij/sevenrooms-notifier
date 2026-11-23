@@ -782,25 +782,5 @@
     "lang": "en",
     "reset_nonce": "1794749343639"
   },
-  "searches": [
-    {
-      "id": "Watermans JW",
-      "platform": "sevenrooms",
-      "venues": [
-        "thewatermansarms"
-      ],
-      "party_size": 4,
-      "date": "2026-11-22",
-      "dates": [
-        "2026-11-22"
-      ],
-      "num_days": 1,
-      "time_slot": "",
-      "window_start": "13:00",
-      "window_end": "16:00",
-      "notify": "push",
-      "email_to": "",
-      "salt": "1794766481074"
-    }
-  ]
+  "searches": []
 }
